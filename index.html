@@ -56,8 +56,19 @@
   map.fitBounds(bounds);
 
   // Test marker
-  L.marker([4000,4000]).addTo(map)
-    .bindPopup('Test Hex');
+  const hex = L.circleMarker(
+  [4000, 4000],
+  {
+    radius: 12,
+    color: 'white',
+    weight: 1,
+    fillColor: 'white',
+    fillOpacity: 0.05,
+    opacity: 0.15
+  }
+).addTo(map);
+
+hex.bindPopup('300:300');
 </script>
 
 </body>
