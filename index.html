@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Kadesh Map</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: black;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background: black;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Create map
+  const map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -2,
+    maxZoom: 4
+  });
+
+  // Image dimensions
+  const imageWidth = 8192;
+  const imageHeight = 8192;
+
+  // Define image bounds
+  const bounds = [[0,0], [imageHeight, imageWidth]];
+
+  // Add image
+  L.imageOverlay('Kadesh.png', bounds).addTo(map);
+
+  // Fit map to image
+  map.fitBounds(bounds);
+
+  // Test marker
+  L.marker([4000,4000]).addTo(map)
+    .bindPopup('Test Hex');
+</script>
+
+</body>
+</html>
