@@ -35,41 +35,36 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-  // Create map
   const map = L.map('map', {
     crs: L.CRS.Simple,
     minZoom: -2,
     maxZoom: 4
   });
 
-  // Image dimensions
   const imageWidth = 8192;
   const imageHeight = 8192;
 
-  // Define image bounds
   const bounds = [[0, 0], [imageHeight, imageWidth]];
 
-  // Add image overlay
   L.imageOverlay('Kadesh.png', bounds).addTo(map);
 
-  // Fit map to image
   map.fitBounds(bounds);
 
-  // --- TOP LEFT HEX TEST ---
+  // --- TOP LEFT HEX TEST: 300:300 ---
 
   // AppSheet XY for 300:300 = 1.33,1
+  // AppSheet uses top-left origin, so now we keep Y near the top.
   const centerX = (1.33 / 100) * imageWidth;
   const centerY = (1 / 100) * imageHeight;
 
-  // Hex size
   const hexRadius = 70;
 
-  // Build a pointy-top hex polygon
+  // Flat-top hex polygon
   function makeHex(centerX, centerY, radius) {
     const points = [];
 
     for (let i = 0; i < 6; i++) {
-      const angle = Math.PI / 180 * (60 * i - 30);
+      const angle = Math.PI / 180 * (60 * i);
 
       const x = centerX + radius * Math.cos(angle);
       const y = centerY + radius * Math.sin(angle);
@@ -81,7 +76,6 @@
     return points;
   }
 
-  // Draw hex
   const topLeftHex = L.polygon(
     makeHex(centerX, centerY, hexRadius),
     {
@@ -98,9 +92,7 @@
   // Zoom directly to test hex
   map.setView([centerY, centerX], 2);
 
-  console.log('Hex drawn');
-  alert('Hex test loaded');
-
+  console.log('Flat-top hex drawn at 300:300');
 </script>
 
 </body>
