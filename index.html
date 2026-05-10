@@ -39,35 +39,30 @@
 
   map.fitBounds(bounds);
 
-  // AppSheet XY for 300:300 = 1.33,1
+  // 300:300
   const centerX = (1.33 / 100) * imageWidth;
   const centerY = imageHeight - ((1 / 100) * imageHeight);
 
-  // Increased to match underlying map hex
-  const hexRadius = 125;
+  // Separate width/height scaling
+  const hexWidth = 155;
+  const hexHeight = 115;
 
-  // Flat-top hex polygon
-  function makeHex(centerX, centerY, radius) {
-    const points = [];
-
-    for (let i = 0; i < 6; i++) {
-      const angle = Math.PI / 180 * (60 * i);
-
-      const x = centerX + radius * Math.cos(angle);
-      const y = centerY + radius * Math.sin(angle);
-
-      // Leaflet uses [Y, X]
-      points.push([y, x]);
-    }
-
-    return points;
+  function makeHex(centerX, centerY, width, height) {
+    return [
+      [centerY, centerX + width],                 // right
+      [centerY + height * 0.5, centerX + width * 0.5],
+      [centerY + height * 0.5, centerX - width * 0.5],
+      [centerY, centerX - width],                 // left
+      [centerY - height * 0.5, centerX - width * 0.5],
+      [centerY - height * 0.5, centerX + width * 0.5]
+    ];
   }
 
   const topLeftHex = L.polygon(
-    makeHex(centerX, centerY, hexRadius),
+    makeHex(centerX, centerY, hexWidth, hexHeight),
     {
       color: 'red',
-      weight: 4,
+      weight: 3,
       fillColor: 'yellow',
       fillOpacity: 0.15,
       opacity: 1
@@ -76,10 +71,8 @@
 
   topLeftHex.bindPopup('300:300');
 
-  // Zoom to test hex
   map.setView([centerY, centerX], 2);
 
-  console.log('Hex overlay drawn');
 </script>
 </body>
 </html>
