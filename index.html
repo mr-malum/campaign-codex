@@ -632,6 +632,22 @@ function renderNpcScreen(npcId) {
 
     });
 
+document.getElementById('mobile-panel-close')
+  .addEventListener('click', function () {
+    document.getElementById('app-panel')
+      .classList.remove('open');
+
+    if (selectedHex) {
+      selectedHex.setStyle(defaultStyle);
+      selectedHex = null;
+    }
+  });
+
+document.getElementById('mobile-panel-back')
+  .addEventListener('click', function () {
+    goBackPanel();
+  });
+
 </script>
 
 </body>
