@@ -469,8 +469,62 @@ hex.on('click', function (e) {
       if (isTouchDevice) {
         this.bindPopup(`
           <div style="min-width:180px;">
-            <strong>${escapeHtml(hexId)}</strong><br>
-            ${escapeHtml(data?.Terrain || 'Unknown')}<br><br>
+            <div
+  style="
+    font-family:'Marcellus SC', Georgia, serif;
+    font-size:1.05rem;
+    letter-spacing:0.04em;
+    margin-bottom:6px;
+  "
+>
+  ${escapeHtml(hexId)}
+</div>
+
+<div
+  style="
+    font-family:'Marcellus SC', Georgia, serif;
+    font-size:1.15rem;
+    color:#2f1d10;
+    margin-bottom:10px;
+  "
+>
+  ${escapeHtml(data?.Terrain || 'Unknown')}
+</div>
+
+${
+  (() => {
+    const poiCount =
+      (db?.poisByHexId?.[hexId] || []).length;
+
+    const npcCount =
+      (db?.npcsByHexId?.[hexId] || []).length;
+
+    let info = [];
+
+    if (poiCount > 0) {
+      info.push(`${poiCount} POI${poiCount !== 1 ? 's' : ''}`);
+    }
+
+    if (npcCount > 0) {
+      info.push(`${npcCount} NPC${npcCount !== 1 ? 's' : ''}`);
+    }
+
+    if (!info.length) return "";
+
+    return `
+      <div
+        style="
+          opacity:0.78;
+          margin-bottom:12px;
+          font-size:0.95rem;
+        "
+      >
+        ${info.join(" • ")}
+      </div>
+    `;
+  })()
+}
+            
 
             <button
               onclick="openPanelForHex('${escapeJsString(hexId)}')"
