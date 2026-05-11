@@ -37,12 +37,24 @@
 <script src="data-loader.js"></script>
 
 <script>
+
+  let db = null;
+
+  loadDatabase().then(loadedDb => {
+    db = loadedDb;
+    console.log("Database loaded:", db);
+  });
+
   const map = L.map('map', {
     crs: L.CRS.Simple,
     minZoom: -3,
     maxZoom: 0,
     maxBoundsViscosity: 0.5
   });
+
+  // rest of your existing code...
+
+</script>
 
   const imageWidth = 8192;
   const imageHeight = 8192;
