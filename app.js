@@ -155,6 +155,24 @@ function getHexCounts(hexId) {
   };
 }
 
+function getRegionSummary(regionId) {
+  const hexes = getRowsByField(db?.raw?.hexes, "Region_ID_Ref", regionId);
+
+  const pois = hexes.flatMap(hex => {
+    return getPoisForHex(hex.Hex_ID);
+  });
+
+  const npcCount = pois.reduce((total, poi) => {
+    return total + getNpcsForPoi(poi.POI_ID).length;
+  }, 0);
+
+  return {
+    hexCount: hexes.length,
+    poiCount: pois.length,
+    npcCount
+  };
+}
+
 function selectHex(hex) {
   if (selectedHex && selectedHex !== hex) {
     selectedHex.setStyle(defaultStyle);
@@ -283,7 +301,15 @@ function setCodexContent(html, breadcrumbs = []) {
 }
 
 function updateCodexBackButton() {
-  document.getElementById("codex-back").disabled = codexHistory.length <= 1;
+  const backButton = document.getElementById("codex-back");
+
+  if (codexHistory.length <= 1) {
+    backButton.disabled = false;
+    backButton.textContent = "← Map";
+  } else {
+    backButton.disabled = false;
+    backButton.textContent = "← Back";
+  }
 }
 
 function openCodexPage(type = "index", id = null, options = {}) {
@@ -530,7 +556,14 @@ function renderCodexRegionsIndex() {
     "No regions recorded.",
     "region",
     "Region_ID",
-    row => row.Region_Name || row.Region_ID || "Unnamed Region"
+    row => {
+      const summary = getRegionSummary(row.Region_ID);
+
+      return [
+        row.Region_Name || row.Region_ID || "Unnamed Region",
+        `${summary.hexCount} hexes • ${summary.poiCount} POIs • ${summary.npcCount} NPCs`
+      ].filter(Boolean).join(" — ");
+    }
   ));
 }
 
@@ -848,6 +881,11 @@ document.getElementById("codex-close").addEventListener("click", function () {
 });
 
 document.getElementById("codex-back").addEventListener("click", function () {
+  if (codexHistory.length <= 1) {
+    closeCodex();
+    return;
+  }
+
   goBackCodex();
 });
 
