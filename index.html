@@ -402,8 +402,21 @@ function renderPoiScreen(poiId) {
                   class="panel-link"
                   onclick="pushPanelScreen(() => renderNpcScreen('${npc.NPC_ID}'))"
                 >
-                  ${escapeHtml(npc.Name)}
-                  ${npc.Occupation ? ` — ${escapeHtml(npc.Occupation)}` : ""}
+                      ${escapeHtml(npc.Name)}
+                      
+                      ${
+                        npc.Race || npc.Occupation
+                          ? ` — ${
+                              [
+                                npc.Race,
+                                npc.Occupation
+                              ]
+                              .filter(Boolean)
+                              .map(escapeHtml)
+                              .join(" ")
+                            }`
+                          : ""
+                      }
                 </button>
               </li>
             `).join("")}
@@ -448,6 +461,11 @@ function renderNpcScreen(npcId) {
       ${escapeHtml(home?.Name || npc.Home_ID_Ref || "Unknown")}
     </p>
 
+    <p>
+      <strong>Race:</strong>
+      ${escapeHtml(npc.Race || "Unknown")}
+    </p>
+    
     <p>
       <strong>Occupation:</strong>
       ${escapeHtml(npc.Occupation || "Unknown")}
