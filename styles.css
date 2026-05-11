@@ -89,12 +89,12 @@ html, body {
 /* Right-side panel parchment offset */
 #app-panel.right::before {
   left: -20px;
-  right: -140px;
+  right: -125px;
 }
 
 /* Left-side panel parchment offset */
 #app-panel.left::before {
-  left: -140px;
+  left: -125px;
   right: -20px;
 }
 
