@@ -741,7 +741,7 @@ function renderCodexPoisIndex() {
         type="button"
         data-direction="asc"
       >
-        ↑ Ascending
+        ↑ ASC
       </button>
     </div>
 
@@ -766,8 +766,8 @@ function renderCodexPoisIndex() {
   this.dataset.direction = next;
 
   this.textContent = next === "asc"
-    ? "↑ Ascending"
-    : "↓ Descending";
+    ? "↑ ASC"
+    : "↓ DESC";
 
   renderPoiListIntoContainer();
 });
