@@ -23,11 +23,23 @@ map.fitBounds(bounds);
 function updatePanBounds() {
   const zoom = map.getZoom();
 
-  const padding =
-    zoom < -2 ? 5200 :
-    zoom < -1 ? 2200 :
-    zoom < 0  ? 1300 :
-                700;
+  const isMobile = window.innerWidth <= 768;
+
+  let padding;
+
+  if (isMobile) {
+    padding =
+      zoom < -2 ? 7000 :
+      zoom < -1 ? 2200 :
+      zoom < 0  ? 1200 :
+                  700;
+  } else {
+    padding =
+      zoom < -2 ? 5200 :
+      zoom < -1 ? 1700 :
+      zoom < 0  ? 1100 :
+                  600;
+  }
 
   map.setMaxBounds([
     [-padding, -padding],
