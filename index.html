@@ -5,7 +5,10 @@
   <title>Kadesh Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
 
   <style>
     html, body, #map {
@@ -13,12 +16,22 @@
       height: 100%;
       width: 100%;
       overflow: hidden;
-      background: lightgrey;
+    }
+
+    body {
+      background-image: url('Parchemnt_Tile.png');
+      background-repeat: repeat;
+    }
+
+    #map {
+      background-image: url('Parchemnt_Tile.png');
+      background-repeat: repeat;
     }
   </style>
 </head>
 
 <body>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -39,20 +52,18 @@
 
   map.fitBounds(bounds);
 
-  // 300:300
   const centerX = (1.33 / 100) * imageWidth;
   const centerY = imageHeight - ((1 / 100) * imageHeight);
 
-  // Separate width/height scaling
-  const hexWidth = 110;
-  const hexHeight = 160;
+  const hexWidth = 82;
+  const hexHeight = 72;
 
   function makeHex(centerX, centerY, width, height) {
     return [
-      [centerY, centerX + width],                 // right
+      [centerY, centerX + width],
       [centerY + height * 0.5, centerX + width * 0.5],
       [centerY + height * 0.5, centerX - width * 0.5],
-      [centerY, centerX - width],                 // left
+      [centerY, centerX - width],
       [centerY - height * 0.5, centerX - width * 0.5],
       [centerY - height * 0.5, centerX + width * 0.5]
     ];
@@ -72,7 +83,7 @@
   topLeftHex.bindPopup('300:300');
 
   map.setView([centerY, centerX], 2);
-
 </script>
+
 </body>
 </html>
