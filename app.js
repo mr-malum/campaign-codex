@@ -24,10 +24,10 @@ function updatePanBounds() {
   const zoom = map.getZoom();
 
   const padding =
-    zoom < -2 ? 2600 :
-    zoom < -1 ? 1700 :
-    zoom < 0  ? 1100 :
-                600;
+    zoom < -2 ? 5200 :
+    zoom < -1 ? 2200 :
+    zoom < 0  ? 1300 :
+                700;
 
   map.setMaxBounds([
     [-padding, -padding],
