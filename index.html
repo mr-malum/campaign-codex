@@ -278,201 +278,200 @@
   }
 
   // =====================================================
-  // Panel Renderers
-  // =====================================================
+// Panel Renderers
+// =====================================================
 
-  function renderHexScreen(hexId) {
+function renderHexScreen(hexId) {
 
-    const hex = db?.hexesById?.[hexId];
+  const hex = db?.hexesById?.[hexId];
 
-    const region =
-      hex?.Region_ID_Ref
-        ? db?.regionsById?.[hex.Region_ID_Ref]
-        : null;
+  const region =
+    hex?.Region_ID_Ref
+      ? db?.regionsById?.[hex.Region_ID_Ref]
+      : null;
 
-    const pois =
-      db?.poisByHexId?.[hexId] ||
-      getRowsByField(db?.raw?.pois, "Hex_ID_Ref", hexId);
+  const pois =
+    db?.poisByHexId?.[hexId] ||
+    getRowsByField(db?.raw?.pois, "Hex_ID_Ref", hexId);
 
-    document.getElementById('app-panel')
-      .classList.add('open');
+  document.getElementById('app-panel')
+    .classList.add('open');
 
-    document.getElementById('panel-title')
-      .textContent = `HEX ${hexId}`;
+  document.getElementById('panel-title')
+    .textContent = `HEX ${hexId}`;
 
-    document.getElementById('panel-subtitle')
-      .textContent = "";
+  document.getElementById('panel-subtitle')
+    .textContent = "";
 
-    document.getElementById('panel-content').innerHTML = `
+  document.getElementById('panel-content').innerHTML = `
 
-      <p>
-        <strong>Terrain:</strong>
-        ${escapeHtml(hex?.Terrain || 'Unknown')}
-      </p>
+    <p>
+      <strong>Terrain:</strong>
+      ${escapeHtml(hex?.Terrain || 'Unknown')}
+    </p>
 
-      <p>
-        <strong>Region:</strong>
-        ${escapeHtml(region?.Region_Name || hex?.Region_ID_Ref || 'Unknown')}
-      </p>
+    <p>
+      <strong>Region:</strong>
+      ${escapeHtml(region?.Region_Name || hex?.Region_ID_Ref || 'Unknown')}
+    </p>
 
-      <p>
-        <strong>DM Journal:</strong>
-      </p>
+    <p>
+      <strong>DM Journal:</strong>
+    </p>
 
-      <div class="panel-text-block">
-        ${escapeHtml(poi.DM_Journal || "No journal entries.")}
-      </div>
+    <div class="panel-text-block">
+      ${escapeHtml(hex?.DM_Journal || "No journal entries.")}
+    </div>
 
-      ${renderList(
-        "Points of Interest",
-        pois,
-        "No known points of interest in this hex.",
-        ["Name", "POI_Type", "Notoriety Tier"]
-      )}
-    `;
-  }
+    ${renderList(
+      "Points of Interest",
+      pois,
+      "No known points of interest in this hex.",
+      ["Name", "POI_Type", "Notoriety Tier"]
+    )}
+  `;
+}
 
-  function renderPoiScreen(poiId) {
+function renderPoiScreen(poiId) {
 
-    const poi = db?.poisById?.[poiId];
+  const poi = db?.poisById?.[poiId];
 
-    if (!poi) return;
+  if (!poi) return;
 
-    const npcs =
-      db?.npcsByHomeId?.[poiId] || [];
+  const npcs =
+    db?.npcsByHomeId?.[poiId] || [];
 
-    document.getElementById('app-panel')
-      .classList.add('open');
+  document.getElementById('app-panel')
+    .classList.add('open');
 
-    document.getElementById('panel-title')
-      .textContent = poi.Name || "Unknown POI";
+  document.getElementById('panel-title')
+    .textContent = poi.Name || "Unknown POI";
 
-    document.getElementById('panel-subtitle')
-      .textContent = "";
+  document.getElementById('panel-subtitle')
+    .textContent = "";
 
-    document.getElementById('panel-content').innerHTML = `
+  document.getElementById('panel-content').innerHTML = `
 
-      <button
-        class="panel-link"
-        onclick="goBackPanel()"
-      >
-        ← Back
-      </button>
+    <button
+      class="panel-link"
+      onclick="goBackPanel()"
+    >
+      ← Back
+    </button>
 
-      <p>
-        <strong>Type:</strong>
-        ${escapeHtml(poi.POI_Type || "Unknown")}
-      </p>
+    <p>
+      <strong>Type:</strong>
+      ${escapeHtml(poi.POI_Type || "Unknown")}
+    </p>
 
-      <p>
-        <strong>Notoriety Tier:</strong>
-        ${escapeHtml(poi["Notoriety Tier"] || "Unknown")}
-      </p>
+    <p>
+      <strong>Notoriety Tier:</strong>
+      ${escapeHtml(poi["Notoriety Tier"] || "Unknown")}
+    </p>
 
-      <p>
-        <strong>Population:</strong>
-        ${escapeHtml(poi.Population || "N/A")}
-      </p>
+    <p>
+      <strong>Population:</strong>
+      ${escapeHtml(poi.Population || "N/A")}
+    </p>
 
-      <p>
-        <strong>Lore:</strong>
-      </p>
+    <p>
+      <strong>Lore:</strong>
+    </p>
 
-      <div class="panel-text-block">
-        ${escapeHtml(poi.Lore || "No lore recorded.")}
-      </div>
-      
-      
-      <p>
-        <strong>DM Journal:</strong>
-      </p>
+    <div class="panel-text-block">
+      ${escapeHtml(poi.Lore || "No lore recorded.")}
+    </div>
 
-      <div class="panel-text-block">
-        ${escapeHtml(poi.DM_Journal || "No journal entries.")}
-      </div>
+    <p>
+      <strong>DM Journal:</strong>
+    </p>
 
-      <h3>NPCs</h3>
+    <div class="panel-text-block">
+      ${escapeHtml(poi.DM_Journal || "No journal entries.")}
+    </div>
 
-      ${
-        npcs.length
-          ? `
-            <ul>
-              ${npcs.map(npc => `
-                <li>
-                  <button
-                    class="panel-link"
-                    onclick="pushPanelScreen(() => renderNpcScreen('${npc.NPC_ID}'))"
-                  >
-                    ${escapeHtml(npc.Name)}
-                    ${npc.Occupation ? ` — ${escapeHtml(npc.Occupation)}` : ""}
-                  </button>
-                </li>
-              `).join("")}
-            </ul>
-          `
-          : `<p>No known NPCs at this location.</p>`
-      }
-    `;
-  }
+    <h3>NPCs</h3>
 
-  function renderNpcScreen(npcId) {
+    ${
+      npcs.length
+        ? `
+          <ul>
+            ${npcs.map(npc => `
+              <li>
+                <button
+                  class="panel-link"
+                  onclick="pushPanelScreen(() => renderNpcScreen('${npc.NPC_ID}'))"
+                >
+                  ${escapeHtml(npc.Name)}
+                  ${npc.Occupation ? ` — ${escapeHtml(npc.Occupation)}` : ""}
+                </button>
+              </li>
+            `).join("")}
+          </ul>
+        `
+        : `<p>No known NPCs at this location.</p>`
+    }
+  `;
+}
 
-    const npc = db?.npcsById?.[npcId];
+function renderNpcScreen(npcId) {
 
-    if (!npc) return;
+  const npc = db?.npcsById?.[npcId];
 
-    const home =
-      npc?.Home_ID_Ref
-        ? db?.poisById?.[npc.Home_ID_Ref]
-        : null;
+  if (!npc) return;
 
-    document.getElementById('app-panel')
-      .classList.add('open');
+  const home =
+    npc?.Home_ID_Ref
+      ? db?.poisById?.[npc.Home_ID_Ref]
+      : null;
 
-    document.getElementById('panel-title')
-      .textContent = npc.Name || "Unknown NPC";
+  document.getElementById('app-panel')
+    .classList.add('open');
 
-    document.getElementById('panel-subtitle')
-      .textContent = "";
+  document.getElementById('panel-title')
+    .textContent = npc.Name || "Unknown NPC";
 
-    document.getElementById('panel-content').innerHTML = `
+  document.getElementById('panel-subtitle')
+    .textContent = "";
 
-      <button
-        class="panel-link"
-        onclick="goBackPanel()"
-      >
-        ← Back
-      </button>
+  document.getElementById('panel-content').innerHTML = `
 
-      <p>
-        <strong>Home:</strong>
-        ${escapeHtml(home?.Name || npc.Home_ID_Ref || "Unknown")}
-      </p>
+    <button
+      class="panel-link"
+      onclick="goBackPanel()"
+    >
+      ← Back
+    </button>
 
-      <p>
-        <strong>Occupation:</strong>
-        ${escapeHtml(npc.Occupation || "Unknown")}
-      </p>
+    <p>
+      <strong>Home:</strong>
+      ${escapeHtml(home?.Name || npc.Home_ID_Ref || "Unknown")}
+    </p>
 
-      <p>
-        <strong>Lore:</strong>
-      </p>
+    <p>
+      <strong>Occupation:</strong>
+      ${escapeHtml(npc.Occupation || "Unknown")}
+    </p>
 
-      <div class="panel-text-block">
-        ${escapeHtml(poi.Lore || "No lore recorded.")}
-      </div>
+    <p>
+      <strong>Lore:</strong>
+    </p>
 
-      <p>
-        <strong>DM Journal:</strong>
-      </p>
+    <div class="panel-text-block">
+      ${escapeHtml(npc.Lore || "No lore recorded.")}
+    </div>
 
-      <div class="panel-text-block">
-        ${escapeHtml(poi.DM_Journal || "No journal entries.")}
-      </div>
-      
-    `;
-  }
+    <p>
+      <strong>DM Journal:</strong>
+    </p>
 
+    <div class="panel-text-block">
+      ${escapeHtml(npc.DM_Journal || "No journal entries.")}
+    </div>
+
+  `;
+}
+  
   // =====================================================
   // Panel Entry Helpers
   // =====================================================
