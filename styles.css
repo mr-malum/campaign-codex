@@ -305,10 +305,10 @@ button.panel-link.mobile-nav-back {
 #mobile-panel-nav {
   display: flex;
 
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 96px;
+  margin-top: auto;
+  margin-left: 24px;
+  margin-right: 24px;
+  margin-bottom: 96px;
 
   justify-content: space-between;
   align-items: center;
@@ -401,10 +401,10 @@ button.panel-link.mobile-nav-back {
   }
 
   #mobile-panel-nav {
-    left: 24px;
-    right: 24px;
-    bottom: calc(96px + env(safe-area-inset-bottom));
-  }
+  margin-left: 24px;
+  margin-right: 24px;
+  margin-bottom: calc(96px + env(safe-area-inset-bottom));
+}
 }
 
 /* Atlas Button */
@@ -666,6 +666,9 @@ button.panel-link.mobile-nav-back {
 }
 
 #atlas-nav button {
+  appearance: none;
+  -webkit-appearance: none;
+
   border: none;
   background: transparent;
 
