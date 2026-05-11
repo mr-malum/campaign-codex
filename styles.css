@@ -128,7 +128,9 @@ html, body {
 }
 
 
-.panel-link {
+button.panel-link {
+  cursor: pointer !important;
+
   width: 100%;
   text-align: left;
 
@@ -142,19 +144,17 @@ html, body {
 
   border-radius: 10px;
 
-  cursor: pointer;
-
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
     transform 0.12s ease;
 }
 
-.panel-link:hover {
+button.panel-link:hover {
   background: rgba(255,255,255,0.08);
   border-color: rgba(255,255,255,0.16);
 }
 
-.panel-link:active {
+button.panel-link:active {
   transform: scale(0.98);
 }
