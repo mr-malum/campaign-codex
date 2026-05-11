@@ -464,6 +464,8 @@ button.panel-link.mobile-nav-back {
   #codex-modal {
     width: calc(100vw - 18px);
     height: calc(100vh - 18px);
+
+    margin-top: 8px;
   
     padding-top: 10px;
     padding-left: 18px;
@@ -483,19 +485,23 @@ button.panel-link.mobile-nav-back {
   #codex-overlay .panel-nav {
     margin-left: 0;
     margin-right: 0;
-    margin-bottom: 24px;
+    margin-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+
+  #codex-overlay {
+    align-items: flex-start;
   }
 
   #codex-title {
     margin-top: 0;
   }
 
-#codex-content h3 {
-  margin-top: 34px;
+  #codex-content h3 {
+    margin-top: 34px;
   }
 
-#codex-breadcrumbs {
-  margin-bottom: 28px;
+  #codex-breadcrumbs {
+    margin-bottom: 28px;
   }
 }
 
