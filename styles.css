@@ -273,33 +273,41 @@ html, body {
 @media (max-width: 768px) {
   #app-panel {
     width: 100vw;
+    height: 100vh;
+
+    left: 0 !important;
+    right: auto !important;
+
+    transform: translateX(120%);
+  }
+
+  #app-panel.left,
+  #app-panel.right {
+    left: 0 !important;
+    right: auto !important;
+    transform: translateX(120%);
+  }
+
+  #app-panel.left.open,
+  #app-panel.right.open {
+    transform: translateX(0);
   }
 
   #app-panel::before {
-    top: -180px;
-    bottom: -180px;
-    left: -120px;
-    right: -120px;
+    top: -120px;
+    bottom: -120px;
+    left: -80px;
+    right: -80px;
   }
 
-  #app-panel-header {
-    padding: 92px 58px 36px;
+  #app-panel.left::before,
+  #app-panel.right::before {
+    left: -80px;
+    right: -80px;
   }
 
-  #panel-content {
-    padding: 8px 58px 96px;
-  }
-
-  #app-panel.right #app-panel-header,
-  #app-panel.left #app-panel-header {
-    padding: 92px 58px 36px;
-  }
-
-  #app-panel.right #panel-content,
-  #app-panel.left #panel-content {
-    padding: 8px 58px 96px;
-  }
-}
+  #app-panel-header,
+  #app-panel.left #app-panel-header
 
 /* Interactive panel buttons/links */
 button.panel-link {
