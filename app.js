@@ -355,16 +355,7 @@ function renderCodexHexPage(hexId) {
   const pois = getPoisForHex(hexId);
   const npcs = getNpcsForHex(hexId);
 
-  setCodexTitle(`Hex ${hexId}  `, [
-    {
-      label: "Codex",
-      clickable: true,
-      onclick: "resetCodexToIndex()"
-    },
-    {
-      label: `Hex ${hexId}`
-    }
-  ]);
+  setCodexTitle(`Hex ${hexId}`);
 
   setCodexContent(`
     <p><strong>Terrain:</strong> ${escapeHtml(hex?.Terrain || "Unknown")}</p>
@@ -390,7 +381,16 @@ function renderCodexHexPage(hexId) {
     ${renderCodexLinkedList(npcs, "No known NPCs associated with this hex.", "npc", "NPC_ID", row => {
       return [row.Name, row.Race, row.Occupation].filter(Boolean).join(" — ");
     })}
-  `);
+  `, [
+    {
+      label: "Codex",
+      clickable: true,
+      onclick: "resetCodexToIndex()"
+    },
+    {
+      label: `Hex ${hexId}`
+    }
+  ]);
 }
 
 function renderCodexRegionPage(regionId) {
