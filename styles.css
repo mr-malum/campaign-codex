@@ -4,7 +4,7 @@ html, body {
   width: 100%;
   overflow: hidden;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
 }
 
 /* Tiled parchment background */
@@ -63,7 +63,7 @@ html, body {
 
   transition: transform 220ms ease;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
 
   pointer-events: none;
 }
@@ -668,7 +668,7 @@ text-shadow:
 
   color: #3a2614;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
 
   isolation: isolate;
   overflow: hidden;
@@ -844,7 +844,7 @@ text-shadow:
 
   color: #3a2614;
 
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: 'Spectral', Georgia, serif !important;
   font-size: 18px;
   line-height: 1.45;
 
@@ -958,7 +958,7 @@ text-shadow:
       rgba(214, 159, 82, 0.22)
     );
   color: #2f1d10;
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
   font-size: 1.25rem;
   box-shadow:
     inset 0 1px 5px rgba(55, 28, 8, 0.22),
@@ -1098,7 +1098,7 @@ text-shadow:
 }
 
 .codex-record-meta {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
   font-size: 1rem;
   opacity: 0.78;
 }
@@ -1181,7 +1181,7 @@ text-shadow:
   margin: 0 auto 22px;
   width: min(100%, 860px);
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
   font-size: 1.05rem;
   letter-spacing: 0.02em;
 
@@ -1255,7 +1255,7 @@ text-shadow:
 
   color: #3a2614;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
   font-size: 1.05rem;
 
   box-shadow:
