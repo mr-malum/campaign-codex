@@ -229,6 +229,22 @@
     `;
   }
 
+  function setPanelSideFromClick(event) {
+
+  const panel = document.getElementById('app-panel');
+
+  const clickX = event.originalEvent.clientX;
+  const screenWidth = window.innerWidth;
+
+  panel.classList.remove('left', 'right');
+
+  if (clickX > screenWidth / 2) {
+    panel.classList.add('left');
+  } else {
+    panel.classList.add('right');
+  }
+}
+  
   function renderHexScreen(hexId) {
     const hex = db?.hexesById?.[hexId];
 
@@ -357,8 +373,13 @@
 }
 
   function openPanelForHex(hexId) {
-  panelHistory = [];
-  pushPanelScreen(() => renderHexScreen(hexId));
+  if (!isTouchDevice) {
+  setPanelSideFromClick(e);
+}
+
+panelHistory = [];
+
+pushPanelScreen(() => renderHexScreen(hexId));
 }
 
 window.openPanelForHex = openPanelForHex;
