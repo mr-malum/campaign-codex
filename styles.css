@@ -4,7 +4,7 @@ html, body {
   width: 100%;
   overflow: hidden;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
 }
 
 /* Tiled parchment background */
@@ -63,7 +63,7 @@ html, body {
 
   transition: transform 220ms ease;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
 
   pointer-events: none;
 }
@@ -668,7 +668,7 @@ text-shadow:
 
   color: #3a2614;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
 
   isolation: isolate;
   overflow: hidden;
@@ -844,7 +844,7 @@ text-shadow:
 
   color: #3a2614;
 
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: 'Spectral', Georgia, serif !important;
   font-size: 18px;
   line-height: 1.45;
 
@@ -958,7 +958,7 @@ text-shadow:
       rgba(214, 159, 82, 0.22)
     );
   color: #2f1d10;
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
   font-size: 1.25rem;
   box-shadow:
     inset 0 1px 5px rgba(55, 28, 8, 0.22),
@@ -1098,7 +1098,7 @@ text-shadow:
 }
 
 .codex-record-meta {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
   font-size: 1rem;
   opacity: 0.78;
 }
@@ -1181,7 +1181,7 @@ text-shadow:
   margin: 0 auto 22px;
   width: min(100%, 860px);
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Spectral', Georgia, serif;
   font-size: 1.05rem;
   letter-spacing: 0.02em;
 
@@ -1215,4 +1215,156 @@ text-shadow:
 .codex-breadcrumb-separator {
   margin: 0 8px;
   opacity: 0.45;
+}
+
+/* Codex filter controls */
+.codex-filter-row {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 22px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.codex-filter-row label {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  
+  gap: 5px;
+
+  font-family: 'Marcellus SC', Georgia, serif;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  color: rgba(58, 38, 20, 0.82);
+}
+
+.codex-filter-row select {
+  min-width: 160px;
+
+  padding: 9px 12px;
+
+  border-radius: 10px;
+  border: 1px solid rgba(94, 55, 22, 0.36);
+
+  background:
+    linear-gradient(
+      rgba(255, 231, 174, 0.70),
+      rgba(166, 108, 41, 0.26)
+    );
+
+  color: #3a2614;
+
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 1.05rem;
+
+  box-shadow:
+    inset 0 1px 3px rgba(255, 241, 202, 0.35),
+    0 2px 8px rgba(45, 25, 8, 0.10);
+}
+
+.codex-filter-row select:focus {
+  outline: none;
+  border-color: rgba(94, 55, 22, 0.58);
+}
+
+@media (max-width: 768px) {
+  .codex-filter-row {
+    gap: 10px;
+  }
+
+  .codex-filter-row label {
+    flex: 1 1 140px;
+  }
+
+  .codex-filter-row select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.codex-sort-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.codex-sort-direction {
+  appearance: none;
+  -webkit-appearance: none;
+
+  height: 26px;
+  min-height: 0;
+
+  padding: 0 8px;
+
+  border-radius: 8px;
+  border: 1px solid rgba(94, 55, 22, 0.32);
+
+  background:
+    linear-gradient(
+      rgba(255, 231, 174, 0.78),
+      rgba(166, 108, 41, 0.32)
+    );
+
+  color: #3a2614;
+
+  font-family: 'Marcellus SC', Georgia, serif;
+  font-size: 0.68rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+
+  cursor: pointer;
+
+  box-shadow:
+    inset 0 1px 2px rgba(255, 241, 202, 0.35),
+    0 1px 4px rgba(45, 25, 8, 0.10);
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.codex-sort-direction:hover {
+  background:
+    linear-gradient(
+      rgba(255, 236, 188, 0.96),
+      rgba(214, 170, 108, 0.88)
+    );
+
+  border-color: rgba(94, 55, 22, 0.52);
+}
+
+.codex-sort-direction:active {
+  transform: scale(0.96);
+}
+
+/* =========================================================
+   CODEX DETAIL PAGE TYPOGRAPHY
+   ========================================================= */
+
+#codex-content p {
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+/* Large lore/journal manuscript blocks */
+#codex-content h3 + p {
+  padding-left: 1.1em;
+
+  font-style: italic;
+  font-weight: 400;
+
+  font-size: 1.02rem;
+  line-height: 1.9;
+
+  letter-spacing: 0.01em;
+}
+
+/* Slightly reduce metadata size */
+#codex-content strong {
+  font-size: 0.96em;
 }

@@ -401,9 +401,36 @@ function renderCodexHexPage(hexId) {
     <p>${escapeHtml(hex?.DM_Journal || "No journal entries.")}</p>
 
     <h3>Points of Interest</h3>
-    ${renderCodexLinkedList(pois, "No known points of interest in this hex.", "poi", "POI_ID", row => {
-      return [row.Name, row.POI_Type, row["Notoriety Tier"]].filter(Boolean).join(" — ");
-    })}
+    ${renderCodexLinkedList(
+      pois,
+      "No known points of interest in this hex.",
+      "poi",
+      "POI_ID",
+      row => {
+        const meta = [];
+
+        let typeLabel = row.POI_Type || "";
+
+        const npcCount = getNpcsForPoi(row.POI_ID).length;
+
+        if (npcCount > 0) {
+          typeLabel += ` • ${npcCount} NPC${npcCount !== 1 ? "s" : ""}`;
+        }
+
+        if (typeLabel) {
+          meta.push(typeLabel);
+        }
+
+        if (row["Notoriety Tier"]) {
+          meta.push(`Notoriety: ${row["Notoriety Tier"]}`);
+        }
+
+        return [
+          row.Name,
+          ...meta
+        ].filter(Boolean).join(" — ");
+      }
+    )}
 
     <h3>NPCs</h3>
     ${renderCodexLinkedList(npcs, "No known NPCs associated with this hex.", "npc", "NPC_ID", row => {
@@ -463,13 +490,36 @@ function renderCodexRegionPage(regionId) {
     <p>${terrainSummary || "No terrain data recorded."}</p>
 
     <h3>Points of Interest</h3>
-    ${renderCodexLinkedList(pois, "No points of interest currently recorded in this region.", "poi", "POI_ID", row => {
-      return [
-        row.Name,
-        row.POI_Type,
-        row["Notoriety Tier"] ? `Notoriety: ${row["Notoriety Tier"]}` : ""
-      ].filter(Boolean).join(" — ");
-    })}
+    ${renderCodexLinkedList(
+      pois,
+      "No points of interest currently recorded in this region.",
+      "poi",
+      "POI_ID",
+      row => {
+        const meta = [];
+
+        let typeLabel = row.POI_Type || "";
+
+        const npcCount = getNpcsForPoi(row.POI_ID).length;
+
+        if (npcCount > 0) {
+          typeLabel += ` • ${npcCount} NPC${npcCount !== 1 ? "s" : ""}`;
+        }
+
+        if (typeLabel) {
+          meta.push(typeLabel);
+        }
+
+        if (row["Notoriety Tier"]) {
+          meta.push(`Notoriety: ${row["Notoriety Tier"]}`);
+        }
+
+        return [
+          row.Name,
+          ...meta
+        ].filter(Boolean).join(" — ");
+      }
+    )}
 
     <h3>NPCs</h3>
     ${renderCodexLinkedList(npcs, "No NPCs currently recorded in this region.", "npc", "NPC_ID", row => {
@@ -618,22 +668,185 @@ function renderCodexRegionsIndex() {
   ));
 }
 
+function getPoiNotorietyRank(value) {
+  const clean = String(value || "").trim();
+
+  const numberMatch = clean.match(/\d+/);
+
+  if (numberMatch) {
+    return Number(numberMatch[0]);
+  }
+
+  const fallbackOrder = {
+    "Mythic": 1,
+    "Legendary": 2,
+    "Major": 3,
+    "Regional": 4,
+    "Local": 5
+  };
+
+  return fallbackOrder[clean] || 999;
+}
+
+function renderPoiListIntoContainer() {
+  const listEl = document.getElementById("codex-poi-list");
+  const typeFilter = document.getElementById("codex-poi-type-filter")?.value || "all";
+  const sortMode = document.getElementById("codex-poi-sort")?.value || "name";
+  const directionButton = document.getElementById("codex-poi-direction");
+
+  const sortDirection =
+    directionButton?.dataset?.direction || "asc";
+
+  let pois = [...(db?.raw?.pois || [])];
+
+  if (typeFilter !== "all") {
+    pois = pois.filter(poi => poi.POI_Type === typeFilter);
+  }
+
+  let compareFn = null;
+
+  if (sortMode === "name") {
+    compareFn = (a, b) =>
+      String(a.Name || "").localeCompare(String(b.Name || ""));
+  }
+
+  if (sortMode === "type") {
+    compareFn = (a, b) => {
+      const primary =
+        String(a.POI_Type || "").localeCompare(String(b.POI_Type || ""));
+
+      if (primary !== 0) return primary;
+
+      return String(a.Name || "").localeCompare(String(b.Name || ""));
+    };
+  }
+
+  if (sortMode === "notoriety") {
+    compareFn = (a, b) => {
+      const primary =
+        getPoiNotorietyRank(a["Notoriety Tier"]) -
+        getPoiNotorietyRank(b["Notoriety Tier"]);
+
+      if (primary !== 0) return primary;
+
+      return String(a.Name || "").localeCompare(String(b.Name || ""));
+    };
+  }
+
+  if (compareFn) {
+    pois.sort((a, b) => {
+      const result = compareFn(a, b);
+      return sortDirection === "desc" ? -result : result;
+    });
+  }
+
+  listEl.innerHTML = renderCodexLinkedList(
+    pois,
+    "No points of interest match these filters.",
+    "poi",
+    "POI_ID",
+    row => {
+      const meta = [];
+
+      let typeLabel = row.POI_Type || "";
+
+      const npcCount = getNpcsForPoi(row.POI_ID).length;
+
+      if (npcCount > 0) {
+        typeLabel += ` • ${npcCount} NPC${npcCount !== 1 ? "s" : ""}`;
+      }
+
+      if (typeLabel) {
+        meta.push(typeLabel);
+      }
+
+      if (row["Notoriety Tier"]) {
+        meta.push(`Notoriety: ${row["Notoriety Tier"]}`);
+      }
+
+      return [
+        row.Name,
+        ...meta
+      ].filter(Boolean).join(" — ");
+    }
+  );
+}
+
 function renderCodexPoisIndex() {
   const pois = db?.raw?.pois || [];
 
+  const poiTypes = [...new Set(
+    pois
+      .map(poi => poi.POI_Type)
+      .filter(Boolean)
+  )].sort();
+
   setCodexTitle("Points of Interest");
 
-  setCodexContent(renderCodexLinkedList(
-    pois,
-    "No points of interest recorded.",
-    "poi",
-    "POI_ID",
-row => [
-  row.Name,
-  row.POI_Type,
-  row["Notoriety Tier"] ? `Notoriety: ${row["Notoriety Tier"]}` : ""
-].filter(Boolean).join(" — ")
-  ));
+  setCodexContent(`
+    <div class="codex-filter-row">
+      <label>
+        Type
+        <select id="codex-poi-type-filter">
+          <option value="all">All</option>
+          ${poiTypes.map(type => `
+            <option value="${escapeHtml(type)}">${escapeHtml(type)}</option>
+          `).join("")}
+        </select>
+      </label>
+
+      <label class="codex-sort-label">
+        <span class="codex-sort-topline">
+          Sort
+
+          <button
+            id="codex-poi-direction"
+            class="codex-sort-direction"
+            type="button"
+            data-direction="asc"
+          >
+            ↑ ASC
+          </button>
+        </span>
+
+        <select id="codex-poi-sort">
+          <option value="name">Name</option>
+          <option value="type">Type</option>
+          <option value="notoriety">Notoriety</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="codex-poi-list"></div>
+  `, [
+    {
+      label: "Codex",
+      clickable: true,
+      onclick: "resetCodexToIndex()"
+    },
+    {
+      label: "Points of Interest"
+    }
+  ]);
+
+  document.getElementById("codex-poi-type-filter").addEventListener("change", renderPoiListIntoContainer);
+
+  document.getElementById("codex-poi-sort").addEventListener("change", renderPoiListIntoContainer);
+
+  document.getElementById("codex-poi-direction").addEventListener("click", function () {
+    const current = this.dataset.direction || "asc";
+    const next = current === "asc" ? "desc" : "asc";
+
+    this.dataset.direction = next;
+
+    this.textContent = next === "asc"
+      ? "↑ ASC"
+      : "↓ DESC";
+
+    renderPoiListIntoContainer();
+  });
+
+  renderPoiListIntoContainer();
 }
 
 function renderCodexNpcsIndex() {
