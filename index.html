@@ -158,16 +158,25 @@
         }
       });
 
-      hex.on('click', function () {
+      hex.on('click', function (e) {
+        L.DomEvent.stopPropagation(e);
+      
         if (selectedHex && selectedHex !== this) {
           selectedHex.setStyle(defaultStyle);
         }
-
+      
         selectedHex = this;
         this.setStyle(selectedStyle);
       });
 
       hex.bindPopup(hexId);
+
+      map.on('click', function () {
+        if (selectedHex) {
+      selectedHex.setStyle(defaultStyle);
+      selectedHex = null;
+  }
+});
     }
   }
 </script>
