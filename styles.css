@@ -144,20 +144,20 @@ html, body {
 
 /* Right-side panel content bias */
 #app-panel.right #app-panel-header {
-  padding: 92px 42px 32px 82px;
+  padding: 92px 18px 32px 64px;
 }
 
 #app-panel.right #panel-content {
-  padding: 12px 42px 120px 82px;
+  padding: 18px 18px 120px 64px;
 }
 
 /* Left-side panel content bias */
 #app-panel.left #app-panel-header {
-  padding: 92px 82px 32px 42px;
+  padding: 92px 64px 32px 18px;
 }
 
 #app-panel.left #panel-content {
-  padding: 12px 82px 120px 42px;
+  padding: 18px 64px 120px 18px;
 }
 
 /* Header divider */
@@ -235,14 +235,18 @@ html, body {
 
   padding: 12px 90px 120px;
 
-  font-size: 17px;
-  line-height: 1.5;
+  font-size: 20px;
+  line-height: 1.6;
 }
 
 /* Content headings / labels */
 #panel-content h3,
 #panel-content strong {
   font-family: 'Marcellus SC', Georgia, serif;
+}
+
+#panel-content h3 {
+  font-size: 1.55rem;
 }
 
 /* Mobile */
@@ -288,6 +292,8 @@ button.panel-link {
   border: 1px solid rgba(94, 55, 22, 0.18);
 
   color: #3a2614;
+
+  font-size: 1.08rem;
 
   padding: 10px 12px;
   margin: 4px 0;
