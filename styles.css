@@ -470,6 +470,36 @@ button.panel-link.mobile-nav-back {
     drop-shadow(0 0 12px rgba(255, 225, 160, 0.12));
 }
 
+#codex-button::before {
+  content: "CODEX";
+
+  position: absolute;
+  left: 50%;
+  top: 50%;
+
+  transform: translate(-50%, -50%);
+
+  font-family: 'Marcellus SC', Georgia, serif;
+  font-size: 2.25rem;
+  letter-spacing: 0.22em;
+  line-height: 1;
+
+  color: #2f1d10;
+
+  text-shadow:
+    0 0 8px rgba(245, 210, 140, 0.95),
+    0 0 18px rgba(245, 210, 140, 0.75),
+    0 0 34px rgba(60, 32, 10, 0.70),
+    0 4px 8px rgba(0, 0, 0, 0.55);
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  transition:
+    opacity 220ms ease;
+}
+
 #codex-button:focus,
 #codex-button:focus-visible,
 #codex-button:active {
@@ -487,6 +517,10 @@ button.panel-link.mobile-nav-back {
     drop-shadow(0 0 16px rgba(255, 225, 160, 0.16));
 }
 
+#codex-button:hover::before {
+  opacity: 1;
+}
+
 #codex-button:active {
   transform: scale(0.985);
 }
@@ -501,8 +535,12 @@ button.panel-link.mobile-nav-back {
     left: 18px;
   }
 
-}
+  #codex-button::before {
+    font-size: 1.7rem;
+    letter-spacing: 0.18em;
+  }
 
+}
 /* Codex Modal */
 
 #codex-overlay {
