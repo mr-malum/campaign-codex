@@ -185,7 +185,29 @@
             ${data.description}
           `);
         } else {
-          hex.bindPopup(hexId);
+         hex.on('click', function (e) {
+  L.DomEvent.stopPropagation(e);
+
+  if (selectedHex && selectedHex !== this) {
+    selectedHex.setStyle(defaultStyle);
+  }
+
+  selectedHex = this;
+  this.setStyle(selectedStyle);
+
+  const data = hexData?.[hexId];
+
+  document.getElementById('panel-title').textContent =
+    data?.name || hexId;
+
+  document.getElementById('panel-content').innerHTML = `
+    <p><strong>Hex:</strong> ${hexId}</p>
+    <p><strong>Terrain:</strong> ${data?.terrain || 'Unknown'}</p>
+    <p><strong>Description:</strong><br>
+      ${data?.description || 'No known point of interest.'}
+    </p>
+  `;
+});
         }
 
       map.on('click', function () {
