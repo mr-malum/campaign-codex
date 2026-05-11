@@ -315,6 +315,11 @@
         ${escapeHtml(region?.Region_Name || hex?.Region_ID_Ref || 'Unknown')}
       </p>
 
+      <p>
+        <strong>DM Journal:</strong><br>
+        ${escapeHtml(hex?.DM_Journal || "No journal entries.")}
+      </p>
+
       ${renderList(
         "Points of Interest",
         pois,
@@ -367,8 +372,15 @@
       </p>
 
       <p>
-        <strong>Description:</strong><br>
-        ${escapeHtml(poi.Description || "No description.")}
+        <strong>Lore:</strong><br>
+        ${escapeHtml(poi.Lore || "No lore recorded.")}
+      
+      </p>
+      
+      <p>
+        <strong>DM Journal:</strong><br>
+        ${escapeHtml(poi.DM_Journal || "No journal entries.")}
+        
       </p>
 
       <h3>NPCs</h3>
@@ -436,8 +448,15 @@
 
       <p>
         <strong>Lore:</strong><br>
-        ${escapeHtml(npc["Lore Snippet"] || "No lore recorded.")}
+        ${escapeHtml(npc.Lore || "No lore recorded.")}
+        
       </p>
+
+      <p>
+        <strong>DM Journal:</strong><br>
+        ${escapeHtml(npc.DM_Journal || "No journal entries.")}
+      </p>
+      
     `;
   }
 
