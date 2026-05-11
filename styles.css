@@ -441,17 +441,31 @@ button.panel-link:active {
   cursor: pointer;
 
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+
   outline: none;
+  box-shadow: none;
 }
 
 #atlas-button:focus,
-#atlas-button:focus-visible {
+#atlas-button:focus-visible,
+#atlas-button:active {
   outline: none;
+  box-shadow: none;
+  background: transparent;
 }
+
 #atlas-button img {
   width: 100%;
   height: 100%;
   display: block;
+
+  pointer-events: none;
+
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
 
   transition:
     transform 0.18s ease,
