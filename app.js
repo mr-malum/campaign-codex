@@ -29,10 +29,10 @@ function updatePanBounds() {
 
   if (isMobile) {
     padding =
-      zoom < -2 ? 7000 :
-      zoom < -1 ? 2200 :
-      zoom < 0  ? 1200 :
-                  700;
+      zoom < -2 ? 2600 :
+      zoom < -1 ? 1100 :
+      zoom < 0  ? 700 :
+                  350;
   } else {
     padding =
       zoom < -2 ? 5200 :
