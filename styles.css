@@ -34,7 +34,7 @@ html, body {
   filter: blur(2px);
 }
 
-/* Slideout app panel */
+/* Slideout parchment app panel */
 #app-panel {
   position: fixed;
   top: 0;
@@ -47,17 +47,34 @@ html, body {
   display: flex;
   flex-direction: column;
 
-  background: rgba(35, 24, 12, 0.96);
-  color: #f4e6c8;
+  background: transparent;
+  color: #3a2614;
 
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: none;
 
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
+  box-shadow: none;
+  backdrop-filter: none;
+
+  overflow: hidden;
+  isolation: isolate;
 
   transition: transform 220ms ease;
 
   font-family: Georgia, serif;
+}
+
+#app-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  background-image: url('Parchment_Panel.png');
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: center;
+
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Panel opens from left */
@@ -84,13 +101,37 @@ html, body {
 
 /* Header */
 #app-panel-header {
+  position: relative;
+
   display: flex;
   align-items: flex-start;
   gap: 16px;
 
-  padding: 20px;
+  padding: 34px 42px 30px;
 
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: none;
+}
+
+/* Quill-style divider */
+#app-panel-header::after {
+  content: "❦──────────────❧";
+  position: absolute;
+
+  left: 50%;
+  bottom: 4px;
+
+  transform: translateX(-50%);
+
+  color: rgba(72, 43, 18, 0.78);
+
+  font-size: 20px;
+  letter-spacing: 2px;
+
+  white-space: nowrap;
+
+  text-shadow:
+    0.5px 0 rgba(72, 43, 18, 0.35),
+    -0.5px 0 rgba(255, 239, 190, 0.3);
 }
 
 /* Close button */
@@ -98,7 +139,7 @@ html, body {
   border: none;
   background: transparent;
 
-  color: #f4e6c8;
+  color: #3a2614;
 
   font-size: 32px;
   line-height: 1;
@@ -129,7 +170,7 @@ html, body {
 
   overflow-y: auto;
 
-  padding: 20px;
+  padding: 24px 46px 42px;
 
   font-size: 16px;
   line-height: 1.5;
@@ -140,6 +181,14 @@ html, body {
   #app-panel {
     width: 100vw;
   }
+
+  #app-panel-header {
+    padding: 30px 34px 28px;
+  }
+
+  #panel-content {
+    padding: 22px 36px 40px;
+  }
 }
 
 /* Interactive panel buttons/links */
@@ -149,15 +198,17 @@ button.panel-link {
   width: 100%;
   text-align: left;
 
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(94, 55, 22, 0.08);
+  border: 1px solid rgba(94, 55, 22, 0.18);
 
-  color: #f4e6c8;
+  color: #3a2614;
 
   padding: 10px 12px;
   margin: 4px 0;
 
   border-radius: 10px;
+
+  font-family: Georgia, serif;
 
   transition:
     background 0.15s ease,
@@ -166,8 +217,8 @@ button.panel-link {
 }
 
 button.panel-link:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.16);
+  background: rgba(94, 55, 22, 0.14);
+  border-color: rgba(94, 55, 22, 0.3);
 }
 
 button.panel-link:active {
@@ -179,7 +230,7 @@ button.panel-link:active {
 
   padding-left: 14px;
 
-  border-left: 1px solid rgba(255,255,255,0.12);
+  border-left: 1px solid rgba(72, 43, 18, 0.35);
 
   opacity: 0.95;
 }
