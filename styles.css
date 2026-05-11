@@ -39,7 +39,7 @@ html, body {
   position: fixed;
   top: 0;
 
-  width: min(50vw, 640px);
+  width: min(42vw, 540px);
   height: 100vh;
 
   padding: 70px 90px;
