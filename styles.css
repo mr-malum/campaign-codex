@@ -354,6 +354,33 @@ html, body {
 
 }
 
+.mobile-nav-back {
+  position: fixed;
+
+  bottom: 24px;
+  left: 28px;
+
+  width: auto;
+
+  padding: 10px 18px;
+
+  z-index: 4000;
+}
+
+#panel-close {
+  position: fixed;
+
+  bottom: 24px;
+  right: 28px;
+
+  top: auto;
+  left: auto;
+
+  font-size: 34px;
+
+  z-index: 4000;
+}
+
 /* Interactive panel buttons/links */
 button.panel-link {
   cursor: pointer !important;
