@@ -240,8 +240,44 @@ function setCodexTitle(title) {
   document.getElementById("codex-title").textContent = title;
 }
 
-function setCodexContent(html) {
-  document.getElementById("codex-content").innerHTML = html;
+function setCodexContent(html, breadcrumbs = []) {
+  const content = document.getElementById("codex-content");
+
+  const breadcrumbHtml = breadcrumbs.length
+    ? `
+      <div id="codex-breadcrumbs">
+        ${breadcrumbs.map((crumb, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+
+          return `
+            ${
+              crumb.clickable && !isLast
+                ? `
+                  <button
+                    class="codex-breadcrumb-button"
+                    type="button"
+                    onclick="${crumb.onclick}"
+                  >
+                    ${escapeHtml(crumb.label)}
+                  </button>
+                `
+                : `
+                  <span>${escapeHtml(crumb.label)}</span>
+                `
+            }
+
+            ${
+              !isLast
+                ? `<span class="codex-breadcrumb-separator">/</span>`
+                : ""
+            }
+          `;
+        }).join("")}
+      </div>
+    `
+    : "";
+
+  content.innerHTML = breadcrumbHtml + html;
 }
 
 function updateCodexBackButton() {
@@ -319,7 +355,16 @@ function renderCodexHexPage(hexId) {
   const pois = getPoisForHex(hexId);
   const npcs = getNpcsForHex(hexId);
 
-  setCodexTitle(`Hex ${hexId}`);
+  setCodexTitle(`Hex ${hexId}  `, [
+    {
+      label: "Codex",
+      clickable: true,
+      onclick: "resetCodexToIndex()"
+    },
+    {
+      label: `Hex ${hexId}`
+    }
+  ]);
 
   setCodexContent(`
     <p><strong>Terrain:</strong> ${escapeHtml(hex?.Terrain || "Unknown")}</p>
