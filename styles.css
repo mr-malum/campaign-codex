@@ -51,7 +51,6 @@ html, body {
   color: #3a2614;
 
   border-left: none;
-
   box-shadow: none;
   backdrop-filter: none;
 
@@ -68,20 +67,34 @@ html, body {
 
   position: absolute;
 
-  top: 0;
-  left: 0;
+  top: -220px;
+  bottom: -220px;
 
-  width: 100%;
-  height: 100%;
+  left: -180px;
+  right: -180px;
 
   background-image: url('Parchment_Panel.png');
   background-repeat: no-repeat;
-  background-size: 100% 100%;
   background-position: center;
+  background-size: cover;
 
   pointer-events: none;
 
   z-index: 0;
+
+  opacity: 0.97;
+}
+
+/* Right-side panel parchment offset */
+#app-panel.right::before {
+  left: -240px;
+  right: -60px;
+}
+
+/* Left-side panel parchment offset */
+#app-panel.left::before {
+  left: -60px;
+  right: -240px;
 }
 
 #app-panel-header,
@@ -120,7 +133,7 @@ html, body {
   align-items: flex-start;
   gap: 16px;
 
-  padding: 34px 42px 30px;
+  padding: 110px 90px 40px;
 
   border-bottom: none;
 }
@@ -183,7 +196,7 @@ html, body {
 
   overflow-y: auto;
 
-  padding: 24px 46px 42px;
+  padding: 10px 90px 120px;
 
   font-size: 16px;
   line-height: 1.5;
@@ -195,12 +208,19 @@ html, body {
     width: 100vw;
   }
 
+  #app-panel::before {
+    top: -180px;
+    bottom: -180px;
+    left: -120px;
+    right: -120px;
+  }
+
   #app-panel-header {
-    padding: 30px 34px 28px;
+    padding: 92px 58px 36px;
   }
 
   #panel-content {
-    padding: 22px 36px 40px;
+    padding: 8px 58px 96px;
   }
 }
 
