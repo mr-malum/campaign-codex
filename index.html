@@ -170,7 +170,17 @@
         this.setStyle(selectedStyle);
       });
 
-      hex.bindPopup(hexId);
+      const data = hexData[hexId];
+
+        if (data) {
+          hex.bindPopup(`
+            <strong>${data.name}</strong><br>
+            ${data.terrain}<br><br>
+            ${data.description}
+          `);
+        } else {
+          hex.bindPopup(hexId);
+        }
 
       map.on('click', function () {
         if (selectedHex) {
