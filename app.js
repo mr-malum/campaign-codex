@@ -425,12 +425,63 @@ function renderCodexRegionPage(regionId) {
   const region = db?.regionsById?.[regionId];
   const hexes = getRowsByField(db?.raw?.hexes, "Region_ID_Ref", regionId);
   const regionName = region?.Region_Name || regionId || "Unknown Region";
+  const summary = getRegionSummary(regionId);
+
+  const pois = hexes.flatMap(hex => {
+    return getPoisForHex(hex.Hex_ID);
+  });
+
+  const npcs = pois.flatMap(poi => {
+    return getNpcsForPoi(poi.POI_ID);
+  });
+
+  const terrainCounts = hexes.reduce((counts, hex) => {
+    const terrain = hex.Terrain || "Unknown";
+    counts[terrain] = (counts[terrain] || 0) + 1;
+    return counts;
+  }, {});
+
+  const terrainSummary = Object.entries(terrainCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([terrain, count]) => `${terrain}: ${count}`)
+    .join("<br>");
 
   setCodexTitle(regionName);
 
   setCodexContent(`
     <h3>Region Notes</h3>
     <p>${escapeHtml(region?.Lore || region?.DM_Journal || "No region notes recorded.")}</p>
+
+    <h3>Summary</h3>
+    <p>
+      <strong>Hexes:</strong> ${summary.hexCount}<br>
+      <strong>Points of Interest:</strong> ${summary.poiCount}<br>
+      <strong>NPCs:</strong> ${summary.npcCount}
+    </p>
+
+    <h3>Terrain Profile</h3>
+    <p>${terrainSummary || "No terrain data recorded."}</p>
+
+    <h3>Points of Interest</h3>
+    ${renderCodexLinkedList(pois, "No points of interest currently recorded in this region.", "poi", "POI_ID", row => {
+      return [
+        row.Name,
+        row.POI_Type,
+        row["Notoriety Tier"] ? `Notoriety: ${row["Notoriety Tier"]}` : ""
+      ].filter(Boolean).join(" — ");
+    })}
+
+    <h3>NPCs</h3>
+    ${renderCodexLinkedList(npcs, "No NPCs currently recorded in this region.", "npc", "NPC_ID", row => {
+      const home = row.Home_ID_Ref ? db?.poisById?.[row.Home_ID_Ref] : null;
+      const homeLabel = home?.Name || row.Home_ID_Ref;
+
+      return [
+        row.Name,
+        [row.Race, row.Occupation].filter(Boolean).join(" • "),
+        homeLabel || ""
+      ].filter(Boolean).join(" — ");
+    })}
 
     <h3>Hexes</h3>
     ${renderCodexLinkedList(hexes, "No hexes currently assigned to this region.", "hex", "Hex_ID", row => {
