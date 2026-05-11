@@ -460,6 +460,31 @@ button.panel-link.mobile-nav-back {
     margin-right: 24px;
     margin-bottom: calc(96px + env(safe-area-inset-bottom));
   }
+
+  #codex-modal {
+    width: calc(100vw - 18px);
+    height: calc(100vh - 18px);
+
+    padding-top: 28px;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-bottom: 18px;
+  }
+
+  #codex-header {
+    margin-bottom: 18px;
+  }
+
+  #codex-content {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  #codex-overlay .panel-nav {
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 24px;
+  }
 }
 
 /* Codex Button */
