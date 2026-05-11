@@ -748,26 +748,26 @@ text-shadow:
 /* Mobile Hex Popup */
 
 .leaflet-popup-content-wrapper {
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
 
-  padding: 0;
+  padding: 0 !important;
 
-  overflow: visible;
+  overflow: visible !important;
 }
 
 .leaflet-popup-content {
   position: relative;
 
-  margin: 0;
-  padding: 26px 30px;
+  margin: 0 !important;
+  padding: 26px 30px !important;
 
   min-width: 180px;
 
   color: #3a2614;
 
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
   font-size: 18px;
   line-height: 1.45;
 
@@ -781,10 +781,10 @@ text-shadow:
 
   position: absolute;
 
-  top: -42px;
-  bottom: -42px;
-  left: -42px;
-  right: -42px;
+  top: -24px;
+  bottom: -24px;
+  left: -24px;
+  right: -24px;
 
   background-image: url("assets/Parchment_Panel.png");
   background-size: 100% 100%;
@@ -798,11 +798,11 @@ text-shadow:
 }
 
 .leaflet-popup-tip-container {
-  display: none;
+  display: none !important;
 }
 
 .leaflet-popup-close-button {
-  display: none;
+  display: none !important;
 }
 
 .leaflet-popup-content strong {
@@ -832,8 +832,4 @@ text-shadow:
   font-size: 0.95rem;
 
   cursor: pointer;
-}
-
-.leaflet-popup-content button:active {
-  transform: scale(0.98);
 }
