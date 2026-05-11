@@ -642,6 +642,10 @@ function renderPoiListIntoContainer() {
   const listEl = document.getElementById("codex-poi-list");
   const typeFilter = document.getElementById("codex-poi-type-filter")?.value || "all";
   const sortMode = document.getElementById("codex-poi-sort")?.value || "name";
+  const directionButton = document.getElementById("codex-poi-direction");
+
+  const sortDirection =
+    directionButton?.dataset?.direction || "asc";
 
   let pois = [...(db?.raw?.pois || [])];
 
@@ -649,19 +653,42 @@ function renderPoiListIntoContainer() {
     pois = pois.filter(poi => poi.POI_Type === typeFilter);
   }
 
+  let compareFn = null;
+
   if (sortMode === "name") {
-    pois.sort((a, b) => String(a.Name || "").localeCompare(String(b.Name || "")));
+    compareFn = (a, b) =>
+      String(a.Name || "").localeCompare(String(b.Name || ""));
   }
 
   if (sortMode === "type") {
-    pois.sort((a, b) => String(a.POI_Type || "").localeCompare(String(b.POI_Type || "")));
+    compareFn = (a, b) => {
+      const primary =
+        String(a.POI_Type || "").localeCompare(String(b.POI_Type || ""));
+
+      if (primary !== 0) return primary;
+
+      return String(a.Name || "").localeCompare(String(b.Name || ""));
+    };
   }
 
-if (sortMode === "notoriety") {
-  pois.sort((a, b) => {
-    return getPoiNotorietyRank(a["Notoriety Tier"]) - getPoiNotorietyRank(b["Notoriety Tier"]);
-  });
-}
+  if (sortMode === "notoriety") {
+    compareFn = (a, b) => {
+      const primary =
+        getPoiNotorietyRank(a["Notoriety Tier"]) -
+        getPoiNotorietyRank(b["Notoriety Tier"]);
+
+      if (primary !== 0) return primary;
+
+      return String(a.Name || "").localeCompare(String(b.Name || ""));
+    };
+  }
+
+  if (compareFn) {
+    pois.sort((a, b) => {
+      const result = compareFn(a, b);
+      return sortDirection === "desc" ? -result : result;
+    });
+  }
 
   listEl.innerHTML = renderCodexLinkedList(
     pois,
@@ -707,6 +734,15 @@ function renderCodexPoisIndex() {
           <option value="notoriety">Notoriety</option>
         </select>
       </label>
+
+      <button
+        id="codex-poi-direction"
+        class="codex-sort-direction"
+        type="button"
+        data-direction="asc"
+      >
+        ↑ Ascending
+      </button>
     </div>
 
     <div id="codex-poi-list"></div>
@@ -723,6 +759,18 @@ function renderCodexPoisIndex() {
 
   document.getElementById("codex-poi-type-filter").addEventListener("change", renderPoiListIntoContainer);
   document.getElementById("codex-poi-sort").addEventListener("change", renderPoiListIntoContainer);
+  document.getElementById("codex-poi-direction").addEventListener("click", function () {
+  const current = this.dataset.direction || "asc";
+  const next = current === "asc" ? "desc" : "asc";
+
+  this.dataset.direction = next;
+
+  this.textContent = next === "asc"
+    ? "↑ Ascending"
+    : "↓ Descending";
+
+  renderPoiListIntoContainer();
+});
 
   renderPoiListIntoContainer();
 }
