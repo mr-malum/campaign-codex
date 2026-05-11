@@ -373,10 +373,16 @@ function renderPoiScreen(poiId) {
       ${escapeHtml(poi["Notoriety Tier"] || "Unknown")}
     </p>
 
-    <p>
-      <strong>Population:</strong>
-      ${escapeHtml(poi.Population || "N/A")}
-    </p>
+    ${
+  poi.POI_Type === "Settlement"
+    ? `
+      <p>
+        <strong>Population:</strong>
+        ${escapeHtml(poi.Population || "Unknown")}
+      </p>
+    `
+    : ""
+}
 
     <p>
       <strong>Lore:</strong>
