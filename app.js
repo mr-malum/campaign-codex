@@ -1213,10 +1213,6 @@ map.on("click", function () {
   clearSelectedHex();
 });
 
-document.getElementById("panel-close").addEventListener("click", function () {
-  closePanel({ clearSelection: true });
-});
-
 document.getElementById("mobile-panel-close").addEventListener("click", function () {
   closePanel({ clearSelection: true });
 });
