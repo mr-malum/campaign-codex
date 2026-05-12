@@ -1195,10 +1195,6 @@ document.getElementById("mobile-panel-close").addEventListener("click", function
   closePanel({ clearSelection: true });
 });
 
-document.getElementById("mobile-panel-back").addEventListener("click", function () {
-  closePanel({ clearSelection: true });
-});
-
 map.on("popupclose", function () {
   clearSelectedHex();
 });
