@@ -1,73 +1,23 @@
+function renderCodexListPage(config) {
+  setCodexTitle(config.title);
 
-sortOptions: [
-    { value: "name", label: "Name" },
-    { value: "type", label: "Type" },
-    { value: "notoriety", label: "Notoriety" },
-    { value: "population", label: "Population" },
-    { value: "npc-count", label: "NPC Count" }
-  ],
+  setCodexContent(`
+    ${renderCodexListControls({
+      filters: config.filters.map(filter => ({
+        ...filter,
+        fieldOptions: config.fieldOptions,
+        options: config.getFilterOptions(filter.fieldValue)
+      })),
+      sortId: config.sortId,
+      selectedSort: config.selectedSort,
+      sortOptions: config.sortOptions,
+      directionId: config.directionId,
+      direction: "asc"
+    })}
 
-  bindControls: () => bindCodexListControls({
-    filters: [
-      {
-        fieldId: "codex-poi-filter-1-field",
-        valueId: "codex-poi-filter-1-value",
-        updateOptions: () => updatePoiFilterValueOptions(
-          "codex-poi-filter-1-field",
-          "codex-poi-filter-1-value"
-        )
-      },
-      {
-        fieldId: "codex-poi-filter-2-field",
-        valueId: "codex-poi-filter-2-value",
-        updateOptions: () => updatePoiFilterValueOptions(
-          "codex-poi-filter-2-field",
-          "codex-poi-filter-2-value"
-        )
-      }
-    ],
-    sortId: "codex-poi-sort",
-    directionId: "codex-poi-direction",
-    render: renderPoiListIntoContainer
-  })
+    <div id="${escapeHtml(config.listId)}"></div>
+  `, config.breadcrumbs);
 
-......... 
-
-sortOptions: [
-    { value: "name", label: "Name" },
-    { value: "race", label: "Race" },
-    { value: "occupation", label: "Occupation" }
-  ],
-
-  bindControls: () => bindCodexListControls({
-    filters: [
-      {
-        fieldId: "codex-npc-filter-1-field",
-        valueId: "codex-npc-filter-1-value",
-        updateOptions: () => updateNpcFilterValueOptions(
-          "codex-npc-filter-1-field",
-          "codex-npc-filter-1-value"
-        )
-      },
-      {
-        fieldId: "codex-npc-filter-2-field",
-        valueId: "codex-npc-filter-2-value",
-        updateOptions: () => updateNpcFilterValueOptions(
-          "codex-npc-filter-2-field",
-          "codex-npc-filter-2-value"
-        )
-      }
-    ],
-    sortId: "codex-npc-sort",
-    directionId: "codex-npc-direction",
-    render: renderNpcListIntoContainer
-  })
-
-........ 
-
-poiCodexListConfig.bindControls();
-
-
-........ 
-
-npcCodexListConfig.bindControls();
+  config.bindControls();
+  config.renderList();
+}
