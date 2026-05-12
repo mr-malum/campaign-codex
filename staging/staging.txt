@@ -1,23 +1,91 @@
-function renderCodexListPage(config) {
-  setCodexTitle(config.title);
+function renderCodexPoisIndex() {
+  renderCodexListPage({
+    ...poiCodexListConfig,
 
-  setCodexContent(`
-    ${renderCodexListControls({
-      filters: config.filters.map(filter => ({
-        ...filter,
-        fieldOptions: config.fieldOptions,
-        options: config.getFilterOptions(filter.fieldValue)
-      })),
-      sortId: config.sortId,
-      selectedSort: config.selectedSort,
-      sortOptions: config.sortOptions,
-      directionId: config.directionId,
-      direction: "asc"
-    })}
+    title: "Points of Interest",
 
-    <div id="${escapeHtml(config.listId)}"></div>
-  `, config.breadcrumbs);
+    listId: "codex-poi-list",
 
-  config.bindControls();
-  config.renderList();
+    breadcrumbs: [
+      { label: "Codex", clickable: true, onclick: "resetCodexToIndex()" },
+      { label: "Points of Interest" }
+    ],
+
+    getFilterOptions: getPoiFilterOptions,
+
+    renderList: renderPoiListIntoContainer
+  });
 }
+
+........ 
+
+function renderCodexNpcsIndex() {
+  renderCodexListPage({
+    ...npcCodexListConfig,
+
+    title: "NPCs",
+
+    listId: "codex-npc-list",
+
+    breadcrumbs: [
+      { label: "Codex", clickable: true, onclick: "resetCodexToIndex()" },
+      { label: "NPCs" }
+    ],
+
+    getFilterOptions: getNpcFilterOptions,
+
+    renderList: renderNpcListIntoContainer
+  });
+}
+
+........ 
+
+function readCodexFilterState(config) {
+  return config.filters.map(filter => {
+    const field =
+      document.getElementById(filter.fieldId)?.value ||
+      filter.fieldValue;
+
+    const value =
+      document.getElementById(filter.id)?.value ||
+      filter.selectedValue ||
+      "all";
+
+    return {
+      field,
+      value
+    };
+  });
+}
+
+....... 
+
+const [filterOne, filterTwo] = readCodexFilterState(
+    poiCodexListConfig
+  );
+
+........ 
+
+value: filterOne.value,
+      getValue: poi => getPoiFilterValue(poi, filterOne.field)
+
+........ 
+
+value: filterTwo.value,
+      getValue: poi => getPoiFilterValue(poi, filterTwo.field)
+
+....... 
+
+const [filterOne, filterTwo] = readCodexFilterState(
+    npcCodexListConfig
+  );
+
+....... 
+
+value: filterOne.value,
+      getValue: npc => getNpcFilterValue(npc, filterOne.field)
+
+........ 
+
+value: filterTwo.value,
+      getValue: npc => getNpcFilterValue(npc, filterTwo.field)
