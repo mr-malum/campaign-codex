@@ -1071,6 +1071,29 @@ function readCodexFilterState(config) {
   });
 }
 
+function readCodexSortState(config) {
+  const sortMode =
+    document.getElementById(config.sortId)?.value ||
+    config.selectedSort;
+
+  const direction =
+    document.getElementById(config.directionId)?.dataset?.direction ||
+    "asc";
+
+  return {
+    sortMode,
+    direction
+  };
+}
+
+function applyConfiguredSort(rows, compareFn, sortDirection) {
+  if (!compareFn) {
+    return rows;
+  }
+
+  return sortRows(rows, compareFn, sortDirection);
+}
+
 function renderPoiListIntoContainer() {
   const listEl = document.getElementById("codex-poi-list");
 
@@ -1078,9 +1101,10 @@ function renderPoiListIntoContainer() {
       poiCodexListConfig
     );
 
-  const sortMode = document.getElementById("codex-poi-sort")?.value || "name";
-  const directionButton = document.getElementById("codex-poi-direction");
-  const sortDirection = directionButton?.dataset?.direction || "asc";
+  const {
+      sortMode,
+      direction: sortDirection
+    } = readCodexSortState(poiCodexListConfig);
 
   let pois = [...(db?.raw?.pois || [])];
 
@@ -1127,9 +1151,11 @@ function renderPoiListIntoContainer() {
     );
   }
 
-  if (compareFn) {
-    pois = sortRows(pois, compareFn, sortDirection);
-  }
+  pois = applyConfiguredSort(
+      pois,
+      compareFn,
+      sortDirection
+    );
 
   listEl.innerHTML = renderCodexLinkedList(
     pois,
@@ -1147,9 +1173,10 @@ function renderNpcListIntoContainer() {
       npcCodexListConfig
     );
 
-  const sortMode = document.getElementById("codex-npc-sort")?.value || "name";
-  const directionButton = document.getElementById("codex-npc-direction");
-  const sortDirection = directionButton?.dataset?.direction || "asc";
+  const {
+      sortMode,
+      direction: sortDirection
+    } = readCodexSortState(npcCodexListConfig);
 
   let npcs = [...(db?.raw?.npcs || [])];
 
@@ -1178,9 +1205,11 @@ function renderNpcListIntoContainer() {
     compareFn = compareByTextThenName(row => row.Occupation);
   }
 
-  if (compareFn) {
-    npcs = sortRows(npcs, compareFn, sortDirection);
-  }
+  npcs = applyConfiguredSort(
+      npcs,
+      compareFn,
+      sortDirection
+    );
 
   listEl.innerHTML = renderCodexLinkedList(
     npcs,
