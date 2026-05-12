@@ -557,6 +557,58 @@ function sortRows(rows, compareFn, direction = "asc") {
   });
 }
 
+function renderCodexSelectOptions(options, selectedValue = null) {
+  return options.map(option => {
+    const value = typeof option === "string" ? option : option.value;
+    const label = typeof option === "string" ? option : option.label;
+
+    return `
+      <option
+        value="${escapeHtml(value)}"
+        ${selectedValue === value ? "selected" : ""}
+      >
+        ${escapeHtml(label)}
+      </option>
+    `;
+  }).join("");
+}
+
+function renderCodexListControls(config) {
+  const filters = config.filters || [];
+
+  return `
+    <div class="codex-filter-row">
+      ${filters.map(filter => `
+        <label>
+          ${escapeHtml(filter.label)}
+          <select id="${escapeHtml(filter.id)}">
+            ${renderCodexSelectOptions(filter.options, filter.selectedValue)}
+          </select>
+        </label>
+      `).join("")}
+
+      <label class="codex-sort-label">
+        <span class="codex-sort-topline">
+          Sort
+
+          <button
+            id="${escapeHtml(config.directionId)}"
+            class="codex-sort-direction"
+            type="button"
+            data-direction="${escapeHtml(config.direction || "asc")}"
+          >
+            ${config.direction === "desc" ? "↓ DESC" : "↑ ASC"}
+          </button>
+        </span>
+
+        <select id="${escapeHtml(config.sortId)}">
+          ${renderCodexSelectOptions(config.sortOptions, config.selectedSort)}
+        </select>
+      </label>
+    </div>
+  `;
+}
+
 // ======================
 // PAGE RENDERERS
 // ======================
@@ -902,38 +954,31 @@ function renderCodexPoisIndex() {
   setCodexTitle("Points of Interest");
 
   setCodexContent(`
-    <div class="codex-filter-row">
-      <label>
-        Type
-        <select id="codex-poi-type-filter">
-          <option value="all">All</option>
-          ${poiTypes.map(type => `
-            <option value="${escapeHtml(type)}">${escapeHtml(type)}</option>
-          `).join("")}
-        </select>
-      </label>
-
-      <label class="codex-sort-label">
-        <span class="codex-sort-topline">
-          Sort
-
-          <button
-            id="codex-poi-direction"
-            class="codex-sort-direction"
-            type="button"
-            data-direction="asc"
-          >
-            ↑ ASC
-          </button>
-        </span>
-
-        <select id="codex-poi-sort">
-          <option value="name">Name</option>
-          <option value="type">Type</option>
-          <option value="notoriety">Notoriety</option>
-        </select>
-      </label>
-    </div>
+    ${renderCodexListControls({
+      filters: [
+        {
+          id: "codex-poi-type-filter",
+          label: "Type",
+          selectedValue: "all",
+          options: [
+            { value: "all", label: "All" },
+            ...poiTypes.map(type => ({
+              value: type,
+              label: type
+            }))
+          ]
+        }
+      ],
+      sortId: "codex-poi-sort",
+      selectedSort: "name",
+      sortOptions: [
+        { value: "name", label: "Name" },
+        { value: "type", label: "Type" },
+        { value: "notoriety", label: "Notoriety" }
+      ],
+      directionId: "codex-poi-direction",
+      direction: "asc"
+    })}
 
     <div id="codex-poi-list"></div>
   `, [
@@ -947,22 +992,31 @@ function renderCodexPoisIndex() {
     }
   ]);
 
-  document.getElementById("codex-poi-type-filter").addEventListener("change", renderPoiListIntoContainer);
+  document.getElementById("codex-poi-type-filter").addEventListener(
+    "change",
+    renderPoiListIntoContainer
+  );
 
-  document.getElementById("codex-poi-sort").addEventListener("change", renderPoiListIntoContainer);
+  document.getElementById("codex-poi-sort").addEventListener(
+    "change",
+    renderPoiListIntoContainer
+  );
 
-  document.getElementById("codex-poi-direction").addEventListener("click", function () {
-    const current = this.dataset.direction || "asc";
-    const next = current === "asc" ? "desc" : "asc";
+  document.getElementById("codex-poi-direction").addEventListener(
+    "click",
+    function () {
+      const current = this.dataset.direction || "asc";
+      const next = current === "asc" ? "desc" : "asc";
 
-    this.dataset.direction = next;
+      this.dataset.direction = next;
 
-    this.textContent = next === "asc"
-      ? "↑ ASC"
-      : "↓ DESC";
+      this.textContent = next === "asc"
+        ? "↑ ASC"
+        : "↓ DESC";
 
-    renderPoiListIntoContainer();
-  });
+      renderPoiListIntoContainer();
+    }
+  );
 
   renderPoiListIntoContainer();
 }
