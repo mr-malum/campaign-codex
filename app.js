@@ -836,7 +836,12 @@ function renderCodexNpcPage(npcId) {
   setCodexTitle(npcName);
 
   setCodexContent(`
-    <p>
+    ${
+    npc?.Title
+      ? `<p class="codex-superheader">${escapeHtml(npc.Title)}</p>`
+      : ""
+   }
+      <p>
       <strong>Home:</strong>
       ${
         home
@@ -846,6 +851,7 @@ function renderCodexNpcPage(npcId) {
     </p>
 
     <p><strong>Race:</strong> ${escapeHtml(npc?.Race || "Unknown")}</p>
+    <p><strong>Faction:</strong> ${escapeHtml(npc?.Faction || "Unknown")}</p>
     <p><strong>Occupation:</strong> ${escapeHtml(npc?.Occupation || "Unknown")}</p>
 
     <h3>Lore</h3>
