@@ -349,7 +349,10 @@ button.panel-link.mobile-nav-back {
 }
 
 #mobile-panel-close {
-  margin: 0 auto;
+  display: block;
+
+  margin-left: calc(50% + 18px);
+  transform: translateX(-50%);
 }
 
 #panel-content .panel-journal-preview {
