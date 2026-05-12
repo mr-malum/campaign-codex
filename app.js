@@ -266,6 +266,25 @@ function openPanelForHex(hexId) {
   renderHexPreview(hexId);
 }
 
+function panHexIntoInspectorView(hexId) {
+  const [xxx, yyy] = hexId.split(":").map(Number);
+  const center = getHexCenter(xxx, yyy);
+  const targetLatLng = L.latLng(center.y, center.x);
+
+  const targetPoint = map.latLngToContainerPoint(targetLatLng);
+  const desiredPoint = L.point(
+    map.getSize().x * 0.33,
+    map.getSize().y * 0.5
+  );
+
+  const offset = targetPoint.subtract(desiredPoint);
+
+  map.panBy(offset, {
+    animate: true,
+    duration: 0.35
+  });
+}
+
 function openCodex() {
   document.getElementById("codex-overlay").classList.add("open");
 }
@@ -1174,6 +1193,7 @@ for (let xxx = 300; xxx < 350; xxx++) {
         this.bindPopup(buildMobilePopupHtml(hexId)).openPopup();
       } else {
         renderHexPreview(hexId);
+        panHexIntoInspectorView(hexId);
       }
     });
   }
