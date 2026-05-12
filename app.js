@@ -557,6 +557,22 @@ function sortRows(rows, compareFn, direction = "asc") {
   });
 }
 
+function applyFilters(rows, filters) {
+  return rows.filter(row => {
+    return filters.every(filter => {
+      if (!filter.value || filter.value === "all") {
+        return true;
+      }
+
+      const rowValue = filter.getValue
+        ? filter.getValue(row)
+        : row?.[filter.field];
+
+      return String(rowValue || "") === String(filter.value);
+    });
+  });
+}
+
 function renderCodexSelectOptions(options, selectedValue = null) {
   return options.map(option => {
     const value = typeof option === "string" ? option : option.value;
@@ -945,15 +961,24 @@ function renderPoiListIntoContainer() {
 function renderNpcListIntoContainer() {
   const listEl = document.getElementById("codex-npc-list");
   const raceFilter = document.getElementById("codex-npc-race-filter")?.value || "all";
+  const occupationFilter =
+  document.getElementById("codex-npc-occupation-filter")?.value || "all";
   const sortMode = document.getElementById("codex-npc-sort")?.value || "name";
   const directionButton = document.getElementById("codex-npc-direction");
   const sortDirection = directionButton?.dataset?.direction || "asc";
 
   let npcs = [...(db?.raw?.npcs || [])];
 
-  if (raceFilter !== "all") {
-    npcs = npcs.filter(npc => npc.Race === raceFilter);
-  }
+  npcs = applyFilters(npcs, [
+    {
+      field: "Race",
+      value: raceFilter
+    },
+    {
+      field: "Occupation",
+      value: occupationFilter
+    }
+  ]);
 
   let compareFn = null;
 
@@ -1076,6 +1101,12 @@ function renderCodexNpcsIndex() {
       .filter(Boolean)
   )].sort();
 
+  const npcOccupations = [...new Set(
+    npcs
+      .map(npc => npc.Occupation)
+      .filter(Boolean)
+  )].sort();
+
   setCodexTitle("NPCs");
 
   setCodexContent(`
@@ -1090,6 +1121,19 @@ function renderCodexNpcsIndex() {
             ...npcRaces.map(race => ({
               value: race,
               label: race
+            }))
+          ]
+        },
+    
+        {
+          id: "codex-npc-occupation-filter",
+          label: "Occupation",
+          selectedValue: "all",
+          options: [
+            { value: "all", label: "All" },
+            ...npcOccupations.map(occupation => ({
+              value: occupation,
+              label: occupation
             }))
           ]
         }
@@ -1466,6 +1510,11 @@ document.getElementById("codex-back").addEventListener("click", function () {
     return;
   }
 
+document.getElementById("codex-npc-occupation-filter").addEventListener(
+  "change",
+  renderNpcListIntoContainer
+);
+  
   goBackCodex();
 });
 
