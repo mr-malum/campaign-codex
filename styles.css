@@ -40,6 +40,7 @@ html, body {
 #app-panel {
   position: fixed;
   top: 0;
+  right: 0;
 
   width: min(42vw, 540px);
   height: 100vh;
@@ -54,18 +55,19 @@ html, body {
   background: transparent;
   color: #3a2614;
 
-  border-left: none;
-  box-shadow: none;
-  backdrop-filter: none;
-
   overflow: hidden;
   isolation: isolate;
 
+  transform: translateX(120%);
   transition: transform 220ms ease;
 
   font-family: 'Spectral', Georgia, serif;
 
   pointer-events: none;
+}
+
+#app-panel.open {
+  transform: translateX(0);
 }
 
 #app-panel-inner {
@@ -74,18 +76,12 @@ html, body {
   width: calc(100% + 50px);
   height: 100%;
 
+  margin-left: -25px;
+
   display: flex;
   flex-direction: column;
 
   pointer-events: auto;
-}
-
-#app-panel.right #app-panel-inner {
-  margin-left: -25px;
-}
-
-#app-panel.left #app-panel-inner {
-  margin-left: -25px;
 }
 
 #app-panel::before {
@@ -94,9 +90,8 @@ html, body {
   position: absolute;
   top: -120px;
   bottom: -40px;
-
-  left: -140px;
-  right: -140px;
+  left: -20px;
+  right: -125px;
 
   background-image: url('assets/Parchment_Panel.png');
   background-size: 100% 100%;
@@ -108,44 +103,10 @@ html, body {
   opacity: 0.97;
 }
 
-/* Right-side panel parchment offset */
-#app-panel.right::before {
-  left: -20px;
-  right: -125px;
-}
-
-/* Left-side panel parchment offset */
-#app-panel.left::before {
-  left: -125px;
-  right: -20px;
-}
-
 #app-panel-header,
 #panel-content {
   position: relative;
   z-index: 1;
-}
-
-/* Panel opens from left */
-#app-panel.left {
-  left: 0;
-  right: auto;
-  transform: translateX(-120%);
-}
-
-#app-panel.left.open {
-  transform: translateX(0);
-}
-
-/* Panel opens from right */
-#app-panel.right {
-  right: 0;
-  left: auto;
-  transform: translateX(120%);
-}
-
-#app-panel.right.open {
-  transform: translateX(0);
 }
 
 /* Header */
@@ -157,6 +118,8 @@ html, body {
   align-items: center;
   justify-content: center;
 
+  padding: 60px 18px 24px 64px;
+
   text-align: center;
 
   gap: 8px;
@@ -164,22 +127,8 @@ html, body {
   border-bottom: none;
 }
 
-/* Right-side panel content bias */
-#app-panel.right #app-panel-header {
-  padding: 60px 18px 24px 64px;
-}
-
-#app-panel.right #panel-content {
+#panel-content {
   padding: 18px 18px 170px 64px;
-}
-
-/* Left-side panel content bias */
-#app-panel.left #app-panel-header {
-  padding: 60px 64px 24px 18px;
-}
-
-#app-panel.left #panel-content {
-  padding: 18px 64px 170px 18px;
 }
 
 /* Header divider */
