@@ -328,27 +328,65 @@ function setCodexTitle(title) {
   document.getElementById("codex-title").textContent = title;
 }
 
+function getCodexBreadcrumbLabel(label) {
+  if (label === "Points of Interest") return "POIs";
+  return label;
+}
+
 function renderCodexBreadcrumbs(breadcrumbs = []) {
   const breadcrumbsEl = document.getElementById("codex-breadcrumbs");
   if (!breadcrumbsEl) return;
 
-  breadcrumbsEl.innerHTML = breadcrumbs.length ? `
-    <div id="codex-breadcrumbs-inner">
-      ${breadcrumbs.map((crumb, index) => {
-        const isLast = index === breadcrumbs.length - 1;
+  if (!breadcrumbs.length) {
+    breadcrumbsEl.innerHTML = "";
+    return;
+  }
 
-        return `
-          ${crumb.clickable && !isLast
-            ? `<button class="codex-breadcrumb-button" type="button" onclick="${crumb.onclick}">
-                ${escapeHtml(crumb.label)}
-              </button>`
-            : `<span>${escapeHtml(crumb.label)}</span>`
-          }
-          ${!isLast ? `<span class="codex-breadcrumb-separator">/</span>` : ""}
-        `;
-      }).join("")}
+  const displayCrumbs = breadcrumbs.map(crumb => ({
+    ...crumb,
+    label: getCodexBreadcrumbLabel(crumb.label)
+  }));
+
+  const desktopHtml = displayCrumbs.map((crumb, index) => {
+    const isLast = index === displayCrumbs.length - 1;
+
+    return `
+      ${crumb.clickable && !isLast
+        ? `<button class="codex-breadcrumb-button" type="button" onclick="${crumb.onclick}">
+            ${escapeHtml(crumb.label)}
+          </button>`
+        : `<span>${escapeHtml(crumb.label)}</span>`
+      }
+      ${!isLast ? `<span class="codex-breadcrumb-separator">/</span>` : ""}
+    `;
+  }).join("");
+
+  const mobileCrumbs = displayCrumbs.slice(-2);
+  const mobileHtml = `
+    ${displayCrumbs.length > 2 ? `<span class="codex-breadcrumb-ellipsis">...</span><span class="codex-breadcrumb-separator">/</span>` : ""}
+    ${mobileCrumbs.map((crumb, index) => {
+      const isLast = index === mobileCrumbs.length - 1;
+
+      return `
+        ${crumb.clickable && !isLast
+          ? `<button class="codex-breadcrumb-button" type="button" onclick="${crumb.onclick}">
+              ${escapeHtml(crumb.label)}
+            </button>`
+          : `<span>${escapeHtml(crumb.label)}</span>`
+        }
+        ${!isLast ? `<span class="codex-breadcrumb-separator">/</span>` : ""}
+      `;
+    }).join("")}
+  `;
+
+  breadcrumbsEl.innerHTML = `
+    <div id="codex-breadcrumbs-inner" class="codex-breadcrumbs-desktop">
+      ${desktopHtml}
     </div>
-  ` : "";
+    <div class="codex-breadcrumbs-mobile">
+      ${mobileHtml}
+    </div>
+  `;
 }
 
 function setCodexContent(html, breadcrumbs = []) {
