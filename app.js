@@ -1094,6 +1094,16 @@ function applyConfiguredSort(rows, compareFn, sortDirection) {
   return sortRows(rows, compareFn, sortDirection);
 }
 
+function applyConfiguredFilters(rows, filterState, getFilterValue) {
+  return applyFilters(
+    rows,
+    filterState.map(filter => ({
+      value: filter.value,
+      getValue: row => getFilterValue(row, filter.field)
+    }))
+  );
+}
+
 function renderPoiListIntoContainer() {
   const listEl = document.getElementById("codex-poi-list");
 
@@ -1108,16 +1118,11 @@ function renderPoiListIntoContainer() {
 
   let pois = [...(db?.raw?.pois || [])];
 
-  pois = applyFilters(pois, [
-    {
-      value: filterOne.value,
-      getValue: poi => getPoiFilterValue(poi, filterOne.field)
-    },
-    {
-      value: filterTwo.value,
-      getValue: poi => getPoiFilterValue(poi, filterTwo.field)
-    }
-  ]);
+   pois = applyConfiguredFilters(
+    pois,
+    [filterOne, filterTwo],
+    getPoiFilterValue
+  );
 
    const compareFn =
     poiCodexListConfig.sortComparators?.[sortMode] || null;
@@ -1151,16 +1156,11 @@ function renderNpcListIntoContainer() {
 
   let npcs = [...(db?.raw?.npcs || [])];
 
-  npcs = applyFilters(npcs, [
-    {
-      value: filterOne.value,
-      getValue: npc => getNpcFilterValue(npc, filterOne.field)
-    },
-    {
-      value: filterTwo.value,
-      getValue: npc => getNpcFilterValue(npc, filterTwo.field)
-    }
-  ]);
+  npcs = applyConfiguredFilters(
+    npcs,
+    [filterOne, filterTwo],
+    getNpcFilterValue
+  );
 
   const compareFn =
     npcCodexListConfig.sortComparators?.[sortMode] || null;
