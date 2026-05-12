@@ -803,12 +803,6 @@ function renderCodexPoiPage(poiId) {
         : ""
     }
 
-    <h3>Lore</h3>
-    <p>${escapeHtml(poi?.Lore || "No lore recorded.")}</p>
-
-    <h3>DM Journal</h3>
-    <p>${escapeHtml(poi?.DM_Journal || "No journal entries.")}</p>
-
     <h3>NPCs</h3>
     ${renderCodexLinkedList(
       npcs,
@@ -817,6 +811,12 @@ function renderCodexPoiPage(poiId) {
       "NPC_ID",
       buildNpcListLabel
     )}
+
+    <h3>DM Journal</h3>
+    <p>${escapeHtml(poi?.DM_Journal || "No journal entries.")}</p>
+
+    <h3>Lore</h3>
+    <p>${escapeHtml(poi?.Lore || "No lore recorded.")}</p>
   `, [
     {
       label: "Codex",
