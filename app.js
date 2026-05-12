@@ -839,8 +839,19 @@ function renderCodexNpcPage(npcId) {
   const home = npc?.Home_ID_Ref ? db?.poisById?.[npc.Home_ID_Ref] : null;
   const npcName = npc?.Name || npcId || "Unknown NPC";
 
-  document.getElementById("codex-title").innerHTML = `
-  ${npc?.Title ? `<div class="codex-superheader">${escapeHtml(npc.Title)}</div>` : ""}
+document.getElementById("codex-title").innerHTML = `
+  ${npc?.Title ? `
+    <div class="codex-superheader">
+      ${escapeHtml(npc.Title)}
+    </div>
+  ` : ""}
+
+  ${npc?.Organization ? `
+    <div class="codex-subheader">
+      ${escapeHtml(npc.Organization)}
+    </div>
+  ` : ""}
+
   ${escapeHtml(npcName)}
 `;
 
@@ -854,8 +865,6 @@ function renderCodexNpcPage(npcId) {
     <p><strong>Race:</strong> ${escapeHtml(npc?.Race || "Unknown")}</p>
 
     <p><strong>Occupation:</strong> ${escapeHtml(npc?.Occupation || "Unknown")}</p>
-
-    <p><strong>Organization:</strong> ${escapeHtml(npc?.Organization || "Unknown")}</p>
 
     <h3>DM Journal</h3>
     <p>${escapeHtml(npc?.DM_Journal || "No journal entries.")}</p>
