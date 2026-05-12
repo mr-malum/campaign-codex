@@ -1343,7 +1343,7 @@ text-shadow:
   appearance: none;
   -webkit-appearance: none;
 
-  height: 34px;
+  height: 26px;
   min-height: 0;
 
   width: auto;
@@ -1362,9 +1362,10 @@ text-shadow:
 
   color: #3a2614;
 
-  font-family: 'Marcellus SC', Georgia, serif;
-  font-size: 0.32rem;
-  font-weight: 400;
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 
