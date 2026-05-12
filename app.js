@@ -33,7 +33,7 @@ function updatePanBounds() {
 
   const rightPadding = isMobile
     ? padding
-    : padding * 1.75;
+    : padding * 1.35;
 
   map.setMaxBounds([
     [-padding, -padding],
