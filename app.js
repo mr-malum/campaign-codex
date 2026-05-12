@@ -1157,17 +1157,11 @@ function renderNpcListIntoContainer() {
   }
 
   if (sortMode === "race") {
-    compareFn = (a, b) => {
-      const primary = compareText(a.Race, b.Race);
-      return primary !== 0 ? primary : compareText(a.Name, b.Name);
-    };
+    compareFn = compareByTextThenName(row => row.Race);
   }
 
   if (sortMode === "occupation") {
-    compareFn = (a, b) => {
-      const primary = compareText(a.Occupation, b.Occupation);
-      return primary !== 0 ? primary : compareText(a.Name, b.Name);
-    };
+    compareFn = compareByTextThenName(row => row.Occupation);
   }
 
   if (compareFn) {
