@@ -839,16 +839,15 @@ function renderCodexNpcPage(npcId) {
   const home = npc?.Home_ID_Ref ? db?.poisById?.[npc.Home_ID_Ref] : null;
   const npcName = npc?.Name || npcId || "Unknown NPC";
 
-  setCodexTitle(npcName);
+  document.getElementById("codex-title").innerHTML = `
+  ${npc?.Title ? `<div class="codex-superheader">${escapeHtml(npc.Title)}</div>` : ""}
+  ${escapeHtml(npcName)}
+`;
 
   setCodexContent(`
-    ${npc?.Title ? `
-      <div class="codex-superheader">${escapeHtml(npc.Title)}</div>
-    ` : ""}
-
     <p><strong>Home:</strong> ${
       home
-        ? `<button class="codex-link" type="button" onclick="openCodexPage('poi', '${escapeJsString(home.POI_ID)}')">${escapeHtml(home.Name)}</button>`
+        ? `<button class="codex-link-button" type="button" onclick="openCodexPage('poi', '${escapeJsString(home.POI_ID)}')">${escapeHtml(home.Name)}</button>`
         : escapeHtml(npc?.Home_ID_Ref || "Unknown")
     }</p>
 
