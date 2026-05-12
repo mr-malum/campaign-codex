@@ -846,13 +846,15 @@ document.getElementById("codex-title").innerHTML = `
     </div>
   ` : ""}
 
+  <div class="codex-mainheader">
+    ${escapeHtml(npcName)}
+  </div>
+
   ${npc?.Organization ? `
     <div class="codex-subheader">
       ${escapeHtml(npc.Organization)}
     </div>
   ` : ""}
-
-  ${escapeHtml(npcName)}
 `;
 
   setCodexContent(`
