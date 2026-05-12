@@ -1004,8 +1004,13 @@ function updatePoiFilterValueOptions(fieldSelectId, valueSelectId) {
 
 function renderPoiListIntoContainer() {
   const listEl = document.getElementById("codex-poi-list");
-  const typeFilter = document.getElementById("codex-poi-type-filter")?.value || "all";
-  const notorietyFilter = document.getElementById("codex-poi-notoriety-filter")?.value || "all";
+
+  const fieldOne = document.getElementById("codex-poi-filter-1-field")?.value || "Type";
+  const valueOne = document.getElementById("codex-poi-filter-1-value")?.value || "all";
+
+  const fieldTwo = document.getElementById("codex-poi-filter-2-field")?.value || "Notoriety";
+  const valueTwo = document.getElementById("codex-poi-filter-2-value")?.value || "all";
+
   const sortMode = document.getElementById("codex-poi-sort")?.value || "name";
   const directionButton = document.getElementById("codex-poi-direction");
   const sortDirection = directionButton?.dataset?.direction || "asc";
@@ -1014,42 +1019,25 @@ function renderPoiListIntoContainer() {
 
   pois = applyFilters(pois, [
     {
-      field: "POI_Type",
-      value: typeFilter
+      value: valueOne,
+      getValue: poi => getPoiFilterValue(poi, fieldOne)
     },
     {
-      field: "Notoriety Tier",
-      value: notorietyFilter
+      value: valueTwo,
+      getValue: poi => getPoiFilterValue(poi, fieldTwo)
     }
   ]);
 
   let compareFn = null;
 
   if (sortMode === "name") {
-    compareFn = (a, b) =>
-      compareText(a.Name, b.Name);
+    compareFn = (a, b) => compareText(a.Name, b.Name);
   }
 
   if (sortMode === "type") {
     compareFn = (a, b) => {
       const primary = compareText(a.POI_Type, b.POI_Type);
-
-      return primary !== 0
-        ? primary
-        : compareText(a.Name, b.Name);
-    };
-  }
-
-  if (sortMode === "population") {
-    compareFn = (a, b) => {
-      const aPop = Number(String(a.Population || "").replace(/[^\d]/g, "")) || 0;
-      const bPop = Number(String(b.Population || "").replace(/[^\d]/g, "")) || 0;
-
-      const primary = aPop - bPop;
-
-      return primary !== 0
-        ? primary
-        : compareText(a.Name, b.Name);
+      return primary !== 0 ? primary : compareText(a.Name, b.Name);
     };
   }
 
@@ -1059,9 +1047,27 @@ function renderPoiListIntoContainer() {
         getPoiNotorietyRank(a["Notoriety Tier"]) -
         getPoiNotorietyRank(b["Notoriety Tier"]);
 
-      return primary !== 0
-        ? primary
-        : compareText(a.Name, b.Name);
+      return primary !== 0 ? primary : compareText(a.Name, b.Name);
+    };
+  }
+
+  if (sortMode === "population") {
+    compareFn = (a, b) => {
+      const aPop = Number(String(a.Population || "").replace(/[^\d]/g, "")) || 0;
+      const bPop = Number(String(b.Population || "").replace(/[^\d]/g, "")) || 0;
+      const primary = aPop - bPop;
+
+      return primary !== 0 ? primary : compareText(a.Name, b.Name);
+    };
+  }
+
+  if (sortMode === "npc-count") {
+    compareFn = (a, b) => {
+      const primary =
+        getNpcsForPoi(a.POI_ID).length -
+        getNpcsForPoi(b.POI_ID).length;
+
+      return primary !== 0 ? primary : compareText(a.Name, b.Name);
     };
   }
 
