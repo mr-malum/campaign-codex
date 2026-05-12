@@ -173,6 +173,32 @@ function getRegionSummary(regionId) {
   };
 }
 
+function buildCountLine(poiCount, npcCount) {
+  return [
+    poiCount > 0 ? `${poiCount} POI${poiCount !== 1 ? "s" : ""}` : "",
+    npcCount > 0 ? `${npcCount} NPC${npcCount !== 1 ? "s" : ""}` : ""
+  ].filter(Boolean).join(" • ");
+}
+
+function getLimitedLines(value, maxLines = 4, fallback = "No journal entries.") {
+  const lines = String(value || fallback)
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  const limited = lines.slice(0, maxLines);
+
+  if (lines.length > maxLines) {
+    limited.push("...");
+  }
+
+  return limited.join("\n");
+}
+
+function renderMultilineText(value) {
+  return escapeHtml(value).replaceAll("\n", "<br>");
+}
+
 function selectHex(hex) {
   if (selectedHex && selectedHex !== hex) {
     selectedHex.setStyle(defaultStyle);
@@ -194,6 +220,7 @@ function setPanelSideFromClick(event) {
   const clickX = event.originalEvent.clientX;
   const screenWidth = window.innerWidth;
 
+  panel.classList.remove("open");
   panel.classList.remove("left", "right");
 
   if (clickX > screenWidth / 2) {
@@ -201,14 +228,25 @@ function setPanelSideFromClick(event) {
   } else {
     panel.classList.add("right");
   }
+
+  void panel.offsetWidth;
 }
 
-function closePanel() {
+function closePanel(options = {}) {
   document.getElementById("app-panel").classList.remove("open");
+
+  if (options.clearSelection) {
+    clearSelectedHex();
+    map.closePopup();
+  }
 }
 
 function openPanel() {
-  document.getElementById("app-panel").classList.add("open");
+  const panel = document.getElementById("app-panel");
+
+  requestAnimationFrame(() => {
+    panel.classList.add("open");
+  });
 }
 
 function renderHexPreview(hexId) {
@@ -221,10 +259,8 @@ function renderHexPreview(hexId) {
   document.getElementById("panel-title").textContent = `HEX ${hexId}`;
   document.getElementById("panel-subtitle").textContent = "Field Notes";
 
-  const countLine = [
-    counts.poiCount > 0 ? `${counts.poiCount} POI${counts.poiCount !== 1 ? "s" : ""}` : "",
-    counts.npcCount > 0 ? `${counts.npcCount} NPC${counts.npcCount !== 1 ? "s" : ""}` : ""
-  ].filter(Boolean).join(" • ");
+  const countLine = buildCountLine(counts.poiCount, counts.npcCount);
+  const journalPreview = getLimitedLines(hex?.DM_Journal, 4);
 
   document.getElementById("panel-content").innerHTML = `
     <p><strong>Terrain:</strong> ${escapeHtml(hex?.Terrain || "Unknown")}</p>
@@ -232,8 +268,9 @@ function renderHexPreview(hexId) {
 
     ${countLine ? `<p><strong>Known Records:</strong> ${escapeHtml(countLine)}</p>` : ""}
 
-    <p>
-      ${escapeHtml(hex?.DM_Journal || "No journal entries.")}
+    <h3>Field Notes</h3>
+    <p class="panel-journal-preview">
+      ${renderMultilineText(journalPreview)}
     </p>
 
     <button class="codex-section-button" type="button" onclick="openCodexPage('hex', '${escapeJsString(hexId)}')">
@@ -252,6 +289,8 @@ function openCodex() {
 
 function closeCodex() {
   document.getElementById("codex-overlay").classList.remove("open");
+  map.closePopup();
+  clearSelectedHex();
 }
 
 function setCodexTitle(title) {
@@ -387,20 +426,24 @@ function joinCodexLabel(title, meta = []) {
 function buildPoiListLabel(row) {
   const meta = [];
 
-  let typeLabel = row.POI_Type || "";
+  const typeLine = [
+    row.POI_Type || "",
+    row["Notoriety Tier"] ? `Notoriety: ${row["Notoriety Tier"]}` : ""
+  ].filter(Boolean).join(" • ");
+
+  if (typeLine) {
+    meta.push(typeLine);
+  }
 
   const npcCount = getNpcsForPoi(row.POI_ID).length;
 
-  if (npcCount > 0) {
-    typeLabel += ` • ${npcCount} NPC${npcCount !== 1 ? "s" : ""}`;
-  }
+  const populationNpcLine = [
+    row.Population ? `Population: ${row.Population}` : "",
+    npcCount > 0 ? `${npcCount} NPC${npcCount !== 1 ? "s" : ""}` : ""
+  ].filter(Boolean).join(" • ");
 
-  if (typeLabel) {
-    meta.push(typeLabel);
-  }
-
-  if (row["Notoriety Tier"]) {
-    meta.push(`Notoriety: ${row["Notoriety Tier"]}`);
+  if (populationNpcLine) {
+    meta.push(populationNpcLine);
   }
 
   return joinCodexLabel(
@@ -449,10 +492,14 @@ function buildRegionListLabel(row) {
 }
 
 function buildHexListLabel(row) {
+  const counts = getHexCounts(row.Hex_ID);
+  const countLine = buildCountLine(counts.poiCount, counts.npcCount);
+
   return joinCodexLabel(
     `Hex ${row.Hex_ID}`,
     [
-      row.Terrain || "Unknown Terrain"
+      row.Terrain || "Unknown Terrain",
+      countLine
     ]
   );
 }
@@ -937,8 +984,27 @@ function renderCodexSearchResults(query) {
       results.push({
         type: "region",
         id: region.Region_ID,
-        title: region.Region_Name || region.Region_ID,
-        meta: ["Region"]
+        label: joinCodexLabel(
+          region.Region_Name || region.Region_ID,
+          ["Region"]
+        )
+      });
+    }
+  });
+
+  (db?.raw?.hexes || []).forEach(hex => {
+    const haystack = [
+      hex.Hex_ID,
+      hex.Terrain,
+      hex.Region_ID_Ref,
+      hex.DM_Journal
+    ].join(" ").toLowerCase();
+
+    if (haystack.includes(cleanQuery)) {
+      results.push({
+        type: "hex",
+        id: hex.Hex_ID,
+        label: buildHexListLabel(hex)
       });
     }
   });
@@ -949,6 +1015,8 @@ function renderCodexSearchResults(query) {
       poi.Name,
       poi.POI_Type,
       poi.Hex_ID_Ref,
+      poi.Population,
+      poi["Notoriety Tier"],
       poi.Lore,
       poi.DM_Journal
     ].join(" ").toLowerCase();
@@ -957,11 +1025,7 @@ function renderCodexSearchResults(query) {
       results.push({
         type: "poi",
         id: poi.POI_ID,
-        title: poi.Name || poi.POI_ID,
-        meta: [
-          "POI",
-          poi.POI_Type || ""
-        ].filter(Boolean)
+        label: buildPoiListLabel(poi)
       });
     }
   });
@@ -981,11 +1045,7 @@ function renderCodexSearchResults(query) {
       results.push({
         type: "npc",
         id: npc.NPC_ID,
-        title: npc.Name || npc.NPC_ID,
-        meta: [
-          "NPC",
-          [npc.Race, npc.Occupation].filter(Boolean).join(" • ")
-        ].filter(Boolean)
+        label: buildNpcListLabel(npc)
       });
     }
   });
@@ -1000,7 +1060,7 @@ function renderCodexSearchResults(query) {
     "No matching records found.",
     null,
     "id",
-    buildSearchResultLabel,
+    row => row.label,
     row => row.type
   );
 }
@@ -1146,17 +1206,19 @@ map.on("click", function () {
 });
 
 document.getElementById("panel-close").addEventListener("click", function () {
-  closePanel();
-  clearSelectedHex();
+  closePanel({ clearSelection: true });
 });
 
 document.getElementById("mobile-panel-close").addEventListener("click", function () {
-  closePanel();
-  clearSelectedHex();
+  closePanel({ clearSelection: true });
 });
 
 document.getElementById("mobile-panel-back").addEventListener("click", function () {
-  closePanel();
+  closePanel({ clearSelection: true });
+});
+
+map.on("popupclose", function () {
+  clearSelectedHex();
 });
 
 document.getElementById("codex-button").addEventListener("click", function (event) {
