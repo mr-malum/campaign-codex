@@ -392,6 +392,26 @@ button.panel-link.mobile-nav-back {
   cursor: default;
 }
 
+#mobile-panel-back {
+  display: none;
+}
+
+#app-panel .panel-nav {
+  justify-content: flex-end;
+}
+
+#panel-content .panel-journal-preview {
+  padding-left: 1.1em;
+
+  font-style: italic;
+  font-weight: 400;
+
+  font-size: 1.02rem;
+  line-height: 1.9;
+
+  letter-spacing: 0.01em;
+}
+
 /* Mobile */
 @media (max-width: 768px) {
 
