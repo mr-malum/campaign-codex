@@ -610,7 +610,7 @@ function renderCodexListControls(config) {
 }
 
 // ======================
-// PAGE RENDERERS
+// PAGE RENDERER HELPERS
 // ======================
 
 function renderCodexHexPage(hexId) {
@@ -942,6 +942,52 @@ function renderPoiListIntoContainer() {
   );
 }
 
+function renderNpcListIntoContainer() {
+  const listEl = document.getElementById("codex-npc-list");
+  const raceFilter = document.getElementById("codex-npc-race-filter")?.value || "all";
+  const sortMode = document.getElementById("codex-npc-sort")?.value || "name";
+  const directionButton = document.getElementById("codex-npc-direction");
+  const sortDirection = directionButton?.dataset?.direction || "asc";
+
+  let npcs = [...(db?.raw?.npcs || [])];
+
+  if (raceFilter !== "all") {
+    npcs = npcs.filter(npc => npc.Race === raceFilter);
+  }
+
+  let compareFn = null;
+
+  if (sortMode === "name") {
+    compareFn = (a, b) => compareText(a.Name, b.Name);
+  }
+
+  if (sortMode === "race") {
+    compareFn = (a, b) => {
+      const primary = compareText(a.Race, b.Race);
+      return primary !== 0 ? primary : compareText(a.Name, b.Name);
+    };
+  }
+
+  if (sortMode === "occupation") {
+    compareFn = (a, b) => {
+      const primary = compareText(a.Occupation, b.Occupation);
+      return primary !== 0 ? primary : compareText(a.Name, b.Name);
+    };
+  }
+
+  if (compareFn) {
+    npcs = sortRows(npcs, compareFn, sortDirection);
+  }
+
+  listEl.innerHTML = renderCodexLinkedList(
+    npcs,
+    "No NPCs match these filters.",
+    "npc",
+    "NPC_ID",
+    buildNpcListLabel
+  );
+}
+
 function renderCodexPoisIndex() {
   const pois = db?.raw?.pois || [];
 
@@ -1024,15 +1070,80 @@ function renderCodexPoisIndex() {
 function renderCodexNpcsIndex() {
   const npcs = db?.raw?.npcs || [];
 
+  const npcRaces = [...new Set(
+    npcs
+      .map(npc => npc.Race)
+      .filter(Boolean)
+  )].sort();
+
   setCodexTitle("NPCs");
 
-  setCodexContent(renderCodexLinkedList(
-    npcs,
-    "No NPCs recorded.",
-    "npc",
-    "NPC_ID",
-    buildNpcListLabel
-  ));
+  setCodexContent(`
+    ${renderCodexListControls({
+      filters: [
+        {
+          id: "codex-npc-race-filter",
+          label: "Race",
+          selectedValue: "all",
+          options: [
+            { value: "all", label: "All" },
+            ...npcRaces.map(race => ({
+              value: race,
+              label: race
+            }))
+          ]
+        }
+      ],
+      sortId: "codex-npc-sort",
+      selectedSort: "name",
+      sortOptions: [
+        { value: "name", label: "Name" },
+        { value: "race", label: "Race" },
+        { value: "occupation", label: "Occupation" }
+      ],
+      directionId: "codex-npc-direction",
+      direction: "asc"
+    })}
+
+    <div id="codex-npc-list"></div>
+  `, [
+    {
+      label: "Codex",
+      clickable: true,
+      onclick: "resetCodexToIndex()"
+    },
+    {
+      label: "NPCs"
+    }
+  ]);
+
+  document.getElementById("codex-npc-race-filter").addEventListener(
+    "change",
+    renderNpcListIntoContainer
+  );
+
+  document.getElementById("codex-npc-sort").addEventListener(
+    "change",
+    renderNpcListIntoContainer
+  );
+
+  document.getElementById("codex-npc-direction").addEventListener(
+    "click",
+    function () {
+      const current = this.dataset.direction || "asc";
+      const next = current === "asc" ? "desc" : "asc";
+
+      this.dataset.direction = next;
+
+      this.textContent = next === "asc"
+        ? "↑ ASC"
+        : "↓ DESC";
+
+      renderNpcListIntoContainer();
+    }
+  );
+
+  renderNpcListIntoContainer();
 }
 
 function renderCodexSearchPage() {
