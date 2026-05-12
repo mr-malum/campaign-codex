@@ -1,0 +1,55 @@
+function readCodexSortState(config) {
+  const sortMode =
+    document.getElementById(config.sortId)?.value ||
+    config.selectedSort;
+
+  const direction =
+    document.getElementById(config.directionId)?.dataset?.direction ||
+    "asc";
+
+  return {
+    sortMode,
+    direction
+  };
+}
+
+....... 
+
+const {
+    sortMode,
+    direction: sortDirection
+  } = readCodexSortState(poiCodexListConfig);
+
+....... 
+
+const {
+    sortMode,
+    direction: sortDirection
+  } = readCodexSortState(npcCodexListConfig);
+
+....... 
+
+function applyConfiguredSort(rows, compareFn, sortDirection) {
+  if (!compareFn) {
+    return rows;
+  }
+
+  return sortRows(rows, compareFn, sortDirection);
+}
+
+....... 
+
+
+pois = applyConfiguredSort(
+    pois,
+    compareFn,
+    sortDirection
+  );
+
+....... 
+
+npcs = applyConfiguredSort(
+    npcs,
+    compareFn,
+    sortDirection
+  );
