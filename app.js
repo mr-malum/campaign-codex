@@ -31,9 +31,13 @@ function updatePanBounds() {
     padding = zoom < -2 ? 5200 : zoom < -1 ? 1700 : zoom < 0 ? 1100 : 600;
   }
 
+  const rightPadding = isMobile
+    ? padding
+    : padding * 1.35;
+
   map.setMaxBounds([
     [-padding, -padding],
-    [imageHeight + padding, imageWidth + padding]
+    [imageHeight + padding, imageWidth + rightPadding]
   ]);
 }
 
@@ -59,6 +63,7 @@ const oddColY = rowStepY / -2;
 const oddColX = colStepX / 2;
 
 let selectedHex = null;
+let selectedHexId = null;
 let codexHistory = [];
 
 const defaultStyle = {
@@ -173,6 +178,32 @@ function getRegionSummary(regionId) {
   };
 }
 
+function buildCountLine(poiCount, npcCount) {
+  return [
+    poiCount > 0 ? `${poiCount} POI${poiCount !== 1 ? "s" : ""}` : "",
+    npcCount > 0 ? `${npcCount} NPC${npcCount !== 1 ? "s" : ""}` : ""
+  ].filter(Boolean).join(" • ");
+}
+
+function getLimitedLines(value, maxLines = 4, fallback = "No journal entries.") {
+  const lines = String(value || fallback)
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  const limited = lines.slice(0, maxLines);
+
+  if (lines.length > maxLines) {
+    limited.push("...");
+  }
+
+  return limited.join("\n");
+}
+
+function renderMultilineText(value) {
+  return escapeHtml(value).replaceAll("\n", "<br>");
+}
+
 function selectHex(hex) {
   if (selectedHex && selectedHex !== hex) {
     selectedHex.setStyle(defaultStyle);
@@ -189,26 +220,25 @@ function clearSelectedHex() {
   }
 }
 
-function setPanelSideFromClick(event) {
-  const panel = document.getElementById("app-panel");
-  const clickX = event.originalEvent.clientX;
-  const screenWidth = window.innerWidth;
+function closePanel(options = {}) {
+  document.getElementById("app-panel").classList.remove("open");
 
-  panel.classList.remove("left", "right");
+  if (options.centerSelected && selectedHexId) {
+    centerHexInView(selectedHexId);
+  }
 
-  if (clickX > screenWidth / 2) {
-    panel.classList.add("left");
-  } else {
-    panel.classList.add("right");
+  if (options.clearSelection) {
+    clearSelectedHex();
+    map.closePopup();
   }
 }
 
-function closePanel() {
-  document.getElementById("app-panel").classList.remove("open");
-}
-
 function openPanel() {
-  document.getElementById("app-panel").classList.add("open");
+  const panel = document.getElementById("app-panel");
+
+  requestAnimationFrame(() => {
+    panel.classList.add("open");
+  });
 }
 
 function renderHexPreview(hexId) {
@@ -221,10 +251,8 @@ function renderHexPreview(hexId) {
   document.getElementById("panel-title").textContent = `HEX ${hexId}`;
   document.getElementById("panel-subtitle").textContent = "Field Notes";
 
-  const countLine = [
-    counts.poiCount > 0 ? `${counts.poiCount} POI${counts.poiCount !== 1 ? "s" : ""}` : "",
-    counts.npcCount > 0 ? `${counts.npcCount} NPC${counts.npcCount !== 1 ? "s" : ""}` : ""
-  ].filter(Boolean).join(" • ");
+  const countLine = buildCountLine(counts.poiCount, counts.npcCount);
+  const journalPreview = getLimitedLines(hex?.DM_Journal, 4);
 
   document.getElementById("panel-content").innerHTML = `
     <p><strong>Terrain:</strong> ${escapeHtml(hex?.Terrain || "Unknown")}</p>
@@ -232,8 +260,9 @@ function renderHexPreview(hexId) {
 
     ${countLine ? `<p><strong>Known Records:</strong> ${escapeHtml(countLine)}</p>` : ""}
 
-    <p>
-      ${escapeHtml(hex?.DM_Journal || "No journal entries.")}
+    <h3>Field Notes</h3>
+    <p class="panel-journal-preview">
+      ${renderMultilineText(journalPreview)}
     </p>
 
     <button class="codex-section-button" type="button" onclick="openCodexPage('hex', '${escapeJsString(hexId)}')">
@@ -246,12 +275,46 @@ function openPanelForHex(hexId) {
   renderHexPreview(hexId);
 }
 
+function panHexIntoInspectorView(hexId) {
+  const [xxx, yyy] = hexId.split(":").map(Number);
+  const center = getHexCenter(xxx, yyy);
+  const targetLatLng = L.latLng(center.y, center.x);
+
+  const targetPoint = map.latLngToContainerPoint(targetLatLng);
+  const desiredPoint = L.point(
+    map.getSize().x * 0.33,
+    map.getSize().y * 0.5
+  );
+
+  const offset = targetPoint.subtract(desiredPoint);
+
+  map.panBy(offset, {
+    animate: true,
+    duration: 0.35
+  });
+}
+
+function centerHexInView(hexId) {
+  const [xxx, yyy] = hexId.split(":").map(Number);
+  const center = getHexCenter(xxx, yyy);
+
+  map.panTo(
+    L.latLng(center.y, center.x),
+    {
+      animate: true,
+      duration: 0.35
+    }
+  );
+}
+
 function openCodex() {
   document.getElementById("codex-overlay").classList.add("open");
 }
 
 function closeCodex() {
   document.getElementById("codex-overlay").classList.remove("open");
+  map.closePopup();
+  clearSelectedHex();
 }
 
 function setCodexTitle(title) {
@@ -260,7 +323,7 @@ function setCodexTitle(title) {
 
 function setCodexContent(html, breadcrumbs = []) {
   const content = document.getElementById("codex-content");
-  
+
   content.className = "";
 
   const breadcrumbHtml = breadcrumbs.length
@@ -377,6 +440,101 @@ function renderCodexIndex() {
   `;
 }
 
+function joinCodexLabel(title, meta = []) {
+  return [
+    title,
+    ...meta.filter(Boolean)
+  ].filter(Boolean).join(" — ");
+}
+
+function buildPoiListLabel(row) {
+  const meta = [];
+
+  const typeLine = [
+    row.POI_Type || "",
+    row["Notoriety Tier"] ? `Notoriety: ${row["Notoriety Tier"]}` : ""
+  ].filter(Boolean).join(" • ");
+
+  if (typeLine) {
+    meta.push(typeLine);
+  }
+
+  const npcCount = getNpcsForPoi(row.POI_ID).length;
+
+  const populationNpcLine = [
+    row.Population ? `Population: ${row.Population}` : "",
+    npcCount > 0 ? `${npcCount} NPC${npcCount !== 1 ? "s" : ""}` : ""
+  ].filter(Boolean).join(" • ");
+
+  if (populationNpcLine) {
+    meta.push(populationNpcLine);
+  }
+
+  return joinCodexLabel(
+    row.Name || row.POI_ID || "Unnamed POI",
+    meta
+  );
+}
+
+function buildNpcListLabel(row) {
+  const meta = [];
+
+  const raceOccupation = [
+    row.Race,
+    row.Occupation
+  ].filter(Boolean).join(" • ");
+
+  if (raceOccupation) {
+    meta.push(raceOccupation);
+  }
+
+  const home = row.Home_ID_Ref
+    ? db?.poisById?.[row.Home_ID_Ref]
+    : null;
+
+  const homeLabel = home?.Name || row.Home_ID_Ref;
+
+  if (homeLabel) {
+    meta.push(homeLabel);
+  }
+
+  return joinCodexLabel(
+    row.Name || row.NPC_ID || "Unnamed NPC",
+    meta
+  );
+}
+
+function buildRegionListLabel(row) {
+  const summary = getRegionSummary(row.Region_ID);
+
+  return joinCodexLabel(
+    row.Region_Name || row.Region_ID || "Unnamed Region",
+    [
+      `${summary.hexCount} hexes • ${summary.poiCount} POIs • ${summary.npcCount} NPCs`
+    ]
+  );
+}
+
+function buildHexListLabel(row) {
+  const counts = getHexCounts(row.Hex_ID);
+  const countLine = buildCountLine(counts.poiCount, counts.npcCount);
+
+  return joinCodexLabel(
+    `Hex ${row.Hex_ID}`,
+    [
+      row.Terrain || "Unknown Terrain",
+      countLine
+    ]
+  );
+}
+
+function buildSearchResultLabel(result) {
+  return joinCodexLabel(
+    result.title,
+    result.meta || []
+  );
+}
+
 function renderCodexHexPage(hexId) {
   const hex = db?.hexesById?.[hexId];
   const region = hex?.Region_ID_Ref ? db?.regionsById?.[hex.Region_ID_Ref] : null;
@@ -406,36 +564,17 @@ function renderCodexHexPage(hexId) {
       "No known points of interest in this hex.",
       "poi",
       "POI_ID",
-      row => {
-        const meta = [];
-
-        let typeLabel = row.POI_Type || "";
-
-        const npcCount = getNpcsForPoi(row.POI_ID).length;
-
-        if (npcCount > 0) {
-          typeLabel += ` • ${npcCount} NPC${npcCount !== 1 ? "s" : ""}`;
-        }
-
-        if (typeLabel) {
-          meta.push(typeLabel);
-        }
-
-        if (row["Notoriety Tier"]) {
-          meta.push(`Notoriety: ${row["Notoriety Tier"]}`);
-        }
-
-        return [
-          row.Name,
-          ...meta
-        ].filter(Boolean).join(" — ");
-      }
+      buildPoiListLabel
     )}
 
     <h3>NPCs</h3>
-    ${renderCodexLinkedList(npcs, "No known NPCs associated with this hex.", "npc", "NPC_ID", row => {
-      return [row.Name, row.Race, row.Occupation].filter(Boolean).join(" — ");
-    })}
+    ${renderCodexLinkedList(
+      npcs,
+      "No known NPCs associated with this hex.",
+      "npc",
+      "NPC_ID",
+      buildNpcListLabel
+    )}
   `, [
     {
       label: "Codex",
@@ -495,48 +634,26 @@ function renderCodexRegionPage(regionId) {
       "No points of interest currently recorded in this region.",
       "poi",
       "POI_ID",
-      row => {
-        const meta = [];
-
-        let typeLabel = row.POI_Type || "";
-
-        const npcCount = getNpcsForPoi(row.POI_ID).length;
-
-        if (npcCount > 0) {
-          typeLabel += ` • ${npcCount} NPC${npcCount !== 1 ? "s" : ""}`;
-        }
-
-        if (typeLabel) {
-          meta.push(typeLabel);
-        }
-
-        if (row["Notoriety Tier"]) {
-          meta.push(`Notoriety: ${row["Notoriety Tier"]}`);
-        }
-
-        return [
-          row.Name,
-          ...meta
-        ].filter(Boolean).join(" — ");
-      }
+      buildPoiListLabel
     )}
 
     <h3>NPCs</h3>
-    ${renderCodexLinkedList(npcs, "No NPCs currently recorded in this region.", "npc", "NPC_ID", row => {
-      const home = row.Home_ID_Ref ? db?.poisById?.[row.Home_ID_Ref] : null;
-      const homeLabel = home?.Name || row.Home_ID_Ref;
-
-      return [
-        row.Name,
-        [row.Race, row.Occupation].filter(Boolean).join(" • "),
-        homeLabel || ""
-      ].filter(Boolean).join(" — ");
-    })}
+    ${renderCodexLinkedList(
+      npcs,
+      "No NPCs currently recorded in this region.",
+      "npc",
+      "NPC_ID",
+      buildNpcListLabel
+    )}
 
     <h3>Hexes</h3>
-    ${renderCodexLinkedList(hexes, "No hexes currently assigned to this region.", "hex", "Hex_ID", row => {
-      return `Hex ${row.Hex_ID} — ${row.Terrain || "Unknown Terrain"}`;
-    })}
+    ${renderCodexLinkedList(
+      hexes,
+      "No hexes currently assigned to this region.",
+      "hex",
+      "Hex_ID",
+      buildHexListLabel
+    )}
   `, [
     {
       label: "Codex",
@@ -585,9 +702,13 @@ function renderCodexPoiPage(poiId) {
     <p>${escapeHtml(poi?.DM_Journal || "No journal entries.")}</p>
 
     <h3>NPCs</h3>
-    ${renderCodexLinkedList(npcs, "No known NPCs at this location.", "npc", "NPC_ID", row => {
-      return [row.Name, row.Race, row.Occupation].filter(Boolean).join(" — ");
-    })}
+    ${renderCodexLinkedList(
+      npcs,
+      "No known NPCs at this location.",
+      "npc",
+      "NPC_ID",
+      buildNpcListLabel
+    )}
   `, [
     {
       label: "Codex",
@@ -657,14 +778,7 @@ function renderCodexRegionsIndex() {
     "No regions recorded.",
     "region",
     "Region_ID",
-    row => {
-      const summary = getRegionSummary(row.Region_ID);
-
-      return [
-        row.Region_Name || row.Region_ID || "Unnamed Region",
-        `${summary.hexCount} hexes • ${summary.poiCount} POIs • ${summary.npcCount} NPCs`
-      ].filter(Boolean).join(" — ");
-    }
+    buildRegionListLabel
   ));
 }
 
@@ -745,30 +859,7 @@ function renderPoiListIntoContainer() {
     "No points of interest match these filters.",
     "poi",
     "POI_ID",
-    row => {
-      const meta = [];
-
-      let typeLabel = row.POI_Type || "";
-
-      const npcCount = getNpcsForPoi(row.POI_ID).length;
-
-      if (npcCount > 0) {
-        typeLabel += ` • ${npcCount} NPC${npcCount !== 1 ? "s" : ""}`;
-      }
-
-      if (typeLabel) {
-        meta.push(typeLabel);
-      }
-
-      if (row["Notoriety Tier"]) {
-        meta.push(`Notoriety: ${row["Notoriety Tier"]}`);
-      }
-
-      return [
-        row.Name,
-        ...meta
-      ].filter(Boolean).join(" — ");
-    }
+    buildPoiListLabel
   );
 }
 
@@ -859,16 +950,7 @@ function renderCodexNpcsIndex() {
     "No NPCs recorded.",
     "npc",
     "NPC_ID",
-    row => {
-      const home = row.Home_ID_Ref ? db?.poisById?.[row.Home_ID_Ref] : null;
-      const homeLabel = home?.Name || row.Home_ID_Ref;
-
-      return [
-        row.Name,
-        [row.Race, row.Occupation].filter(Boolean).join(" • "),
-        homeLabel || ""
-      ].filter(Boolean).join(" — ");
-    }
+    buildNpcListLabel
   ));
 }
 
@@ -926,7 +1008,27 @@ function renderCodexSearchResults(query) {
       results.push({
         type: "region",
         id: region.Region_ID,
-        label: `Region — ${region.Region_Name || region.Region_ID}`
+        label: joinCodexLabel(
+          region.Region_Name || region.Region_ID,
+          ["Region"]
+        )
+      });
+    }
+  });
+
+  (db?.raw?.hexes || []).forEach(hex => {
+    const haystack = [
+      hex.Hex_ID,
+      hex.Terrain,
+      hex.Region_ID_Ref,
+      hex.DM_Journal
+    ].join(" ").toLowerCase();
+
+    if (haystack.includes(cleanQuery)) {
+      results.push({
+        type: "hex",
+        id: hex.Hex_ID,
+        label: buildHexListLabel(hex)
       });
     }
   });
@@ -937,6 +1039,8 @@ function renderCodexSearchResults(query) {
       poi.Name,
       poi.POI_Type,
       poi.Hex_ID_Ref,
+      poi.Population,
+      poi["Notoriety Tier"],
       poi.Lore,
       poi.DM_Journal
     ].join(" ").toLowerCase();
@@ -945,7 +1049,7 @@ function renderCodexSearchResults(query) {
       results.push({
         type: "poi",
         id: poi.POI_ID,
-        label: `POI — ${poi.Name || poi.POI_ID}`
+        label: buildPoiListLabel(poi)
       });
     }
   });
@@ -965,7 +1069,7 @@ function renderCodexSearchResults(query) {
       results.push({
         type: "npc",
         id: npc.NPC_ID,
-        label: `NPC — ${npc.Name || npc.NPC_ID}`
+        label: buildNpcListLabel(npc)
       });
     }
   });
@@ -975,22 +1079,24 @@ function renderCodexSearchResults(query) {
     return;
   }
 
-  resultsEl.innerHTML = `
-    <div class="codex-list">
-      ${results.map(result => `
-        <button
-          class="codex-section-button"
-          type="button"
-          onclick="openCodexPage('${escapeJsString(result.type)}', '${escapeJsString(result.id)}')"
-        >
-          ${escapeHtml(result.label)}
-        </button>
-      `).join("")}
-    </div>
-  `;
+  resultsEl.innerHTML = renderCodexLinkedList(
+    results,
+    "No matching records found.",
+    null,
+    "id",
+    row => row.label,
+    row => row.type
+  );
 }
 
-function renderCodexLinkedList(rows, emptyText, type, idField, getLabel) {
+function renderCodexLinkedList(
+  rows,
+  emptyText,
+  type,
+  idField,
+  getLabel,
+  getType = null
+) {
   if (!rows.length) {
     return `<p>${escapeHtml(emptyText)}</p>`;
   }
@@ -999,23 +1105,33 @@ function renderCodexLinkedList(rows, emptyText, type, idField, getLabel) {
     <div class="codex-list">
       ${rows.map(row => {
         const id = row?.[idField];
+
+        const resolvedType = getType
+          ? getType(row)
+          : type;
+
         const label = getLabel(row) || id || "Unnamed Record";
+
         const parts = String(label).split(" — ");
+
         const title = parts.shift() || "Unnamed Record";
+
         const metaLines = parts;
 
         return `
           <button
             class="codex-section-button codex-record-button"
             type="button"
-            onclick="openCodexPage('${escapeJsString(type)}', '${escapeJsString(id)}')"
+            onclick="openCodexPage('${escapeJsString(resolvedType)}', '${escapeJsString(id)}')"
           >
             <span class="codex-record-main">
               <span class="codex-record-title">${escapeHtml(title)}</span>
+
               ${metaLines.map(line => `
-                  <span class="codex-record-meta">${escapeHtml(line)}</span>
-                  `).join("")}
+                <span class="codex-record-meta">${escapeHtml(line)}</span>
+              `).join("")}
             </span>
+
             <span class="codex-record-arrow">›</span>
           </button>
         `;
@@ -1094,13 +1210,20 @@ for (let xxx = 300; xxx < 350; xxx++) {
       document.getElementById("codex-button").classList.remove("codex-label-visible");
 
       selectHex(this);
+      selectedHexId = hexId;
 
-      if (isTouchDevice) {
-        this.bindPopup(buildMobilePopupHtml(hexId)).openPopup();
-      } else {
-        setPanelSideFromClick(e);
-        renderHexPreview(hexId);
+    if (isTouchDevice) {
+      this.bindPopup(buildMobilePopupHtml(hexId)).openPopup();
+    } else {
+      renderHexPreview(hexId);
+    
+      const panelWidth =
+        document.getElementById("app-panel").offsetWidth;
+    
+      if (panelWidth / window.innerWidth > 0.32) {
+        panHexIntoInspectorView(hexId);
       }
+    }
     });
   }
 }
@@ -1113,18 +1236,15 @@ map.on("click", function () {
   clearSelectedHex();
 });
 
-document.getElementById("panel-close").addEventListener("click", function () {
-  closePanel();
-  clearSelectedHex();
-});
-
 document.getElementById("mobile-panel-close").addEventListener("click", function () {
-  closePanel();
-  clearSelectedHex();
+  closePanel({
+  clearSelection: true,
+  centerSelected: true
+});
 });
 
-document.getElementById("mobile-panel-back").addEventListener("click", function () {
-  closePanel();
+map.on("popupclose", function () {
+  clearSelectedHex();
 });
 
 document.getElementById("codex-button").addEventListener("click", function (event) {
