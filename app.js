@@ -66,6 +66,7 @@ let selectedHex = null;
 let selectedHexId = null;
 let codexHistory = [];
 let codexSearchQuery = "";
+let retroCodexMode = false;
 
 const defaultStyle = {
   color: "#ffffff",
@@ -313,6 +314,16 @@ function centerHexInView(hexId) {
       duration: 0.35
     }
   );
+}
+
+function toggleRetroCodexMode() {
+  retroCodexMode = !retroCodexMode;
+
+  const codexButton = document.getElementById("codex-button");
+
+  codexButton.style.backgroundImage = retroCodexMode
+    ? "url('assets/Win95SwordShield_Upscaled.png')"
+    : "url('assets/Codex_Book_Button.png')";
 }
 
 function openCodex() {
@@ -1898,5 +1909,20 @@ document.getElementById("codex-back").addEventListener("click", function () {
 document.getElementById("codex-overlay").addEventListener("click", function (event) {
   if (event.target === this) {
     closeCodex();
+  }
+});
+
+let retroCodexSequence = "";
+
+window.addEventListener("keydown", event => {
+  retroCodexSequence += event.key.toLowerCase();
+
+  if (retroCodexSequence.length > 5) {
+    retroCodexSequence = retroCodexSequence.slice(-5);
+  }
+
+  if (retroCodexSequence === "win95") {
+    toggleRetroCodexMode();
+    retroCodexSequence = "";
   }
 });
