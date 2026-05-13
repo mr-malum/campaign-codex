@@ -2,6 +2,13 @@
    CODEX SEARCH PAGE
    ========================================================= */
 
+const CODEX_SEARCH_GROUPS = [
+  { type: "hex", label: "Hexes" },
+  { type: "region", label: "Regions" },
+  { type: "poi", label: "POIs" },
+  { type: "npc", label: "NPCs" }
+];
+
 function renderCodexSearchPage() {
   setCodexTitle("Search the Codex");
 
@@ -33,6 +40,10 @@ function renderCodexSearchPage() {
     </div>
   `;
 
+  bindCodexSearchInput();
+}
+
+function bindCodexSearchInput() {
   const input = document.getElementById("codex-search-input");
 
   input.addEventListener("input", function () {
@@ -49,53 +60,92 @@ function renderCodexSearchPage() {
 
 function renderCodexSearchResults(query) {
   const resultsEl = document.getElementById("codex-search-results");
-  const cleanQuery = query.trim().toLowerCase();
+  const cleanQuery = normalizeCodexSearchQuery(query);
 
   if (!cleanQuery) {
-    resultsEl.innerHTML = `
-      <p>Begin typing to search the records of Kadesh.</p>
-    `;
+    resultsEl.innerHTML = renderCodexEmptySearchMessage();
     return;
   }
 
+  const results = buildCodexSearchResults(cleanQuery);
+  resultsEl.innerHTML = renderCodexSearchResultGroups(results);
+}
+
+function normalizeCodexSearchQuery(query) {
+  return String(query || "").trim().toLowerCase();
+}
+
+function renderCodexEmptySearchMessage() {
+  return `
+    <p>Begin typing to search the records of Kadesh.</p>
+  `;
+}
+
+function codexSearchTextMatches(values, cleanQuery) {
+  return values.join(" ").toLowerCase().includes(cleanQuery);
+}
+
+function createCodexSearchCollector() {
   const results = [];
   const resultKeys = new Set();
 
-  function addSearchResult(type, id, label) {
-    const key = `${type}:${id}`;
-    if (resultKeys.has(key)) return;
+  return {
+    results,
 
-    resultKeys.add(key);
-    results.push({ type, id, label });
-  }
+    add(type, id, label) {
+      const key = `${type}:${id}`;
+      if (resultKeys.has(key)) return;
 
-  function textMatches(values) {
-    return values.join(" ").toLowerCase().includes(cleanQuery);
-  }
+      resultKeys.add(key);
+      results.push({ type, id, label });
+    }
+  };
+}
 
-  const matchingRegionIds = new Set();
-  const matchingPoiHexIds = new Set();
-  const matchingNpcHexIds = new Set();
+function createCodexSearchContext() {
+  return {
+    matchingRegionIds: new Set(),
+    matchingPoiHexIds: new Set(),
+    matchingNpcHexIds: new Set()
+  };
+}
 
+function buildCodexSearchResults(cleanQuery) {
+  const collector = createCodexSearchCollector();
+  const context = createCodexSearchContext();
+
+  collectMatchingRegions(cleanQuery, collector, context);
+  collectMatchingPois(cleanQuery, collector, context);
+  collectMatchingNpcs(cleanQuery, collector, context);
+  collectMatchingHexes(cleanQuery, collector, context);
+
+  return collector.results;
+}
+
+function collectMatchingRegions(cleanQuery, collector, context) {
   (db?.raw?.regions || []).forEach(region => {
-    if (textMatches([
+    if (!codexSearchTextMatches([
       region.Region_ID,
       region.Region_Name,
       region.Lore,
       region.DM_Journal
-    ])) {
-      matchingRegionIds.add(region.Region_ID);
-
-      addSearchResult(
-        "region",
-        region.Region_ID,
-        joinCodexLabel(region.Region_Name || region.Region_ID, ["Region"])
-      );
+    ], cleanQuery)) {
+      return;
     }
-  });
 
+    context.matchingRegionIds.add(region.Region_ID);
+
+    collector.add(
+      "region",
+      region.Region_ID,
+      joinCodexLabel(region.Region_Name || region.Region_ID, ["Region"])
+    );
+  });
+}
+
+function collectMatchingPois(cleanQuery, collector, context) {
   (db?.raw?.pois || []).forEach(poi => {
-    if (textMatches([
+    if (!codexSearchTextMatches([
       poi.POI_ID,
       poi.Name,
       poi.POI_Type,
@@ -104,23 +154,27 @@ function renderCodexSearchResults(query) {
       poi["Notoriety Tier"],
       poi.Lore,
       poi.DM_Journal
-    ])) {
-      if (poi.Hex_ID_Ref) {
-        matchingPoiHexIds.add(poi.Hex_ID_Ref);
-      }
-
-      addSearchResult(
-        "poi",
-        poi.POI_ID,
-        buildPoiListLabel(poi)
-      );
+    ], cleanQuery)) {
+      return;
     }
-  });
 
+    if (poi.Hex_ID_Ref) {
+      context.matchingPoiHexIds.add(poi.Hex_ID_Ref);
+    }
+
+    collector.add(
+      "poi",
+      poi.POI_ID,
+      buildPoiListLabel(poi)
+    );
+  });
+}
+
+function collectMatchingNpcs(cleanQuery, collector, context) {
   (db?.raw?.npcs || []).forEach(npc => {
     const home = npc.Home_ID_Ref ? db?.poisById?.[npc.Home_ID_Ref] : null;
 
-    if (textMatches([
+    if (!codexSearchTextMatches([
       npc.NPC_ID,
       npc.Name,
       npc.Title,
@@ -131,76 +185,91 @@ function renderCodexSearchResults(query) {
       getNpcHomeLabel(npc),
       npc.Lore,
       npc.DM_Journal
-    ])) {
-      if (home?.Hex_ID_Ref) {
-        matchingNpcHexIds.add(home.Hex_ID_Ref);
-      }
-
-      addSearchResult(
-        "npc",
-        npc.NPC_ID,
-        buildNpcListLabel(npc)
-      );
+    ], cleanQuery)) {
+      return;
     }
-  });
 
+    if (home?.Hex_ID_Ref) {
+      context.matchingNpcHexIds.add(home.Hex_ID_Ref);
+    }
+
+    collector.add(
+      "npc",
+      npc.NPC_ID,
+      buildNpcListLabel(npc)
+    );
+  });
+}
+
+function collectMatchingHexes(cleanQuery, collector, context) {
   (db?.raw?.hexes || []).forEach(hex => {
-    const directMatch = textMatches([
+    const directMatch = codexSearchTextMatches([
       hex.Hex_ID,
       hex.Terrain,
       hex.Region_ID_Ref,
       hex.DM_Journal
-    ]);
+    ], cleanQuery);
 
-    const regionMatch = matchingRegionIds.has(hex.Region_ID_Ref);
-    const poiMatch = matchingPoiHexIds.has(hex.Hex_ID);
-    const npcMatch = matchingNpcHexIds.has(hex.Hex_ID);
+    const regionMatch = context.matchingRegionIds.has(hex.Region_ID_Ref);
+    const poiMatch = context.matchingPoiHexIds.has(hex.Hex_ID);
+    const npcMatch = context.matchingNpcHexIds.has(hex.Hex_ID);
 
-    if (directMatch || regionMatch || poiMatch || npcMatch) {
-      const matchReasons = [
-        regionMatch ? "Matching Region" : "",
-        poiMatch ? "Matching POI" : "",
-        npcMatch ? "Matching NPC" : ""
-      ].filter(Boolean);
-
-      const label = matchReasons.length
-        ? joinCodexLabel(`Hex ${hex.Hex_ID}`, [
-            hex.Terrain || "Unknown Terrain",
-            ...matchReasons
-          ])
-        : buildHexListLabel(hex);
-
-      addSearchResult("hex", hex.Hex_ID, label);
+    if (!directMatch && !regionMatch && !poiMatch && !npcMatch) {
+      return;
     }
+
+    collector.add(
+      "hex",
+      hex.Hex_ID,
+      buildCodexHexSearchLabel(hex, {
+        regionMatch,
+        poiMatch,
+        npcMatch
+      })
+    );
   });
+}
 
-  const resultGroups = [
-    { type: "hex", label: "Hexes" },
-    { type: "region", label: "Regions" },
-    { type: "poi", label: "POIs" },
-    { type: "npc", label: "NPCs" }
-  ];
+function buildCodexHexSearchLabel(hex, matches) {
+  const matchReasons = [
+    matches.regionMatch ? "Matching Region" : "",
+    matches.poiMatch ? "Matching POI" : "",
+    matches.npcMatch ? "Matching NPC" : ""
+  ].filter(Boolean);
 
-  resultsEl.innerHTML = resultGroups
-    .map(group => {
-      const groupRows = results.filter(result => result.type === group.type);
+  if (!matchReasons.length) {
+    return buildHexListLabel(hex);
+  }
 
-      return `
-        <section class="codex-search-result-panel">
-          <h3 class="codex-search-result-heading">${escapeHtml(group.label)}</h3>
+  return joinCodexLabel(`Hex ${hex.Hex_ID}`, [
+    hex.Terrain || "Unknown Terrain",
+    ...matchReasons
+  ]);
+}
 
-          <div class="codex-search-group-scroll codex-scroll-fade">
-            ${renderCodexLinkedList(
-              groupRows,
-              `No matching ${group.label}.`,
-              null,
-              "id",
-              row => row.label,
-              row => row.type
-            )}
-          </div>
-        </section>
-      `;
-    })
+function renderCodexSearchResultGroups(results) {
+  return CODEX_SEARCH_GROUPS
+    .map(group => renderCodexSearchResultGroup(group, results))
     .join("");
+}
+
+function renderCodexSearchResultGroup(group, results) {
+  const groupRows = results.filter(result => result.type === group.type);
+
+  return `
+    <section class="codex-search-result-panel">
+      <h3 class="codex-search-result-heading">${escapeHtml(group.label)}</h3>
+
+      <div class="codex-search-group-scroll codex-scroll-fade">
+        ${renderCodexLinkedList(
+          groupRows,
+          `No matching ${group.label}.`,
+          null,
+          "id",
+          row => row.label,
+          row => row.type
+        )}
+      </div>
+    </section>
+  `;
 }
