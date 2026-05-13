@@ -1162,7 +1162,7 @@ text-shadow:
 .codex-list {
   display: grid;
   gap: 10px;
-  margin: 34px 0 22px;
+  margin: 12px 0 22px;
 }
 
 .codex-record-button {
@@ -1404,19 +1404,11 @@ text-shadow:
 
 /* Codex filter controls */
 .codex-filter-row {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-
   display: flex;
   gap: 14px;
-  margin: 0 0 42px;
+  margin: 0 0 22px;
   align-items: end;
   flex-wrap: wrap;
-
-  padding: 10px 0 0;
-
-  background: transparent;
 }
 
 .codex-filter-row label {
