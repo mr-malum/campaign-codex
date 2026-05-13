@@ -1395,9 +1395,11 @@ text-shadow:
 
 .codex-mobile-filter-toggle {
   display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 
   width: 100%;
-
+  
   margin: 0 0 18px;
   padding: 14px 18px;
 
