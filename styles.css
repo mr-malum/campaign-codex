@@ -1865,7 +1865,7 @@ option {
   align-self: flex-start;
 }
 
-.codex-detail-npc-panel h3 {
+#codex-content .codex-detail-npc-panel h3 {
   flex: 0 0 auto;
 
   margin: 0 0 8px;
