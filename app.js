@@ -320,6 +320,8 @@ function openCodex() {
 }
 
 function closeCodex() {
+  codexSearchQuery = "";
+
   document.getElementById("codex-overlay").classList.remove("open");
   map.closePopup();
   clearSelectedHex();
@@ -478,6 +480,8 @@ function renderCodexPage(type, id) {
 function renderCodexIndex() {
   setCodexTitle("The Codex of Kadesh");
   renderCodexBreadcrumbs([]);
+
+  codexSearchQuery = "";
 
   const content = document.getElementById("codex-content");
   content.className = "codex-home";
