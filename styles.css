@@ -1379,18 +1379,18 @@ text-shadow:
     height: calc(100dvh - 310px);
   }
 
-  .codex-detail-fixed {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
+    .codex-detail-fixed {
+      flex-direction: column;
+      gap: 14px;
+    }
 
     .codex-detail-fixed-poi {
     grid-template-columns: 1fr;
   }
 
-  .codex-detail-npc-panel {
-    min-height: 180px;
-  }
+    .codex-detail-npc-panel {
+      min-height: 180px;
+    }
 
   .codex-detail-portrait-slot {
     margin: 0 auto;
@@ -1803,21 +1803,12 @@ option {
 .codex-detail-fixed {
   flex: 0 0 auto;
 
-  display: grid;
-  grid-template-columns: 180px minmax(0, 520px);
-  justify-content: center;
-
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 20px;
-  align-items: start;
 
   padding-bottom: 18px;
-}
-
-.codex-detail-fixed-poi {
-  grid-template-columns:
-    180px
-    minmax(180px, 280px)
-    minmax(320px, 1fr);
 }
 
 .codex-detail-portrait-slot {
@@ -1839,12 +1830,20 @@ option {
 }
 
 .codex-detail-meta {
+  flex: 0 0 auto;
+
   display: grid;
   gap: 4px;
 
-  text-align: right;
+  align-self: center;
 
-  margin-bottom: 18px;
+  text-align: left;
+
+  margin:
+    0
+    24px
+    18px
+    0;
 }
 
 .codex-detail-meta p {
@@ -1856,6 +1855,8 @@ option {
 }
 
 .codex-detail-npc-panel {
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
 
   display: flex;
