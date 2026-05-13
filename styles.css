@@ -1389,7 +1389,7 @@ text-shadow:
 }
 
 .codex-mobile-filter-toggle {
-  display: block;
+  display: block !important;
 
   width: 100%;
 
@@ -1417,7 +1417,7 @@ text-shadow:
 }
 
 .codex-mobile-controls-overlay.open {
-  display: flex;
+  display: flex !important;
 }
 
 .codex-mobile-controls-overlay {
