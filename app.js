@@ -332,6 +332,7 @@ function toggleRetroCodexMode() {
       "url('assets/Codex_Book_Button.png')";
   
     codexButton.style.backgroundSize = "";
+  }
 }
 
 function openCodex() {
