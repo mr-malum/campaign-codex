@@ -1387,20 +1387,26 @@ function renderCodexListPage(config) {
   setCodexTitle(config.title);
 
   setCodexContent(`
-    ${renderCodexListControls({
-      filters: config.filters.map(filter => ({
-        ...filter,
-        fieldOptions: config.fieldOptions,
-        options: config.getFilterOptions(filter.fieldValue)
-      })),
-      sortId: config.sortId,
-      selectedSort: config.selectedSort,
-      sortOptions: config.sortOptions,
-      directionId: config.directionId,
-      direction: "asc"
-    })}
+    <div class="codex-list-page-shell">
+      <div class="codex-list-controls-shell">
+        ${renderCodexListControls({
+          filters: config.filters.map(filter => ({
+            ...filter,
+            fieldOptions: config.fieldOptions,
+            options: config.getFilterOptions(filter.fieldValue)
+          })),
+          sortId: config.sortId,
+          selectedSort: config.selectedSort,
+          sortOptions: config.sortOptions,
+          directionId: config.directionId,
+          direction: "asc"
+        })}
+      </div>
 
-    <div id="${escapeHtml(config.listId)}"></div>
+      <div class="codex-list-scroll-shell">
+        <div id="${escapeHtml(config.listId)}"></div>
+      </div>
+    </div>
   `, config.breadcrumbs);
 
   config.bindControls();
