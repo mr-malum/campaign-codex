@@ -1384,6 +1384,14 @@ text-shadow:
     gap: 14px;
   }
 
+    .codex-detail-fixed-poi {
+    grid-template-columns: 1fr;
+  }
+
+  .codex-detail-npc-panel {
+    min-height: 180px;
+  }
+
   .codex-detail-portrait-slot {
     margin: 0 auto;
   }
@@ -1796,11 +1804,20 @@ option {
   flex: 0 0 auto;
 
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 180px minmax(0, 520px);
+  justify-content: center;
+
   gap: 20px;
   align-items: start;
 
   padding-bottom: 18px;
+}
+
+.codex-detail-fixed-poi {
+  grid-template-columns:
+    180px
+    minmax(180px, 280px)
+    minmax(320px, 1fr);
 }
 
 .codex-detail-portrait-slot {
@@ -1822,14 +1839,12 @@ option {
 }
 
 .codex-detail-meta {
-  margin: 0 0 14px auto;
-
-  width: min(100%, 520px);
-
   display: grid;
   gap: 4px;
 
   text-align: right;
+
+  margin-bottom: 18px;
 }
 
 .codex-detail-meta p {
@@ -1838,6 +1853,28 @@ option {
 
 .codex-detail-meta h3 {
   margin-top: 18px;
+}
+
+.codex-detail-npc-panel {
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-detail-npc-panel h3 {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.codex-detail-upper-scrollbox {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 220px;
+
+  overflow-y: auto;
+
+  padding-right: 8px;
 }
 
 .codex-detail-scroll-grid {
