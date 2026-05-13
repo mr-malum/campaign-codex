@@ -1388,6 +1388,10 @@ text-shadow:
   display: none;
 }
 
+  .codex-list-controls-shell.open {
+  display: block !important;
+}
+
   .codex-list-page-shell {
   display: flex;
   flex-direction: column;
