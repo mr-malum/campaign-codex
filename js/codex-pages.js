@@ -1,3 +1,7 @@
+/* =========================================================
+   CODEX DETAIL / SEARCH / INDEX PAGES
+   ========================================================= */
+
 function renderCodexHexPage(hexId) {
   const hex = db?.hexesById?.[hexId];
   const region = hex?.Region_ID_Ref ? db?.regionsById?.[hex.Region_ID_Ref] : null;
@@ -328,101 +332,6 @@ function renderCodexRegionsIndex() {
     "Region_ID",
     buildRegionListLabel
   ));
-}
-
-function renderCodexListPage(config) {
-  setCodexTitle(config.title);
-
-  const controlsHtml = renderCodexListControls({
-    filters: config.filters.map(filter => ({
-      ...filter,
-      fieldOptions: config.fieldOptions,
-      options: config.getFilterOptions(filter.fieldValue)
-    })),
-    sortId: config.sortId,
-    selectedSort: config.selectedSort,
-    sortOptions: config.sortOptions,
-    directionId: config.directionId,
-    direction: "asc"
-  });
-
-  setCodexContent(`
-    <div class="codex-list-page-shell">
-      <button
-        class="codex-mobile-filter-toggle"
-        type="button"
-        onclick="openCodexMobileControls()"
-      >
-        Filter & Sort
-      </button>
-
-      <div class="codex-list-controls-shell" id="codex-list-controls-shell">
-        <div class="codex-mobile-controls-panel">
-
-        <div class="codex-mobile-controls-heading">
-          <h3>Filter & Sort</h3>
-         </div>
-
-        ${controlsHtml}
-
-        <button
-          class="codex-mobile-controls-apply"
-          type="button"
-          onclick="closeCodexMobileControls()"
-        >
-          Apply
-        </button>
-        </div>
-      </div>
-
-      <div class="codex-list-scroll-shell codex-scroll-fade">
-        <div id="${escapeHtml(config.listId)}"></div>
-      </div>
-    </div>
-  `, config.breadcrumbs);
-
-  document.getElementById("codex-content").classList.add("codex-list-page");
-
-  config.bindControls();
-  config.renderList();
-}
-
-function renderCodexPoisIndex() {
-  renderCodexListPage({
-    ...poiCodexListConfig,
-
-    title: "Points of Interest",
-
-    listId: "codex-poi-list",
-
-    breadcrumbs: [
-      { label: "Codex", clickable: true, onclick: "resetCodexToIndex()" },
-      { label: "Points of Interest" }
-    ],
-
-    getFilterOptions: getPoiFilterOptions,
-
-    renderList: renderPoiListIntoContainer
-  });
-}
-
-function renderCodexNpcsIndex() {
-  renderCodexListPage({
-    ...npcCodexListConfig,
-
-    title: "NPCs",
-
-    listId: "codex-npc-list",
-
-    breadcrumbs: [
-      { label: "Codex", clickable: true, onclick: "resetCodexToIndex()" },
-      { label: "NPCs" }
-    ],
-
-    getFilterOptions: getNpcFilterOptions,
-
-    renderList: renderNpcListIntoContainer
-  });
 }
 
 function renderCodexSearchPage() {
