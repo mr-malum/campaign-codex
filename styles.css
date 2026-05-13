@@ -1384,13 +1384,25 @@ text-shadow:
       gap: 14px;
   }
 
-  .codex-list-controls-shell {
-  display: none;
-}
+    .codex-list-controls-shell {
+      display: none;
+  }
+    
+    .codex-list-controls-shell.open {
+      position: fixed;
+      inset: 0;
+    
+      z-index: 5000;
+    
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    
+      padding: 24px;
+    
+      background: rgba(12, 7, 3, 0.38);
+  }
 
-  .codex-list-controls-shell.open {
-  display: block !important;
-}
 
   .codex-list-page-shell {
   display: flex;
