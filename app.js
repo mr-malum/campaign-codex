@@ -65,7 +65,7 @@ const oddColX = colStepX / 2;
 let selectedHex = null;
 let selectedHexId = null;
 let codexHistory = [];
-let selectedHex = null;
+let codexSearchQuery = "";
 
 const defaultStyle = {
   color: "#ffffff",
