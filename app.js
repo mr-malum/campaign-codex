@@ -321,9 +321,17 @@ function toggleRetroCodexMode() {
 
   const codexButton = document.getElementById("codex-button");
 
-  codexButton.style.backgroundImage = retroCodexMode
-    ? "url('assets/Win95SwordShield_Upscaled.png')"
-    : "url('assets/Codex_Book_Button.png')";
+  if (retroCodexMode) {
+    codexButton.style.backgroundImage =
+      "url('assets/Win95SwordShield_Upscaled.png')";
+  
+    codexButton.style.backgroundSize = "75%";
+  }
+  else {
+    codexButton.style.backgroundImage =
+      "url('assets/Codex_Book_Button.png')";
+  
+    codexButton.style.backgroundSize = "";
 }
 
 function openCodex() {
