@@ -1374,6 +1374,33 @@ text-shadow:
   .codex-search-result-panel {
     min-height: 180px;
   }
+
+    .codex-detail-page-shell {
+    height: calc(100dvh - 310px);
+  }
+
+  .codex-detail-fixed {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .codex-detail-portrait-slot {
+    margin: 0 auto;
+  }
+
+  .codex-detail-meta {
+    width: 100%;
+    text-align: center;
+  }
+
+  .codex-detail-scroll-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .codex-detail-scroll-panel {
+    min-height: 180px;
+  }
 }
 
 /* =========================================================
@@ -1747,6 +1774,109 @@ select:not(.codex-filter-field-select)
 option {
   background: #ecd6a7;
   color: #3a2614;
+}
+
+/* =========================================================
+   CODEX DETAIL PAGE LAYOUT
+   ========================================================= */
+
+#codex-content.codex-detail-page {
+  overflow: hidden;
+}
+
+.codex-detail-page-shell {
+  height: calc(100vh - 285px);
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-detail-fixed {
+  flex: 0 0 auto;
+
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+
+  padding-bottom: 18px;
+}
+
+.codex-detail-portrait-slot {
+  width: 180px;
+  height: 220px;
+
+  border-radius: 14px;
+  border: 1px solid rgba(94, 55, 22, 0.26);
+
+  background:
+    linear-gradient(
+      rgba(255, 236, 188, 0.24),
+      rgba(166, 108, 41, 0.14)
+    );
+
+  box-shadow:
+    inset 0 1px 3px rgba(255, 241, 202, 0.22),
+    0 2px 8px rgba(45, 25, 8, 0.10);
+}
+
+.codex-detail-meta {
+  margin: 0 0 14px auto;
+
+  width: min(100%, 520px);
+
+  display: grid;
+  gap: 4px;
+
+  text-align: right;
+}
+
+.codex-detail-meta p {
+  margin: 0 0 6px;
+}
+
+.codex-detail-meta h3 {
+  margin-top: 18px;
+}
+
+.codex-detail-scroll-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.codex-detail-scroll-panel {
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-detail-scroll-panel h3 {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.codex-detail-scrollbox {
+  flex: 1 1 auto;
+  min-height: 0;
+
+  overflow-y: auto;
+
+  padding: 4px 12px 18px;
+}
+
+.codex-detail-scrollbox p {
+  margin: 0;
+
+  font-style: italic;
+  font-size: 1.02rem;
+  line-height: 1.9;
+  letter-spacing: 0.01em;
 }
 
 /* =========================================================
