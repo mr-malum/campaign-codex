@@ -886,9 +886,11 @@ function renderCodexPoiPage(poiId) {
               npc => joinCodexLabel(
                 [npc.Title, npc.Name].filter(Boolean).join(" "),
                 [
-                  npc.Race,
-                  npc.Occupation,
-                  npc.Organization
+                  [
+                    npc.Race,
+                    npc.Occupation,
+                    npc.Organization
+                  ].filter(Boolean).join(" • ")
                 ]
               )
             )}
