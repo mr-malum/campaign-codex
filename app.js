@@ -1403,7 +1403,7 @@ function renderCodexListPage(config) {
         })}
       </div>
 
-      <div class="codex-list-scroll-shell">
+      <div class="codex-list-scroll-shell codex-scroll-fade">
         <div id="${escapeHtml(config.listId)}"></div>
       </div>
     </div>
@@ -1457,21 +1457,24 @@ function renderCodexSearchPage() {
   setCodexTitle("Search the Codex");
 
   const content = document.getElementById("codex-content");
-
   content.className = "codex-search-page";
 
   content.innerHTML = `
-    <div class="codex-search-shell">
-      <input
-        id="codex-search-input"
-        type="search"
-        placeholder="Search regions, POIs, NPCs..."
-        autocomplete="off"
-      />
-    </div>
+    <div class="codex-search-page-shell">
+      <div class="codex-search-controls-shell">
+        <div class="codex-search-shell">
+          <input
+            id="codex-search-input"
+            type="search"
+            placeholder="Search records..."
+            autocomplete="off"
+          >
+        </div>
+      </div>
 
-    <div id="codex-search-results">
-      <p>Begin typing to search the records of Kadesh.</p>
+      <div id="codex-search-results" class="codex-search-results-shell">
+        <p>Begin typing to search the records of Kadesh.</p>
+      </div>
     </div>
   `;
 
@@ -1577,14 +1580,7 @@ function renderCodexSearchResults(query) {
   }
 });
 
-  if (!results.length) {
-    resultsEl.innerHTML = `
-      <p>No matching records found.</p>
-    `;
-    return;
-  }
-
-  const resultGroups = [
+    const resultGroups = [
     { type: "hex", label: "Hexes" },
     { type: "region", label: "Regions" },
     { type: "poi", label: "POIs" },
@@ -1594,21 +1590,22 @@ function renderCodexSearchResults(query) {
   resultsEl.innerHTML = resultGroups
     .map(group => {
       const groupRows = results.filter(result => result.type === group.type);
-      if (!groupRows.length) return "";
 
       return `
-        <div class="codex-search-result-group">
+        <section class="codex-search-result-panel">
           <h3 class="codex-search-result-heading">${escapeHtml(group.label)}</h3>
 
-          ${renderCodexLinkedList(
-            groupRows,
-            "No matching records found.",
-            null,
-            "id",
-            row => row.label,
-            row => row.type
-          )}
-        </div>
+          <div class="codex-search-group-scroll codex-scroll-fade">
+            ${renderCodexLinkedList(
+              groupRows,
+              `No matching ${group.label}.`,
+              null,
+              "id",
+              row => row.label,
+              row => row.type
+            )}
+          </div>
+        </section>
       `;
     })
     .join("");
