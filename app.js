@@ -1977,3 +1977,42 @@ window.addEventListener("keydown", event => {
     retroCodexSequence = "";
   }
 });
+
+let codexLongPressTimer = null;
+let suppressNextCodexClick = false;
+
+function isMobileCodexLongPressEnabled() {
+  return window.matchMedia("(max-width: 700px), (pointer: coarse)").matches;
+}
+
+const codexLongPressButton = document.getElementById("codex-button");
+
+codexLongPressButton.addEventListener("pointerdown", event => {
+  if (!isMobileCodexLongPressEnabled()) return;
+
+  codexLongPressTimer = window.setTimeout(() => {
+    suppressNextCodexClick = true;
+    toggleRetroCodexMode();
+  }, 650);
+});
+
+codexLongPressButton.addEventListener("pointerup", () => {
+  window.clearTimeout(codexLongPressTimer);
+  codexLongPressTimer = null;
+});
+
+codexLongPressButton.addEventListener("pointercancel", () => {
+  window.clearTimeout(codexLongPressTimer);
+  codexLongPressTimer = null;
+});
+
+codexLongPressButton.addEventListener("pointerleave", () => {
+  window.clearTimeout(codexLongPressTimer);
+  codexLongPressTimer = null;
+});
+
+codexLongPressButton.addEventListener("contextmenu", event => {
+  if (!isMobileCodexLongPressEnabled()) return;
+
+  event.preventDefault();
+});
