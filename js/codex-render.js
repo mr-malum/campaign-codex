@@ -64,6 +64,7 @@ function renderCodexListControls(config) {
   `;
 }
 
+
 function renderCodexLinkedList(
   rows,
   emptyText,
@@ -77,7 +78,7 @@ function renderCodexLinkedList(
   }
 
   return `
-    <div class="codex-list">
+    <div class="codex-row-list codex-linked-row-list">
       ${rows.map(row => {
         const id = row?.__codexRecordId || row?.[idField];
 
@@ -93,23 +94,25 @@ function renderCodexLinkedList(
 
         const title = parts.shift() || "Unnamed Record";
 
-        const metaLines = parts;
+        const metaLine = parts.filter(Boolean).join(" • ");
 
         return `
           <button
-            class="codex-section-button codex-record-button"
+            class="codex-row codex-linked-row"
             type="button"
             onclick="openCodexPage('${escapeJsString(resolvedType)}', '${escapeJsString(id)}')"
           >
-            <span class="codex-record-main">
-              <span class="codex-record-title">${escapeHtml(title)}</span>
+            <span class="codex-row-main">
+              <span class="codex-row-title">${escapeHtml(title)}</span>
 
-              ${metaLines.map(line => `
-                <span class="codex-record-meta">${escapeHtml(line)}</span>
-              `).join("")}
+              ${
+                metaLine
+                  ? `<span class="codex-row-meta">${escapeHtml(metaLine)}</span>`
+                  : ""
+              }
             </span>
 
-            <span class="codex-record-arrow">›</span>
+            <span class="codex-row-arrow" aria-hidden="true">›</span>
           </button>
         `;
       }).join("")}
