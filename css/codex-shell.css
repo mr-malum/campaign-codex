@@ -1013,3 +1013,33 @@
   justify-content: center;
   padding: 10px 10px 12px;
 }
+
+/* =========================================================
+   DESKTOP CODEX SPACING REFINEMENT
+   ========================================================= */
+
+@media (min-width: 900px) {
+  #codex-modal {
+    width: min(88vw, 1180px);
+    padding-top: 54px;
+  }
+
+  #codex-header {
+    margin-bottom: 26px;
+  }
+
+  #codex-content {
+    width: min(100%, 980px);
+    max-width: 980px;
+  }
+
+  #codex-content.codex-home {
+    max-width: 720px;
+  }
+
+  #codex-content.codex-regions-index,
+  #codex-content.codex-region-detail-page {
+    width: min(100%, 1080px);
+    max-width: 1080px;
+  }
+}
