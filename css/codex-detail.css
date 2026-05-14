@@ -57,25 +57,25 @@
 
 .codex-placeholder-npc {
   background-image:
-    var(--codex-record-image),
+    var(--codex-record-image, none),
     url("../assets/placeholder/Placeholder_NPC.png");
 }
 
 .codex-placeholder-settlement {
   background-image:
-    var(--codex-record-image),
+    var(--codex-record-image, none),
     url("../assets/placeholder/Placeholder_Settlement.png");
 }
 
 .codex-placeholder-poi {
   background-image:
-    var(--codex-record-image),
+    var(--codex-record-image, none),
     url("../assets/placeholder/Placeholder_POI.png");
 }
 
 .codex-placeholder-region {
   background-image:
-    var(--codex-record-image),
+    var(--codex-record-image, none),
     url("../assets/placeholder/Placeholder_Region.png");
 }
 
