@@ -208,7 +208,33 @@ function collectMatchingPois(cleanQuery, collector, context) {
     );
   });
 
+  (db?.raw?.poiGroups || []).forEach(group => {
+    if (!codexSearchTextMatches([
+      group.POI_Group_ID,
+      group.POI_Group_Name,
+      group.Group_Type,
+      group.Population,
+      group.Lore,
+      group.DM_Journal
+    ], cleanQuery)) {
+      return;
+    }
+
+    if (!matchingGroupedPois.has(group.POI_Group_ID)) {
+      matchingGroupedPois.set(group.POI_Group_ID, {
+        group,
+        matchingPois: []
+      });
+    }
+  });
+
   matchingGroupedPois.forEach(({ group, matchingPois }) => {
+    getPoisForGroup(group.POI_Group_ID).forEach(poi => {
+      if (poi.Hex_ID_Ref) {
+        context.matchingPoiHexIds.add(poi.Hex_ID_Ref);
+      }
+    });
+
     collector.add(
       "poi-group",
       group.POI_Group_ID,
@@ -220,6 +246,7 @@ function collectMatchingPois(cleanQuery, collector, context) {
 function buildPoiGroupSearchLabel(group, matchingPois) {
   const allMappedAreas = getPoisForGroup(group.POI_Group_ID);
   const npcs = getNpcsForPoiGroup(group.POI_Group_ID);
+  const population = formatCodexPopulation(group.Population);
   const meta = [];
 
   const typeLine = [
@@ -231,10 +258,12 @@ function buildPoiGroupSearchLabel(group, matchingPois) {
     meta.push(typeLine);
   }
 
-  const matchLine = `${matchingPois.length} matching mapped area${matchingPois.length !== 1 ? "s" : ""}`;
+  const matchLine = matchingPois.length > 0
+    ? `${matchingPois.length} matching mapped area${matchingPois.length !== 1 ? "s" : ""}`
+    : "Group match";
 
   const populationNpcLine = [
-    group.Population ? `Population: ${group.Population}` : "",
+    population ? `Population: ${population}` : "",
     npcs.length > 0 ? `${npcs.length} NPC${npcs.length !== 1 ? "s" : ""}` : "",
     matchLine
   ].filter(Boolean).join(" • ");
