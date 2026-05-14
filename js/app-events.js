@@ -126,6 +126,11 @@ function bindCodexEvents() {
         return;
       }
 
+      if (isCodexHomeSearchActive()) {
+        goBackCodex();
+        return;
+      }
+
       if (codexHistory.length <= 1) {
         closeCodex();
         return;
