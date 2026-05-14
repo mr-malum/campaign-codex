@@ -464,16 +464,56 @@ function renderCodexNpcPage(npcId) {
     .classList.add("codex-detail-page");
 }
 
+function renderCodexRegionTile(region) {
+  const regionId = region.Region_ID;
+  const regionName = region.Region_Name || regionId || "Unnamed Region";
+  const summary = getRegionSummary(regionId);
+  const imageUrl = region.Image || region.Image_URL || region.Region_Image || region.Region_Image_URL || "";
+
+  const detailLine = [
+    `${summary.hexCount} hexes`,
+    `${summary.poiCount} POIs`,
+    summary.mappedAreaCount > summary.poiCount
+      ? `${summary.mappedAreaCount} mapped areas`
+      : "",
+    `${summary.npcCount} NPCs`
+  ].filter(Boolean).join(" • ");
+
+  return `
+    <button
+      class="codex-region-tile"
+      type="button"
+      onclick="openCodexPage('region', '${escapeJsString(regionId)}')"
+    >
+      <span
+        class="codex-region-tile-image"
+        ${imageUrl ? `style="background-image: url('${escapeJsString(imageUrl)}')"` : ""}
+      ></span>
+
+      <span class="codex-region-tile-info">
+        <span class="codex-region-tile-name">${escapeHtml(regionName)}</span>
+        <span class="codex-region-tile-details">${escapeHtml(detailLine)}</span>
+      </span>
+    </button>
+  `;
+}
+
 function renderCodexRegionsIndex() {
-  const regions = db?.raw?.regions || [];
+  const regions = [...(db?.raw?.regions || [])].sort((a, b) => {
+    return String(a.Region_Name || a.Region_ID || "")
+      .localeCompare(String(b.Region_Name || b.Region_ID || ""));
+  });
 
   setCodexTitle("Regions");
 
-  setCodexContent(renderCodexLinkedList(
-    regions,
-    "No regions recorded.",
-    "region",
-    "Region_ID",
-    buildRegionListLabel
-  ));
+  setCodexContent(`
+    <div class="codex-region-tile-grid">
+      ${regions.map(renderCodexRegionTile).join("") || `<p>No regions recorded.</p>`}
+    </div>
+  `, [
+    { label: "Codex", clickable: true, onclick: "resetCodexToIndex()" },
+    { label: "Regions" }
+  ]);
+
+  document.getElementById("codex-content").classList.add("codex-regions-index");
 }
