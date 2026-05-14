@@ -96,6 +96,15 @@ function getNpcImageUrl(npc) {
   ]);
 }
 
+function getCodexMapImageUrl(map) {
+  return getCodexImageUrl(map, [
+    "Image",
+    "Image_URL",
+    "Map_Image",
+    "Map_Image_URL"
+  ]);
+}
+
 function getPoiPlaceholderClass(record) {
   const type = String(record?.POI_Type || record?.Group_Type || "").toLowerCase();
 
@@ -126,6 +135,55 @@ function renderCodexInlineLink(type, id, label) {
     >
       ${escapeHtml(label)}
     </button>
+  `;
+}
+
+function renderCodexMapCard(map) {
+  const imageUrl = getCodexMapImageUrl(map);
+  const mapName = map.Map_Name || map.Map_ID || "Unnamed Map";
+  const meta = [
+    map.Map_Type || "",
+    map.Sort_Order ? `Order ${map.Sort_Order}` : ""
+  ].filter(Boolean).join(" • ");
+
+  const content = `
+    <span class="codex-map-card-title">${escapeHtml(mapName)}</span>
+    ${meta ? `<span class="codex-map-card-meta">${escapeHtml(meta)}</span>` : ""}
+  `;
+
+  if (!imageUrl) {
+    return `
+      <div class="codex-map-card codex-map-card-disabled">
+        ${content}
+      </div>
+    `;
+  }
+
+  return `
+    <a
+      class="codex-map-card"
+      href="${escapeHtml(imageUrl)}"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      ${content}
+    </a>
+  `;
+}
+
+function renderCodexMapsPanel(maps, fallback = "No maps recorded.") {
+  return `
+    <section class="codex-detail-scroll-panel codex-maps-panel">
+      <h3>Maps</h3>
+
+      <div class="codex-region-list-scrollbox codex-map-list codex-scroll-fade">
+        ${
+          maps.length
+            ? maps.map(renderCodexMapCard).join("")
+            : `<p>${escapeHtml(fallback)}</p>`
+        }
+      </div>
+    </section>
   `;
 }
 
@@ -232,6 +290,7 @@ function renderCodexRegionPage(regionId) {
   const regionName = region?.Region_Name || regionId || "Unknown Region";
   const summary = getRegionSummary(regionId);
   const imageUrl = getRegionImageUrl(region);
+  const maps = getMapsForRegion(regionId);
 
   const pois = hexes.flatMap(hex => {
     return getPoisForHex(hex.Hex_ID);
@@ -278,6 +337,7 @@ function renderCodexRegionPage(regionId) {
               : ""
           }
           <p><strong>NPCs:</strong> ${summary.npcCount}</p>
+          ${maps.length ? `<p><strong>Maps:</strong> ${maps.length}</p>` : ""}
         </div>
 
         <section class="codex-detail-npc-panel codex-region-terrain-profile">
@@ -299,6 +359,8 @@ function renderCodexRegionPage(regionId) {
           region?.Lore || region?.DM_Journal,
           "No region notes recorded."
         )}
+
+        ${renderCodexMapsPanel(maps, "No maps recorded for this region.")}
 
         <section class="codex-detail-scroll-panel">
           <h3>Points of Interest</h3>
@@ -362,6 +424,7 @@ function renderCodexPoiPage(poiId) {
   const population = getPoiEffectivePopulation(poi);
   const imageUrl = getPoiImageUrl(poi);
   const placeholderClass = getPoiPlaceholderClass(poi);
+  const maps = getMapsForPoi(poiId);
 
   setCodexTitle(poiName);
 
@@ -391,6 +454,8 @@ function renderCodexPoiPage(poiId) {
               ? `<p><strong>Population:</strong> ${escapeHtml(formatCodexPopulation(population) || "Unknown")}</p>`
               : ""
           }
+
+          ${maps.length ? `<p><strong>Maps:</strong> ${maps.length}</p>` : ""}
         </div>
 
         <section class="codex-detail-npc-panel">
@@ -420,6 +485,8 @@ function renderCodexPoiPage(poiId) {
           poi?.Lore,
           "No lore recorded."
         )}
+
+        ${renderCodexMapsPanel(maps, "No maps recorded for this location.")}
       </div>
     </div>
   `, buildCodexGroupedPoiBreadcrumbTrail(poiName, group));
@@ -435,6 +502,7 @@ function renderCodexPoiGroupPage(groupId) {
   const population = formatCodexPopulation(getPoiGroupPopulation(group));
   const imageUrl = getPoiGroupImageUrl(group);
   const placeholderClass = getPoiPlaceholderClass(group);
+  const maps = getMapsForPoiGroup(groupId);
 
   setCodexTitle(groupName);
 
@@ -453,6 +521,7 @@ function renderCodexPoiGroupPage(groupId) {
           }
 
           <p><strong>Mapped Areas:</strong> ${pois.length}</p>
+          ${maps.length ? `<p><strong>Maps:</strong> ${maps.length}</p>` : ""}
         </div>
 
         <section class="codex-detail-npc-panel">
@@ -491,6 +560,8 @@ function renderCodexPoiGroupPage(groupId) {
           group?.Lore,
           "No lore recorded."
         )}
+
+        ${renderCodexMapsPanel(maps, "No maps recorded for this place.")}
       </div>
     </div>
   `, buildCodexBreadcrumbTrail(groupName, {
