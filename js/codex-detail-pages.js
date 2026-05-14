@@ -249,16 +249,21 @@ function renderCodexRegionPage(regionId) {
     return counts;
   }, {});
 
-  const terrainSummary = Object.entries(terrainCounts)
+  const terrainRows = Object.entries(terrainCounts)
     .sort((a, b) => b[1] - a[1])
-    .map(([terrain, count]) => `${terrain}: ${count}`)
-    .join("<br>");
+    .map(([terrain, count]) => `
+      <div class="codex-region-terrain-row">
+        <span>${escapeHtml(terrain)}</span>
+        <strong>${count}</strong>
+      </div>
+    `)
+    .join("");
 
   setCodexTitle(regionName);
 
   setCodexContent(`
-    <div class="codex-region-detail-shell">
-      <div class="codex-region-detail-fixed">
+    <div class="codex-detail-page-shell codex-region-detail-shell">
+      <div class="codex-detail-fixed codex-detail-fixed-region">
         <div
           class="codex-detail-portrait-slot codex-region-detail-image codex-placeholder-region"
           ${renderImageStyle(imageUrl)}
@@ -275,48 +280,77 @@ function renderCodexRegionPage(regionId) {
           <p><strong>NPCs:</strong> ${summary.npcCount}</p>
         </div>
 
-        <div class="codex-region-terrain-profile">
+        <section class="codex-detail-npc-panel codex-region-terrain-profile">
           <h3>Terrain Profile</h3>
-          <p>${terrainSummary || "No terrain data recorded."}</p>
-        </div>
+
+          <div class="codex-detail-upper-scrollbox codex-scroll-fade">
+            ${
+              terrainRows
+                ? `<div class="codex-region-terrain-list">${terrainRows}</div>`
+                : `<p>No terrain data recorded.</p>`
+            }
+          </div>
+        </section>
       </div>
 
-      <h3>Region Notes</h3>
-      <p>${escapeHtml(region?.Lore || region?.DM_Journal || "No region notes recorded.")}</p>
+      <div class="codex-region-detail-grid">
+        ${renderCodexDetailTextPanel(
+          "Region Notes",
+          region?.Lore || region?.DM_Journal,
+          "No region notes recorded."
+        )}
 
-      <h3>Points of Interest</h3>
-      ${renderCodexLinkedList(
-        poiListRows,
-        "No points of interest currently recorded in this region.",
-        "poi",
-        "POI_ID",
-        buildPoiListLabel
-      )}
+        <section class="codex-detail-scroll-panel">
+          <h3>Points of Interest</h3>
 
-      <h3>NPCs</h3>
-      ${renderCodexLinkedList(
-        npcs,
-        "No NPCs currently recorded in this region.",
-        "npc",
-        "NPC_ID",
-        buildNpcListLabel
-      )}
+          <div class="codex-region-list-scrollbox codex-scroll-fade">
+            ${renderCodexLinkedList(
+              poiListRows,
+              "No points of interest currently recorded in this region.",
+              "poi",
+              "POI_ID",
+              buildPoiListLabel
+            )}
+          </div>
+        </section>
 
-      <h3>Hexes</h3>
-      ${renderCodexLinkedList(
-        hexes,
-        "No hexes currently assigned to this region.",
-        "hex",
-        "Hex_ID",
-        buildHexListLabel
-      )}
+        <section class="codex-detail-scroll-panel">
+          <h3>NPCs</h3>
+
+          <div class="codex-region-list-scrollbox codex-scroll-fade">
+            ${renderCodexLinkedList(
+              npcs,
+              "No NPCs currently recorded in this region.",
+              "npc",
+              "NPC_ID",
+              buildNpcListLabel
+            )}
+          </div>
+        </section>
+
+        <section class="codex-detail-scroll-panel">
+          <h3>Hexes</h3>
+
+          <div class="codex-region-list-scrollbox codex-scroll-fade">
+            ${renderCodexLinkedList(
+              hexes,
+              "No hexes currently assigned to this region.",
+              "hex",
+              "Hex_ID",
+              buildHexListLabel
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   `, buildCodexBreadcrumbTrail(regionName, {
     label: "Regions",
     pageType: "regions"
   }));
 
-  document.getElementById("codex-content").classList.add("codex-region-detail-page");
+  document
+    .getElementById("codex-content")
+    .classList.add("codex-detail-page", "codex-region-detail-page");
 }
 
 function renderCodexPoiPage(poiId) {
