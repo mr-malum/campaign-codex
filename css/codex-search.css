@@ -14,6 +14,19 @@
 #codex-content.codex-home {
   width: min(100%, var(--codex-home-content-max-width));
   max-width: var(--codex-home-content-max-width);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  min-height: calc(100vh - 360px);
+}
+
+#codex-content.codex-home .codex-home-section-buttons {
+  width: min(100%, 333px);
+  max-width: 333px;
+  margin: 0 auto;
 }
 
 /* =========================================================
@@ -233,15 +246,15 @@
 }
 
 .codex-search-shell {
-  width: min(100%, 500px);
-  margin: 0 auto;
+  width: var(--codex-rail-width);
+  margin: 0 auto 0 0;
 }
 
 #codex-search-input {
   width: 100%;
   box-sizing: border-box;
 
-  padding: 10px 38px;
+  padding: 10px 18px;
 
   border-radius: 3px;
   border: 1px solid rgba(72, 43, 18, 0.34);
@@ -415,9 +428,23 @@
     max-width: none;
   }
 
+  #codex-content.codex-home {
+    min-height: calc(100vh - 300px);
+  }
+
   #codex-content.codex-search-page {
     padding-bottom: 130px;
     overflow-y: auto;
+  }
+
+  .codex-search-shell {
+    width: min(100%, 500px);
+    margin: 0 auto;
+  }
+
+  #codex-search-input {
+    padding-left: 38px;
+    padding-right: 38px;
   }
 
   .codex-search-results-shell {
