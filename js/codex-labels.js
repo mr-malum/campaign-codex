@@ -23,11 +23,17 @@ function buildPoiListLabel(row) {
   }
 
   if (group) {
-    meta.push(`Part of: ${group.POI_Group_Name || group.POI_Group_ID}`);
+    const groupPopulation = getPoiGroupPopulation(group);
+    const groupLabel = [
+      `Part of: ${group.POI_Group_Name || group.POI_Group_ID}`,
+      groupPopulation ? `Pop. ${groupPopulation}` : ""
+    ].filter(Boolean).join(" ");
+
+    meta.push(groupLabel);
   }
 
   const npcCount = getNpcsForPoi(row.POI_ID).length;
-  const population = getPoiEffectivePopulation(row);
+  const population = group ? "" : getPoiEffectivePopulation(row);
 
   const populationNpcLine = [
     population ? `Population: ${population}` : "",
