@@ -10,6 +10,15 @@ const CODEX_SEARCH_GROUPS = [
 ];
 
 let codexSearchActiveGroup = "all";
+let codexSearchRenderTimer = null;
+
+function scheduleCodexSearchResultsRender(query) {
+  window.clearTimeout(codexSearchRenderTimer);
+
+  codexSearchRenderTimer = window.setTimeout(() => {
+    renderCodexSearchResults(query);
+  }, 85);
+}
 
 function renderCodexSearchPage() {
   setCodexTitle("Search the Codex");
@@ -56,7 +65,7 @@ function bindCodexSearchInput() {
   input.addEventListener("input", function () {
     codexSearchQuery = input.value;
     codexSearchActiveGroup = "all";
-    renderCodexSearchResults(input.value);
+    scheduleCodexSearchResultsRender(input.value);
   });
 
   input.addEventListener("keydown", function (event) {
@@ -80,6 +89,8 @@ function isMobileCodexSearchLayout() {
 function renderCodexSearchResults(query) {
   const resultsEl = document.getElementById("codex-search-results");
   const cleanQuery = normalizeCodexSearchQuery(query);
+
+  if (!resultsEl) return;
 
   closeCodexSearchResultsModal();
 
@@ -586,3 +597,4 @@ window.openCodexSearchResultsModal = openCodexSearchResultsModal;
 window.closeCodexSearchResultsModal = closeCodexSearchResultsModal;
 window.handleCodexSearchModalBackdropClick = handleCodexSearchModalBackdropClick;
 window.setCodexSearchActiveGroup = setCodexSearchActiveGroup;
+window.scheduleCodexSearchResultsRender = scheduleCodexSearchResultsRender;
