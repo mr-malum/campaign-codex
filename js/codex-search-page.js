@@ -63,6 +63,10 @@ function bindCodexSearchInput() {
   input.focus();
 }
 
+function isMobileCodexSearchLayout() {
+  return window.matchMedia("(max-width: 700px)").matches;
+}
+
 function renderCodexSearchResults(query) {
   const resultsEl = document.getElementById("codex-search-results");
   const cleanQuery = normalizeCodexSearchQuery(query);
@@ -73,7 +77,9 @@ function renderCodexSearchResults(query) {
   }
 
   const results = buildCodexSearchResults(cleanQuery);
-  resultsEl.innerHTML = renderCodexSearchResultGroups(results);
+  resultsEl.innerHTML = isMobileCodexSearchLayout()
+    ? renderMobileCodexSearchResultGroups(results)
+    : renderCodexSearchResultGroups(results);
 }
 
 function normalizeCodexSearchQuery(query) {
@@ -250,6 +256,104 @@ function buildCodexHexSearchLabel(hex, matches) {
   ]);
 }
 
+function getCodexSearchGroupRows(group, results) {
+  return results.filter(result => result.type === group.type);
+}
+
+function getCodexSearchMatchLabel(count) {
+  if (count === 1) return "1 match";
+  return `${count} matches`;
+}
+
+function renderMobileCodexSearchResultGroups(results) {
+  return `
+    <div class="codex-mobile-search-summary">
+      ${CODEX_SEARCH_GROUPS
+        .map(group => renderMobileCodexSearchSummaryButton(group, results))
+        .join("")}
+    </div>
+
+    <div
+      id="codex-search-results-modal"
+      class="codex-search-results-modal"
+      aria-hidden="true"
+      onclick="handleCodexSearchModalBackdropClick(event)"
+    ></div>
+  `;
+}
+
+function renderMobileCodexSearchSummaryButton(group, results) {
+  const count = getCodexSearchGroupRows(group, results).length;
+
+  return `
+    <button
+      class="codex-mobile-search-summary-button"
+      type="button"
+      onclick="openCodexSearchResultsModal('${escapeJsString(group.type)}')"
+    >
+      <span class="codex-mobile-search-summary-label">${escapeHtml(group.label)}</span>
+      <span class="codex-mobile-search-summary-count">${escapeHtml(getCodexSearchMatchLabel(count))}</span>
+    </button>
+  `;
+}
+
+function openCodexSearchResultsModal(type) {
+  const modal = document.getElementById("codex-search-results-modal");
+  const group = CODEX_SEARCH_GROUPS.find(item => item.type === type);
+  const cleanQuery = normalizeCodexSearchQuery(codexSearchQuery);
+
+  if (!modal || !group || !cleanQuery) return;
+
+  const results = buildCodexSearchResults(cleanQuery);
+  const groupRows = getCodexSearchGroupRows(group, results);
+  const matchLabel = getCodexSearchMatchLabel(groupRows.length);
+
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+
+  modal.innerHTML = `
+    <div class="codex-search-results-modal-panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(group.label)} search results">
+      <div class="codex-search-results-modal-header">
+        <h3>${escapeHtml(group.label)}</h3>
+        <p>${escapeHtml(matchLabel)}</p>
+      </div>
+
+      <div class="codex-search-results-modal-list codex-scroll-fade">
+        ${renderCodexLinkedList(
+          groupRows,
+          `No matching ${group.label}.`,
+          null,
+          "id",
+          row => row.label,
+          row => row.type
+        )}
+      </div>
+
+      <button
+        class="codex-search-results-modal-close"
+        type="button"
+        onclick="closeCodexSearchResultsModal()"
+      >
+        Close
+      </button>
+    </div>
+  `;
+}
+
+function closeCodexSearchResultsModal() {
+  const modal = document.getElementById("codex-search-results-modal");
+  if (!modal) return;
+
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+  modal.innerHTML = "";
+}
+
+function handleCodexSearchModalBackdropClick(event) {
+  if (event.target?.id !== "codex-search-results-modal") return;
+  closeCodexSearchResultsModal();
+}
+
 function renderCodexSearchResultGroups(results) {
   return CODEX_SEARCH_GROUPS
     .map(group => renderCodexSearchResultGroup(group, results))
@@ -257,7 +361,7 @@ function renderCodexSearchResultGroups(results) {
 }
 
 function renderCodexSearchResultGroup(group, results) {
-  const groupRows = results.filter(result => result.type === group.type);
+  const groupRows = getCodexSearchGroupRows(group, results);
 
   return `
     <section class="codex-search-result-panel">
@@ -276,3 +380,7 @@ function renderCodexSearchResultGroup(group, results) {
     </section>
   `;
 }
+
+window.openCodexSearchResultsModal = openCodexSearchResultsModal;
+window.closeCodexSearchResultsModal = closeCodexSearchResultsModal;
+window.handleCodexSearchModalBackdropClick = handleCodexSearchModalBackdropClick;
