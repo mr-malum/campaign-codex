@@ -179,7 +179,39 @@ function openCodexPage(type = "index", id = null, options = {}) {
   updateCodexBackButton();
 }
 
+function isCodexHomeSearchActive() {
+  const content = getCodexContent();
+  return Boolean(
+    content?.classList.contains("codex-home-search-page") &&
+    content?.classList.contains("codex-home-search-active")
+  );
+}
+
+function clearCodexHomeSearch() {
+  const input = document.getElementById("codex-search-input");
+  const results = document.getElementById("codex-search-results");
+
+  codexSearchQuery = "";
+
+  if (input) {
+    input.value = "";
+    input.blur();
+  }
+
+  if (results) {
+    results.innerHTML = "";
+  }
+
+  closeCodexSearchResultsModal?.();
+  updateCodexHomeSearchState("");
+}
+
 function goBackCodex() {
+  if (isCodexHomeSearchActive()) {
+    clearCodexHomeSearch();
+    return;
+  }
+
   if (codexHistory.length <= 1) return;
 
   const previous = popCodexHistory();
@@ -286,7 +318,7 @@ function bindCodexHomeSearchInput() {
   input.addEventListener("input", function () {
     codexSearchQuery = input.value;
     updateCodexHomeSearchState(input.value);
-    renderCodexSearchResults(input.value);
+    scheduleCodexSearchResultsRender(input.value);
   });
 
   input.addEventListener("keydown", function (event) {
