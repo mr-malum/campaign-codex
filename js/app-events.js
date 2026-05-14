@@ -8,6 +8,8 @@ const HEX_GRID_MAX = 350;
 let retroCodexSequence = "";
 let codexLongPressTimer = null;
 let suppressNextCodexClick = false;
+let appBrowserBackTrapActive = false;
+let appBrowserBackTrapReleasing = false;
 
 function initializeHexGrid() {
   for (let xxx = HEX_GRID_MIN; xxx < HEX_GRID_MAX; xxx++) {
@@ -178,6 +180,72 @@ function isMobileCodexLongPressEnabled() {
   return window.matchMedia("(max-width: 700px), (pointer: coarse)").matches;
 }
 
+function isMobileBrowserBackEnabled() {
+  return window.matchMedia("(max-width: 700px), (pointer: coarse)").matches;
+}
+
+function isCodexOpen() {
+  return document
+    .getElementById("codex-overlay")
+    ?.classList.contains("open");
+}
+
+function isAppPanelOpen() {
+  return document
+    .getElementById("app-panel")
+    ?.classList.contains("open");
+}
+
+function ensureAppBrowserBackTrap() {
+  if (!isMobileBrowserBackEnabled() || appBrowserBackTrapActive) return;
+
+  history.pushState({ kadeshAppBackTrap: true }, "", window.location.href);
+  appBrowserBackTrapActive = true;
+}
+
+function releaseAppBrowserBackTrap() {
+  if (!appBrowserBackTrapActive) return;
+
+  appBrowserBackTrapActive = false;
+  appBrowserBackTrapReleasing = true;
+  history.back();
+}
+
+function handleAppBrowserBack() {
+  if (appBrowserBackTrapReleasing) {
+    appBrowserBackTrapReleasing = false;
+    return;
+  }
+
+  if (!isMobileBrowserBackEnabled()) return;
+
+  if (isCodexOpen()) {
+    if (codexHistory.length <= 1) {
+      closeCodex({ syncHistory: false });
+      appBrowserBackTrapActive = false;
+      return;
+    }
+
+    goBackCodex();
+    appBrowserBackTrapActive = false;
+    ensureAppBrowserBackTrap();
+    return;
+  }
+
+  if (isAppPanelOpen()) {
+    closePanel({
+      clearSelection: true,
+      centerSelected: true,
+      syncHistory: false
+    });
+    appBrowserBackTrapActive = false;
+  }
+}
+
+function bindBrowserBackEvents() {
+  window.addEventListener("popstate", handleAppBrowserBack);
+}
+
 function clearCodexLongPressTimer() {
   window.clearTimeout(codexLongPressTimer);
   codexLongPressTimer = null;
@@ -212,7 +280,11 @@ function initializeAppEvents() {
   bindPanelEvents();
   bindCodexEvents();
   bindKeyboardEasterEggEvents();
+  bindBrowserBackEvents();
   bindCodexLongPressEvents();
 }
+
+window.ensureAppBrowserBackTrap = ensureAppBrowserBackTrap;
+window.releaseAppBrowserBackTrap = releaseAppBrowserBackTrap;
 
 initializeAppEvents();
