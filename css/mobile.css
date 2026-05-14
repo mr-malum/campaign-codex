@@ -254,30 +254,18 @@
   .codex-search-page-shell {
     height: calc(100dvh - 270px);
     min-height: 0;
-    overflow-y: auto;
-    display: block;
-    padding-bottom: calc(48px + env(safe-area-inset-bottom));
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
 
-    mask-image:
-      linear-gradient(
-        to bottom,
-        black 0,
-        black calc(100% - 22px),
-        transparent 100%
-      );
-
-    -webkit-mask-image:
-      linear-gradient(
-        to bottom,
-        black 0,
-        black calc(100% - 22px),
-        transparent 100%
-      );
+    mask-image: none;
+    -webkit-mask-image: none;
   }
 
   .codex-search-controls-shell {
-    position: sticky;
-    top: 0;
+    flex: 0 0 auto;
+    position: relative;
     z-index: 5;
 
     padding-bottom: 12px;
@@ -306,9 +294,31 @@
   }
 
   .codex-search-results-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+
     display: flex;
     flex-direction: column;
     gap: 16px;
+
+    padding-bottom: calc(48px + env(safe-area-inset-bottom));
+
+    mask-image:
+      linear-gradient(
+        to bottom,
+        black 0,
+        black calc(100% - 22px),
+        transparent 100%
+      );
+
+    -webkit-mask-image:
+      linear-gradient(
+        to bottom,
+        black 0,
+        black calc(100% - 22px),
+        transparent 100%
+      );
   }
 
   .codex-search-result-panel {
