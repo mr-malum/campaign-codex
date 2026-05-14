@@ -76,10 +76,51 @@ function parseCodexRowLabel(label) {
   };
 }
 
+function getCodexRecordTypeIcon(type) {
+  switch (type) {
+    case "poi":
+    case "poi-group":
+      return "✦";
+
+    case "npc":
+      return "♟";
+
+    case "region":
+      return "◇";
+
+    case "hex":
+      return "⬡";
+
+    default:
+      return "•";
+  }
+}
+
+function getCodexRecordTypeLabel(type) {
+  switch (type) {
+    case "poi":
+    case "poi-group":
+      return "POI";
+
+    case "npc":
+      return "NPC";
+
+    case "region":
+      return "Reg";
+
+    case "hex":
+      return "Hex";
+
+    default:
+      return "";
+  }
+}
+
 function renderCodexRow(options) {
   const title = options?.title || "Unnamed Record";
   const meta = options?.meta || "";
   const icon = options?.icon || "";
+  const typeLabel = options?.typeLabel || "";
   const count = options?.count;
   const onclick = options?.onclick || "";
   const extraClasses = options?.classes || "";
@@ -88,19 +129,28 @@ function renderCodexRow(options) {
   const disabledAttr = isDisabled ? "disabled" : "";
   const activeClass = isActive ? "codex-row-active active" : "";
   const disabledClass = isDisabled ? "codex-row-disabled" : "";
-  const noIconClass = icon ? "" : "codex-linked-row";
+  const hasKicker = Boolean(typeLabel);
+  const noIconClass = !icon && !hasKicker ? "codex-linked-row" : "";
+  const kickerClass = hasKicker ? "codex-row-has-kicker" : "";
 
   return `
     <button
-      class="codex-row ${noIconClass} ${extraClasses} ${activeClass} ${disabledClass}"
+      class="codex-row ${noIconClass} ${kickerClass} ${extraClasses} ${activeClass} ${disabledClass}"
       type="button"
       ${onclick ? `onclick="${onclick}"` : ""}
       ${disabledAttr}
     >
       ${
-        icon
-          ? `<span class="codex-row-icon" aria-hidden="true">${escapeHtml(icon)}</span>`
-          : ""
+        hasKicker
+          ? `
+            <span class="codex-row-kicker" aria-hidden="true">
+              ${icon ? `<span class="codex-row-kicker-icon">${escapeHtml(icon)}</span>` : ""}
+              <span class="codex-row-type-label">${escapeHtml(typeLabel)}</span>
+            </span>
+          `
+          : icon
+            ? `<span class="codex-row-icon" aria-hidden="true">${escapeHtml(icon)}</span>`
+            : ""
       }
 
       <span class="codex-row-main">
@@ -143,12 +193,16 @@ function renderCodexLinkedList(
 
         const label = getLabel(row) || id || "Unnamed Record";
         const { title, meta } = parseCodexRowLabel(label);
-        const icon = getIcon ? getIcon(row, resolvedType) : "";
+        const icon = getIcon
+          ? getIcon(row, resolvedType)
+          : getCodexRecordTypeIcon(resolvedType);
+        const typeLabel = getCodexRecordTypeLabel(resolvedType);
 
         return renderCodexRow({
           title,
           meta,
           icon,
+          typeLabel,
           classes: "codex-linked-record-row",
           onclick: `openCodexPage('${escapeJsString(resolvedType)}', '${escapeJsString(id)}')`
         });
