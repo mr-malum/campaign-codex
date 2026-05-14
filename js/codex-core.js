@@ -302,7 +302,7 @@ function renderCodexIndex() {
           <span class="codex-row-icon" aria-hidden="true">♟</span>
           <span class="codex-row-main">
             <span class="codex-row-title">NPCs</span>
-            <span class="codex-row-meta">People, factions, homes, and campaign figures</span>
+            <span class="codex-row-meta">The denizens of Kadesh</span>
           </span>
           <span class="codex-row-arrow" aria-hidden="true">›</span>
         </button>
