@@ -3,10 +3,10 @@
    ========================================================= */
 
 const CODEX_SEARCH_GROUPS = [
-  { type: "poi", label: "POIs" },
-  { type: "npc", label: "NPCs" },
-  { type: "region", label: "Regions" },
-  { type: "hex", label: "Hexes" }
+  { type: "poi", label: "POIs", icon: "✦" },
+  { type: "npc", label: "NPCs", icon: "♟" },
+  { type: "region", label: "Regions", icon: "◇" },
+  { type: "hex", label: "Hexes", icon: "⬡" }
 ];
 
 let codexSearchActiveGroup = "all";
@@ -499,11 +499,67 @@ function renderCodexSearchResultGroups(results) {
   });
 }
 
+function getCodexSearchGroupIcon(type) {
+  if (type === "all") return "✧";
+
+  const group = CODEX_SEARCH_GROUPS.find(item => item.type === type);
+  return group?.icon || "•";
+}
+
+function getCodexSearchResultIcon(type) {
+  if (type === "poi-group") return getCodexSearchGroupIcon("poi");
+  return getCodexSearchGroupIcon(type);
+}
+
+function parseCodexSearchRowLabel(label) {
+  const parts = String(label || "").split(" — ").map(part => part.trim()).filter(Boolean);
+  const title = parts.shift() || "Unnamed Record";
+
+  return {
+    title,
+    meta: parts.join(" • ")
+  };
+}
+
+function renderCodexSearchRowList(rows, emptyText) {
+  if (!rows.length) {
+    return `<p>${escapeHtml(emptyText)}</p>`;
+  }
+
+  return `
+    <div class="codex-row-list codex-row-list-dense codex-search-row-list">
+      ${rows.map(row => renderCodexSearchResultRow(row)).join("")}
+    </div>
+  `;
+}
+
+function renderCodexSearchResultRow(row) {
+  const { title, meta } = parseCodexSearchRowLabel(row.label);
+  const icon = getCodexSearchResultIcon(row.type);
+
+  return `
+    <button
+      class="codex-row codex-search-result-row"
+      type="button"
+      onclick="openCodexPage('${escapeJsString(row.type)}', '${escapeJsString(row.id)}')"
+    >
+      <span class="codex-row-icon" aria-hidden="true">${escapeHtml(icon)}</span>
+
+      <span class="codex-row-main">
+        <span class="codex-row-title">${escapeHtml(title)}</span>
+        ${meta ? `<span class="codex-row-meta">${escapeHtml(meta)}</span>` : ""}
+      </span>
+
+      <span class="codex-row-arrow" aria-hidden="true">›</span>
+    </button>
+  `;
+}
+
 function renderCodexSearchCategoryRail(results) {
   const totalCount = getCodexSearchTotalCount(results);
 
   return `
-    <nav class="codex-search-category-rail" aria-label="Search result categories">
+    <nav class="codex-row-list codex-row-list-rail codex-search-category-rail" aria-label="Search result categories">
       ${renderCodexSearchCategoryButton({
         type: "all",
         label: "All",
@@ -523,16 +579,22 @@ function renderCodexSearchCategoryRail(results) {
 
 function renderCodexSearchCategoryButton(category) {
   const isActive = codexSearchActiveGroup === category.type;
+  const isDisabled = category.count === 0;
 
   return `
     <button
-      class="codex-search-category-button ${isActive ? "active" : ""}"
+      class="codex-row codex-search-category-button ${isActive ? "codex-row-active active" : ""} ${isDisabled ? "codex-row-disabled" : ""}"
       type="button"
       onclick="setCodexSearchActiveGroup('${escapeJsString(category.type)}')"
-      ${category.count === 0 ? "disabled" : ""}
+      ${isDisabled ? "disabled" : ""}
     >
-      <span class="codex-search-category-label">${escapeHtml(category.label)}</span>
-      <span class="codex-search-category-count">${escapeHtml(String(category.count))}</span>
+      <span class="codex-row-icon" aria-hidden="true">${escapeHtml(getCodexSearchGroupIcon(category.type))}</span>
+
+      <span class="codex-row-main">
+        <span class="codex-row-title">${escapeHtml(category.label)}</span>
+      </span>
+
+      <span class="codex-row-count">${escapeHtml(String(category.count))}</span>
     </button>
   `;
 }
@@ -553,13 +615,9 @@ function renderCodexSearchMainPaneContent(results) {
         <p>${escapeHtml(getCodexSearchMatchLabel(groupRows.length))}</p>
       </div>
 
-      ${renderCodexLinkedList(
+      ${renderCodexSearchRowList(
         groupRows,
-        `No matching ${activeGroup.label}.`,
-        null,
-        "id",
-        row => row.label,
-        row => row.type
+        `No matching ${activeGroup.label}.`
       )}
     </section>
   `;
@@ -581,13 +639,9 @@ function renderCodexSearchAllResultSection(group, results) {
         <p>${escapeHtml(getCodexSearchMatchLabel(groupRows.length))}</p>
       </div>
 
-      ${renderCodexLinkedList(
+      ${renderCodexSearchRowList(
         groupRows,
-        `No matching ${group.label}.`,
-        null,
-        "id",
-        row => row.label,
-        row => row.type
+        `No matching ${group.label}.`
       )}
     </section>
   `;
