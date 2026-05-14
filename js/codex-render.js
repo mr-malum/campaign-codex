@@ -64,6 +64,58 @@ function renderCodexListControls(config) {
   `;
 }
 
+function parseCodexRowLabel(label) {
+  const parts = String(label || "")
+    .split(" — ")
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  return {
+    title: parts.shift() || "Unnamed Record",
+    meta: parts.join(" • ")
+  };
+}
+
+function renderCodexRow(options) {
+  const title = options?.title || "Unnamed Record";
+  const meta = options?.meta || "";
+  const icon = options?.icon || "";
+  const count = options?.count;
+  const onclick = options?.onclick || "";
+  const extraClasses = options?.classes || "";
+  const isActive = Boolean(options?.active);
+  const isDisabled = Boolean(options?.disabled);
+  const disabledAttr = isDisabled ? "disabled" : "";
+  const activeClass = isActive ? "codex-row-active active" : "";
+  const disabledClass = isDisabled ? "codex-row-disabled" : "";
+  const noIconClass = icon ? "" : "codex-linked-row";
+
+  return `
+    <button
+      class="codex-row ${noIconClass} ${extraClasses} ${activeClass} ${disabledClass}"
+      type="button"
+      ${onclick ? `onclick="${onclick}"` : ""}
+      ${disabledAttr}
+    >
+      ${
+        icon
+          ? `<span class="codex-row-icon" aria-hidden="true">${escapeHtml(icon)}</span>`
+          : ""
+      }
+
+      <span class="codex-row-main">
+        <span class="codex-row-title">${escapeHtml(title)}</span>
+        ${meta ? `<span class="codex-row-meta">${escapeHtml(meta)}</span>` : ""}
+      </span>
+
+      ${
+        count !== undefined && count !== null
+          ? `<span class="codex-row-count">${escapeHtml(String(count))}</span>`
+          : `<span class="codex-row-arrow" aria-hidden="true">›</span>`
+      }
+    </button>
+  `;
+}
 
 function renderCodexLinkedList(
   rows,
@@ -71,7 +123,8 @@ function renderCodexLinkedList(
   type,
   idField,
   getLabel,
-  getType = null
+  getType = null,
+  getIcon = null
 ) {
   if (!rows.length) {
     return `<p>${escapeHtml(emptyText)}</p>`;
@@ -89,32 +142,16 @@ function renderCodexLinkedList(
         );
 
         const label = getLabel(row) || id || "Unnamed Record";
+        const { title, meta } = parseCodexRowLabel(label);
+        const icon = getIcon ? getIcon(row, resolvedType) : "";
 
-        const parts = String(label).split(" — ");
-
-        const title = parts.shift() || "Unnamed Record";
-
-        const metaLine = parts.filter(Boolean).join(" • ");
-
-        return `
-          <button
-            class="codex-row codex-linked-row"
-            type="button"
-            onclick="openCodexPage('${escapeJsString(resolvedType)}', '${escapeJsString(id)}')"
-          >
-            <span class="codex-row-main">
-              <span class="codex-row-title">${escapeHtml(title)}</span>
-
-              ${
-                metaLine
-                  ? `<span class="codex-row-meta">${escapeHtml(metaLine)}</span>`
-                  : ""
-              }
-            </span>
-
-            <span class="codex-row-arrow" aria-hidden="true">›</span>
-          </button>
-        `;
+        return renderCodexRow({
+          title,
+          meta,
+          icon,
+          classes: "codex-linked-record-row",
+          onclick: `openCodexPage('${escapeJsString(resolvedType)}', '${escapeJsString(id)}')`
+        });
       }).join("")}
     </div>
   `;
