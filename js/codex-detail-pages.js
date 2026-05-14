@@ -58,6 +58,55 @@ function getRegionImageUrl(region) {
     "";
 }
 
+function getPoiImageUrl(poi) {
+  return poi?.Image ||
+    poi?.Image_URL ||
+    poi?.POI_Image ||
+    poi?.POI_Image_URL ||
+    "";
+}
+
+function getPoiGroupImageUrl(group) {
+  return group?.Image ||
+    group?.Image_URL ||
+    group?.POI_Group_Image ||
+    group?.POI_Group_Image_URL ||
+    group?.Group_Image ||
+    group?.Group_Image_URL ||
+    "";
+}
+
+function getNpcImageUrl(npc) {
+  return npc?.Image ||
+    npc?.Image_URL ||
+    npc?.NPC_Image ||
+    npc?.NPC_Image_URL ||
+    npc?.Portrait ||
+    npc?.Portrait_URL ||
+    "";
+}
+
+function getPoiPlaceholderClass(record) {
+  const type = String(record?.POI_Type || record?.Group_Type || "").toLowerCase();
+
+  if (
+    type.includes("settlement") ||
+    type.includes("city") ||
+    type.includes("town") ||
+    type.includes("village")
+  ) {
+    return "codex-placeholder-settlement";
+  }
+
+  return "codex-placeholder-poi";
+}
+
+function renderImageStyle(imageUrl) {
+  return imageUrl
+    ? `style="background-image: url('${escapeJsString(imageUrl)}')"`
+    : "";
+}
+
 function renderCodexInlineLink(type, id, label) {
   return `
     <button
@@ -201,8 +250,8 @@ function renderCodexRegionPage(regionId) {
     <div class="codex-region-detail-shell">
       <div class="codex-region-detail-fixed">
         <div
-          class="codex-detail-portrait-slot codex-region-detail-image"
-          ${imageUrl ? `style="background-image: url('${escapeJsString(imageUrl)}')"` : ""}
+          class="codex-detail-portrait-slot codex-region-detail-image codex-placeholder-region"
+          ${renderImageStyle(imageUrl)}
         ></div>
 
         <div class="codex-detail-meta codex-region-detail-summary">
@@ -267,13 +316,15 @@ function renderCodexPoiPage(poiId) {
   const poiName = poi?.Name || poiId || "Unknown POI";
   const group = getPoiGroupForPoi(poi);
   const population = getPoiEffectivePopulation(poi);
+  const imageUrl = getPoiImageUrl(poi);
+  const placeholderClass = getPoiPlaceholderClass(poi);
 
   setCodexTitle(poiName);
 
   setCodexContent(`
     <div class="codex-detail-page-shell">
       <div class="codex-detail-fixed codex-detail-fixed-poi">
-        <div class="codex-detail-portrait-slot"></div>
+        <div class="codex-detail-portrait-slot ${placeholderClass}" ${renderImageStyle(imageUrl)}></div>
 
         <div class="codex-detail-meta">
           <p><strong>Type:</strong> ${escapeHtml(poi?.POI_Type || "Unknown")}</p>
@@ -338,13 +389,15 @@ function renderCodexPoiGroupPage(groupId) {
   const pois = getPoisForGroup(groupId);
   const npcs = getNpcsForPoiGroup(groupId);
   const population = formatCodexPopulation(getPoiGroupPopulation(group));
+  const imageUrl = getPoiGroupImageUrl(group);
+  const placeholderClass = getPoiPlaceholderClass(group);
 
   setCodexTitle(groupName);
 
   setCodexContent(`
     <div class="codex-detail-page-shell">
       <div class="codex-detail-fixed codex-detail-fixed-poi">
-        <div class="codex-detail-portrait-slot"></div>
+        <div class="codex-detail-portrait-slot ${placeholderClass}" ${renderImageStyle(imageUrl)}></div>
 
         <div class="codex-detail-meta">
           <p><strong>Type:</strong> ${escapeHtml(group?.Group_Type || "Grouped POI")}</p>
@@ -412,6 +465,7 @@ function renderCodexNpcPage(npcId) {
 
   const homeGroup = home ? getPoiGroupForPoi(home) : null;
   const npcName = npc?.Name || npcId || "Unknown NPC";
+  const imageUrl = getNpcImageUrl(npc);
 
   document.getElementById("codex-title").innerHTML = `
     ${npc?.Title ? `
@@ -434,7 +488,7 @@ function renderCodexNpcPage(npcId) {
   setCodexContent(`
     <div class="codex-detail-page-shell">
       <div class="codex-detail-fixed">
-        <div class="codex-detail-portrait-slot"></div>
+        <div class="codex-detail-portrait-slot codex-placeholder-npc" ${renderImageStyle(imageUrl)}></div>
 
         <div class="codex-detail-meta">
           <p><strong>Home:</strong> ${
@@ -507,8 +561,8 @@ function renderCodexRegionTile(region) {
       onclick="openCodexPage('region', '${escapeJsString(regionId)}')"
     >
       <span
-        class="codex-region-tile-image"
-        ${imageUrl ? `style="background-image: url('${escapeJsString(imageUrl)}')"` : ""}
+        class="codex-region-tile-image codex-placeholder-region"
+        ${renderImageStyle(imageUrl)}
       ></span>
 
       <span class="codex-region-tile-info">
