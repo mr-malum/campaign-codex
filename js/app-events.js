@@ -10,6 +10,7 @@ let codexLongPressTimer = null;
 let suppressNextCodexClick = false;
 let appBrowserBackTrapActive = false;
 let appBrowserBackTrapReleasing = false;
+let appBrowserBackTrapRearmTimer = null;
 
 function initializeHexGrid() {
   for (let xxx = HEX_GRID_MIN; xxx < HEX_GRID_MAX; xxx++) {
@@ -203,7 +204,23 @@ function ensureAppBrowserBackTrap() {
   appBrowserBackTrapActive = true;
 }
 
+function rearmAppBrowserBackTrap() {
+  window.clearTimeout(appBrowserBackTrapRearmTimer);
+
+  appBrowserBackTrapRearmTimer = window.setTimeout(() => {
+    appBrowserBackTrapRearmTimer = null;
+
+    if (!isCodexOpen() && !isAppPanelOpen()) return;
+
+    appBrowserBackTrapActive = false;
+    ensureAppBrowserBackTrap();
+  }, 0);
+}
+
 function releaseAppBrowserBackTrap() {
+  window.clearTimeout(appBrowserBackTrapRearmTimer);
+  appBrowserBackTrapRearmTimer = null;
+
   if (!appBrowserBackTrapActive) return;
 
   appBrowserBackTrapActive = false;
@@ -227,8 +244,7 @@ function handleAppBrowserBack() {
     }
 
     goBackCodex();
-    appBrowserBackTrapActive = false;
-    ensureAppBrowserBackTrap();
+    rearmAppBrowserBackTrap();
     return;
   }
 
