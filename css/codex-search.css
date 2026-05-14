@@ -69,6 +69,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: minmax(230px, 1fr);
   gap: 18px;
+
+  overflow: hidden;
 }
 
 .codex-search-result-panel {
@@ -200,7 +202,7 @@
 }
 
 .codex-home-search-active .codex-home-search-controls-shell {
-  padding-top: 0;
+  padding-top: 8px;
   padding-bottom: 12px;
 }
 
@@ -230,8 +232,8 @@
 }
 
 .codex-home-search-active .codex-search-results-shell {
-  align-content: start;
-  grid-auto-rows: minmax(230px, auto);
+  align-content: stretch;
+  grid-auto-rows: 1fr;
 }
 
 /* =========================================================
@@ -239,8 +241,12 @@
    ========================================================= */
 
 .codex-search-split-view {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr);
@@ -248,13 +254,17 @@
 }
 
 .codex-search-category-rail {
+  align-self: center;
   min-height: 0;
+  max-height: 100%;
 
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 10px;
 
   padding: 8px 10px 14px 0;
+  overflow: visible;
 }
 
 .codex-search-category-button {
@@ -383,7 +393,13 @@
 }
 
 .codex-search-main-pane .codex-list {
+  width: 100%;
+  max-width: none;
   margin: 0;
+}
+
+.codex-search-main-pane .codex-record-button {
+  width: 100%;
 }
 
 /* =========================================================
@@ -415,5 +431,6 @@
 @media (max-width: 700px) {
   .codex-search-results-shell {
     display: block;
+    overflow: visible;
   }
 }
