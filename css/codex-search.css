@@ -17,7 +17,7 @@
   padding: 10px 38px 10px 38px;
   border-radius: 3px;
   border: 1px solid rgba(72, 43, 18, 0.34);
-  background: #f4eedc;
+  background: rgba(244, 238, 220, 0.90);
   color: #2f1d10;
   font-family: 'Spectral', Georgia, serif;
   font-size: 1.06rem;
@@ -37,7 +37,7 @@
 #codex-search-input:focus {
   outline: none;
   border-color: rgba(94, 55, 22, 0.52);
-  background: #f8f1df;
+  background: rgba(248, 241, 223, 0.90);
   box-shadow:
     inset 0 1px 5px rgba(55, 28, 8, 0.20),
     inset 0 -1px 0 rgba(255, 252, 236, 0.38),
@@ -49,8 +49,6 @@
   appearance: none;
   -webkit-appearance: none;
 
-  position: relative;
-
   width: 18px;
   height: 18px;
 
@@ -58,26 +56,13 @@
 
   cursor: pointer;
 
-  background: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Ctext x='9' y='13' text-anchor='middle' font-family='Georgia, serif' font-size='14' fill='%233a2614'%3E%E2%9C%97%3C/text%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
 
   opacity: 0.78;
-}
-
-#codex-search-input::-webkit-search-cancel-button::before {
-  content: "✗";
-
-  position: absolute;
-  inset: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  color: rgba(58, 38, 20, 0.86);
-
-  font-family: 'Marcellus SC', Georgia, serif;
-  font-size: 1rem;
-  line-height: 1;
 }
 
 #codex-search-input::-webkit-search-cancel-button:hover {
