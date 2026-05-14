@@ -443,7 +443,7 @@
 
 .codex-region-tile-image {
   position: absolute;
-  inset: 0 0 50%;
+  inset: 0 0 33.333%;
 
   background:
     radial-gradient(circle at center, rgba(255, 232, 174, 0.18), transparent 62%),
@@ -458,16 +458,16 @@
   position: relative;
   z-index: 1;
 
-  min-height: 50%;
+  min-height: 33.333%;
 
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
 
-  padding: 16px;
+  padding: 12px 14px;
 
-  background: rgba(246, 219, 164, 0.88);
+  background: rgba(246, 219, 164, 0.90);
   border-top: 1px solid rgba(94, 55, 22, 0.28);
 
   text-align: left;
@@ -475,16 +475,74 @@
 
 .codex-region-tile-name {
   font-family: 'Marcellus SC', Georgia, serif;
-  font-size: clamp(1rem, 1.55vw, 1.35rem);
-  line-height: 1.08;
+  font-size: clamp(0.94rem, 1.38vw, 1.22rem);
+  line-height: 1.05;
   letter-spacing: 0.04em;
 }
 
 .codex-region-tile-details {
   font-family: 'Spectral', Georgia, serif;
-  font-size: clamp(0.78rem, 1vw, 0.95rem);
-  line-height: 1.2;
+  font-size: clamp(0.72rem, 0.92vw, 0.86rem);
+  line-height: 1.14;
   opacity: 0.86;
+}
+
+/* =========================================================
+   REGION DETAIL HEADER
+   ========================================================= */
+
+#codex-content.codex-region-detail-page {
+  width: min(100%, 960px);
+  max-width: 960px;
+}
+
+.codex-region-detail-shell {
+  width: 100%;
+}
+
+.codex-region-detail-fixed {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) minmax(220px, 0.95fr);
+  gap: 22px;
+  align-items: start;
+
+  margin-bottom: 20px;
+}
+
+.codex-region-detail-image {
+  width: 180px;
+  height: 180px;
+
+  background-size: cover;
+  background-position: center;
+}
+
+.codex-region-detail-summary {
+  min-width: 0;
+}
+
+.codex-region-terrain-profile {
+  text-align: right;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+#codex-content .codex-region-terrain-profile h3 {
+  margin-top: 0;
+  font-size: 1.12rem;
+}
+
+#codex-content .codex-region-terrain-profile h3::after {
+  background: linear-gradient(
+    to left,
+    rgba(72, 43, 18, 0.58),
+    rgba(72, 43, 18, 0.18),
+    transparent
+  );
+}
+
+.codex-region-terrain-profile p {
+  margin: 0;
 }
 
 /* =========================================================
