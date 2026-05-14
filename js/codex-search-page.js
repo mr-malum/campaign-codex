@@ -3,10 +3,10 @@
    ========================================================= */
 
 const CODEX_SEARCH_GROUPS = [
-  { type: "hex", label: "Hexes" },
-  { type: "region", label: "Regions" },
   { type: "poi", label: "POIs" },
-  { type: "npc", label: "NPCs" }
+  { type: "npc", label: "NPCs" },
+  { type: "hex", label: "Hexes" },
+  { type: "region", label: "Regions" }
 ];
 
 function renderCodexSearchPage() {
