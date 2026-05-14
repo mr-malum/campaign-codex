@@ -279,10 +279,33 @@ function renderCodexIndex() {
         </div>
       </div>
 
-      <div id="codex-home-section-buttons" class="codex-home-section-buttons">
-        <button class="codex-section-button" type="button" onclick="openCodexPage('regions')">Regions</button>
-        <button class="codex-section-button" type="button" onclick="openCodexPage('pois')">Points of Interest</button>
-        <button class="codex-section-button" type="button" onclick="openCodexPage('npcs')">NPCs</button>
+      <div id="codex-home-section-buttons" class="codex-home-section-buttons codex-row-list">
+        <button class="codex-row codex-home-section-row" type="button" onclick="openCodexPage('regions')">
+          <span class="codex-row-icon" aria-hidden="true">◇</span>
+          <span class="codex-row-main">
+            <span class="codex-row-title">Regions</span>
+            <span class="codex-row-meta">Browse lands, territories, and terrain profiles</span>
+          </span>
+          <span class="codex-row-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="codex-row codex-home-section-row" type="button" onclick="openCodexPage('pois')">
+          <span class="codex-row-icon" aria-hidden="true">✦</span>
+          <span class="codex-row-main">
+            <span class="codex-row-title">Points of Interest</span>
+            <span class="codex-row-meta">Settlements, ruins, landmarks, and mapped places</span>
+          </span>
+          <span class="codex-row-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="codex-row codex-home-section-row" type="button" onclick="openCodexPage('npcs')">
+          <span class="codex-row-icon" aria-hidden="true">♟</span>
+          <span class="codex-row-main">
+            <span class="codex-row-title">NPCs</span>
+            <span class="codex-row-meta">People, factions, homes, and campaign figures</span>
+          </span>
+          <span class="codex-row-arrow" aria-hidden="true">›</span>
+        </button>
       </div>
 
       <div id="codex-search-results" class="codex-search-results-shell"></div>
