@@ -126,6 +126,12 @@ function renderImageStyle(imageUrl) {
     : "";
 }
 
+function renderMapTileStyle(imageUrl) {
+  return imageUrl
+    ? `style="--codex-map-image: url('${escapeJsString(imageUrl)}')"`
+    : "";
+}
+
 function renderCodexInlineLink(type, id, label) {
   return `
     <button
@@ -141,20 +147,12 @@ function renderCodexInlineLink(type, id, label) {
 function renderCodexMapCard(map) {
   const imageUrl = getCodexMapImageUrl(map);
   const mapName = map.Map_Name || map.Map_ID || "Unnamed Map";
-  const meta = [
-    map.Map_Type || "",
-    map.Sort_Order ? `Order ${map.Sort_Order}` : ""
-  ].filter(Boolean).join(" • ");
-
-  const content = `
-    <span class="codex-map-card-title">${escapeHtml(mapName)}</span>
-    ${meta ? `<span class="codex-map-card-meta">${escapeHtml(meta)}</span>` : ""}
-  `;
+  const content = `<span class="codex-map-card-title">${escapeHtml(mapName)}</span>`;
 
   if (!imageUrl) {
     return `
       <div class="codex-map-card codex-map-card-disabled">
-        ${content}
+        <span class="codex-map-card-info">${content}</span>
       </div>
     `;
   }
@@ -165,24 +163,23 @@ function renderCodexMapCard(map) {
       href="${escapeHtml(imageUrl)}"
       target="_blank"
       rel="noopener noreferrer"
+      ${renderMapTileStyle(imageUrl)}
     >
-      ${content}
+      <span class="codex-map-card-info">${content}</span>
     </a>
   `;
 }
 
 function renderCodexMapsPanel(maps, fallback = "No maps recorded.") {
   return `
-    <section class="codex-detail-scroll-panel codex-maps-panel">
+    <section class="codex-maps-panel">
       <h3>Maps</h3>
 
-      <div class="codex-region-list-scrollbox codex-map-list codex-scroll-fade">
-        ${
-          maps.length
-            ? maps.map(renderCodexMapCard).join("")
-            : `<p>${escapeHtml(fallback)}</p>`
-        }
-      </div>
+      ${
+        maps.length
+          ? `<div class="codex-map-tile-grid">${maps.map(renderCodexMapCard).join("")}</div>`
+          : `<p>${escapeHtml(fallback)}</p>`
+      }
     </section>
   `;
 }
@@ -401,9 +398,9 @@ function renderCodexRegionPage(regionId) {
             )}
           </div>
         </section>
-
-        ${renderCodexMapsPanel(maps, "No maps recorded for this region.")}
       </div>
+
+      ${renderCodexMapsPanel(maps, "No maps recorded for this region.")}
     </div>
   `, buildCodexBreadcrumbTrail(regionName, {
     label: "Regions",
@@ -485,9 +482,9 @@ function renderCodexPoiPage(poiId) {
           poi?.Lore,
           "No lore recorded."
         )}
-
-        ${renderCodexMapsPanel(maps, "No maps recorded for this location.")}
       </div>
+
+      ${renderCodexMapsPanel(maps, "No maps recorded for this location.")}
     </div>
   `, buildCodexGroupedPoiBreadcrumbTrail(poiName, group));
 
@@ -560,9 +557,9 @@ function renderCodexPoiGroupPage(groupId) {
           group?.Lore,
           "No lore recorded."
         )}
-
-        ${renderCodexMapsPanel(maps, "No maps recorded for this place.")}
       </div>
+
+      ${renderCodexMapsPanel(maps, "No maps recorded for this place.")}
     </div>
   `, buildCodexBreadcrumbTrail(groupName, {
     label: "Points of Interest",
