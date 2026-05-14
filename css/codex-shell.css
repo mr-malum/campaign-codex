@@ -379,6 +379,115 @@
 }
 
 /* =========================================================
+   REGION INDEX TILES
+   ========================================================= */
+
+#codex-content.codex-regions-index {
+  width: min(100%, 980px);
+  max-width: 980px;
+}
+
+.codex-region-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.codex-region-tile {
+  position: relative;
+
+  width: 100%;
+  aspect-ratio: 1 / 1;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+
+  padding: 0;
+  overflow: hidden;
+
+  border: 1px solid rgba(94, 55, 22, 0.38);
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 238, 196, 0.32),
+      rgba(85, 49, 19, 0.16)
+    );
+
+  color: #2f1d10;
+  cursor: pointer;
+
+  box-shadow:
+    inset 0 1px 3px rgba(255, 241, 202, 0.32),
+    0 4px 14px rgba(45, 25, 8, 0.18);
+
+  transition:
+    transform 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.codex-region-tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(94, 55, 22, 0.58);
+  box-shadow:
+    inset 0 1px 3px rgba(255, 241, 202, 0.40),
+    0 7px 18px rgba(45, 25, 8, 0.24);
+}
+
+.codex-region-tile:active {
+  transform: scale(0.985);
+}
+
+.codex-region-tile-image {
+  position: absolute;
+  inset: 0 0 50%;
+
+  background:
+    radial-gradient(circle at center, rgba(255, 232, 174, 0.18), transparent 62%),
+    rgba(94, 55, 22, 0.08);
+  background-size: cover;
+  background-position: center;
+
+  opacity: 0.92;
+}
+
+.codex-region-tile-info {
+  position: relative;
+  z-index: 1;
+
+  min-height: 50%;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+
+  padding: 16px;
+
+  background: rgba(246, 219, 164, 0.88);
+  border-top: 1px solid rgba(94, 55, 22, 0.28);
+
+  text-align: left;
+}
+
+.codex-region-tile-name {
+  font-family: 'Marcellus SC', Georgia, serif;
+  font-size: clamp(1rem, 1.55vw, 1.35rem);
+  line-height: 1.08;
+  letter-spacing: 0.04em;
+}
+
+.codex-region-tile-details {
+  font-family: 'Spectral', Georgia, serif;
+  font-size: clamp(0.78rem, 1vw, 0.95rem);
+  line-height: 1.2;
+  opacity: 0.86;
+}
+
+/* =========================================================
    CODEX BREADCRUMBS
    ========================================================= */
 
