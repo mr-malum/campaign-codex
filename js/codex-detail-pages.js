@@ -169,6 +169,8 @@ function renderCodexRegionPage(regionId) {
     return getPoisForHex(hex.Hex_ID);
   });
 
+  const poiListRows = createPoiGroupListRows(pois);
+
   const npcs = pois.flatMap(poi => {
     return getNpcsForPoi(poi.POI_ID);
   });
@@ -194,6 +196,11 @@ function renderCodexRegionPage(regionId) {
     <p>
       <strong>Hexes:</strong> ${summary.hexCount}<br>
       <strong>Points of Interest:</strong> ${summary.poiCount}<br>
+      ${
+        summary.mappedAreaCount > summary.poiCount
+          ? `<strong>Mapped Areas:</strong> ${summary.mappedAreaCount}<br>`
+          : ""
+      }
       <strong>NPCs:</strong> ${summary.npcCount}
     </p>
 
@@ -202,7 +209,7 @@ function renderCodexRegionPage(regionId) {
 
     <h3>Points of Interest</h3>
     ${renderCodexLinkedList(
-      pois,
+      poiListRows,
       "No points of interest currently recorded in this region.",
       "poi",
       "POI_ID",
@@ -265,7 +272,7 @@ function renderCodexPoiPage(poiId) {
 
           ${
             !group && (poi?.POI_Type === "Settlement" || population)
-              ? `<p><strong>Population:</strong> ${escapeHtml(population || "Unknown")}</p>`
+              ? `<p><strong>Population:</strong> ${escapeHtml(formatCodexPopulation(population) || "Unknown")}</p>`
               : ""
           }
         </div>
@@ -309,7 +316,7 @@ function renderCodexPoiGroupPage(groupId) {
   const groupName = group?.POI_Group_Name || groupId || "Unknown POI Group";
   const pois = getPoisForGroup(groupId);
   const npcs = getNpcsForPoiGroup(groupId);
-  const population = getPoiGroupPopulation(group);
+  const population = formatCodexPopulation(getPoiGroupPopulation(group));
 
   setCodexTitle(groupName);
 
