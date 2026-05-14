@@ -289,7 +289,32 @@
 }
 
 .leaflet-popup-close-button {
-  display: none !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+
+  top: 6px !important;
+  right: 8px !important;
+
+  width: 32px !important;
+  height: 32px !important;
+
+  padding: 0 !important;
+
+  border: 1px solid rgba(94, 55, 22, 0.25) !important;
+  border-radius: 999px !important;
+
+  background: rgba(94, 55, 22, 0.10) !important;
+  color: #3a2614 !important;
+
+  font-family: 'Marcellus SC', Georgia, serif !important;
+  font-size: 1.35rem !important;
+  line-height: 1 !important;
+
+  text-align: center !important;
+  text-decoration: none !important;
+
+  z-index: 20 !important;
 }
 
 .leaflet-popup-content strong {
@@ -319,26 +344,4 @@
   font-size: 0.95rem;
 
   cursor: pointer;
-}
-
-.leaflet-popup-content .popup-close-details {
-  position: absolute;
-
-  top: -2px;
-  right: -2px;
-
-  width: 32px;
-  height: 32px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  margin: 0;
-  padding: 0;
-
-  border-radius: 999px;
-
-  font-size: 1.25rem;
-  line-height: 1;
 }
