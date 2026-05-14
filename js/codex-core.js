@@ -140,13 +140,14 @@ function popCodexHistory() {
 function updateCodexBackButton() {
   const backButton = document.getElementById("codex-back");
   const isMobile = window.matchMedia("(max-width: 700px)").matches;
+  const backGlyph = "⮜";
 
   backButton.disabled = false;
   backButton.textContent = isMobile
-    ? "←"
+    ? backGlyph
     : codexHistory.length <= 1
-      ? "← Map"
-      : "← Back";
+      ? `${backGlyph} Map`
+      : `${backGlyph} Back`;
 }
 
 function prepareCodexNavigation() {
