@@ -77,13 +77,16 @@ function getPoiGroupImageUrl(group) {
 }
 
 function getNpcImageUrl(npc) {
-  return npc?.Image ||
-    npc?.Image_URL ||
-    npc?.NPC_Image ||
-    npc?.NPC_Image_URL ||
-    npc?.Portrait ||
-    npc?.Portrait_URL ||
-    "";
+  return [
+    npc?.Image,
+    npc?.Image_URL,
+    npc?.NPC_Image,
+    npc?.NPC_Image_URL,
+    npc?.Portrait,
+    npc?.Portrait_URL
+  ]
+    .map(value => String(value || "").trim())
+    .find(Boolean) || "";
 }
 
 function getPoiPlaceholderClass(record) {
