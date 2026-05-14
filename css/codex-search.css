@@ -226,10 +226,11 @@
     border-color 160ms ease;
 }
 
-.codex-home-section-buttons {
+#codex-content.codex-home-search-page .codex-home-section-buttons {
   flex: 1 1 auto;
 
-  width: min(100%, 430px);
+  width: min(100%, 333px);
+  max-width: 333px;
   margin: 0 auto;
 
   display: flex;
