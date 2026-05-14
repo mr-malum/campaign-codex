@@ -50,6 +50,14 @@ function buildCodexGroupedPoiBreadcrumbTrail(poiName, group) {
   ];
 }
 
+function getRegionImageUrl(region) {
+  return region?.Image ||
+    region?.Image_URL ||
+    region?.Region_Image ||
+    region?.Region_Image_URL ||
+    "";
+}
+
 function renderCodexInlineLink(type, id, label) {
   return `
     <button
@@ -164,6 +172,7 @@ function renderCodexRegionPage(regionId) {
   const hexes = getRowsByField(db?.raw?.hexes, "Region_ID_Ref", regionId);
   const regionName = region?.Region_Name || regionId || "Unknown Region";
   const summary = getRegionSummary(regionId);
+  const imageUrl = getRegionImageUrl(region);
 
   const pois = hexes.flatMap(hex => {
     return getPoisForHex(hex.Hex_ID);
@@ -189,54 +198,66 @@ function renderCodexRegionPage(regionId) {
   setCodexTitle(regionName);
 
   setCodexContent(`
-    <h3>Region Notes</h3>
-    <p>${escapeHtml(region?.Lore || region?.DM_Journal || "No region notes recorded.")}</p>
+    <div class="codex-region-detail-shell">
+      <div class="codex-region-detail-fixed">
+        <div
+          class="codex-detail-portrait-slot codex-region-detail-image"
+          ${imageUrl ? `style="background-image: url('${escapeJsString(imageUrl)}')"` : ""}
+        ></div>
 
-    <h3>Summary</h3>
-    <p>
-      <strong>Hexes:</strong> ${summary.hexCount}<br>
-      <strong>Points of Interest:</strong> ${summary.poiCount}<br>
-      ${
-        summary.mappedAreaCount > summary.poiCount
-          ? `<strong>Mapped Areas:</strong> ${summary.mappedAreaCount}<br>`
-          : ""
-      }
-      <strong>NPCs:</strong> ${summary.npcCount}
-    </p>
+        <div class="codex-detail-meta codex-region-detail-summary">
+          <p><strong>Hexes:</strong> ${summary.hexCount}</p>
+          <p><strong>Points of Interest:</strong> ${summary.poiCount}</p>
+          ${
+            summary.mappedAreaCount > summary.poiCount
+              ? `<p><strong>Mapped Areas:</strong> ${summary.mappedAreaCount}</p>`
+              : ""
+          }
+          <p><strong>NPCs:</strong> ${summary.npcCount}</p>
+        </div>
 
-    <h3>Terrain Profile</h3>
-    <p>${terrainSummary || "No terrain data recorded."}</p>
+        <div class="codex-region-terrain-profile">
+          <h3>Terrain Profile</h3>
+          <p>${terrainSummary || "No terrain data recorded."}</p>
+        </div>
+      </div>
 
-    <h3>Points of Interest</h3>
-    ${renderCodexLinkedList(
-      poiListRows,
-      "No points of interest currently recorded in this region.",
-      "poi",
-      "POI_ID",
-      buildPoiListLabel
-    )}
+      <h3>Region Notes</h3>
+      <p>${escapeHtml(region?.Lore || region?.DM_Journal || "No region notes recorded.")}</p>
 
-    <h3>NPCs</h3>
-    ${renderCodexLinkedList(
-      npcs,
-      "No NPCs currently recorded in this region.",
-      "npc",
-      "NPC_ID",
-      buildNpcListLabel
-    )}
+      <h3>Points of Interest</h3>
+      ${renderCodexLinkedList(
+        poiListRows,
+        "No points of interest currently recorded in this region.",
+        "poi",
+        "POI_ID",
+        buildPoiListLabel
+      )}
 
-    <h3>Hexes</h3>
-    ${renderCodexLinkedList(
-      hexes,
-      "No hexes currently assigned to this region.",
-      "hex",
-      "Hex_ID",
-      buildHexListLabel
-    )}
+      <h3>NPCs</h3>
+      ${renderCodexLinkedList(
+        npcs,
+        "No NPCs currently recorded in this region.",
+        "npc",
+        "NPC_ID",
+        buildNpcListLabel
+      )}
+
+      <h3>Hexes</h3>
+      ${renderCodexLinkedList(
+        hexes,
+        "No hexes currently assigned to this region.",
+        "hex",
+        "Hex_ID",
+        buildHexListLabel
+      )}
+    </div>
   `, buildCodexBreadcrumbTrail(regionName, {
     label: "Regions",
     pageType: "regions"
   }));
+
+  document.getElementById("codex-content").classList.add("codex-region-detail-page");
 }
 
 function renderCodexPoiPage(poiId) {
@@ -468,7 +489,7 @@ function renderCodexRegionTile(region) {
   const regionId = region.Region_ID;
   const regionName = region.Region_Name || regionId || "Unnamed Region";
   const summary = getRegionSummary(regionId);
-  const imageUrl = region.Image || region.Image_URL || region.Region_Image || region.Region_Image_URL || "";
+  const imageUrl = getRegionImageUrl(region);
 
   const detailLine = [
     `${summary.hexCount} hexes`,
