@@ -16,14 +16,29 @@ function getCodexTitle() {
 
 function openCodex() {
   getCodexOverlay().classList.add("open");
+
+  if (typeof ensureAppBrowserBackTrap === "function") {
+    ensureAppBrowserBackTrap();
+  }
 }
 
-function closeCodex() {
+function closeCodex(options = {}) {
+  const overlay = getCodexOverlay();
+  const wasOpen = overlay.classList.contains("open");
+
   codexSearchQuery = "";
 
-  getCodexOverlay().classList.remove("open");
+  overlay.classList.remove("open");
   map.closePopup();
   clearSelectedHex();
+
+  if (
+    wasOpen &&
+    options.syncHistory !== false &&
+    typeof releaseAppBrowserBackTrap === "function"
+  ) {
+    releaseAppBrowserBackTrap();
+  }
 }
 
 function setCodexTitle(title) {
