@@ -248,7 +248,7 @@
   position: relative;
 
   margin: 0 !important;
-  padding: 26px 30px !important;
+  padding: 30px 30px 26px !important;
 
   min-width: 180px;
 
@@ -319,4 +319,26 @@
   font-size: 0.95rem;
 
   cursor: pointer;
+}
+
+.leaflet-popup-content .popup-close-details {
+  position: absolute;
+
+  top: -2px;
+  right: -2px;
+
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+  padding: 0;
+
+  border-radius: 999px;
+
+  font-size: 1.25rem;
+  line-height: 1;
 }
