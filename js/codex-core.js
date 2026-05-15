@@ -2,6 +2,9 @@
    CODEX CORE / ROUTING / HISTORY
    ========================================================= */
 
+let codexLiveSearchActive = false;
+let codexLiveSearchReturnPage = null;
+
 function getCodexOverlay() {
   return document.getElementById("codex-overlay");
 }
@@ -27,6 +30,9 @@ function closeCodex(options = {}) {
   const wasOpen = overlay.classList.contains("open");
 
   codexSearchQuery = "";
+  codexLiveSearchActive = false;
+  codexLiveSearchReturnPage = null;
+  syncCodexDesktopPersistentSearchInput("");
 
   closeCodexGlobalSearchModal?.();
   overlay.classList.remove("open");
@@ -145,13 +151,43 @@ function getCurrentCodexPage() {
   return codexHistory[codexHistory.length - 1] || null;
 }
 
-function pushCodexHistory(type, id) {
-  codexHistory.push({ type, id });
+function createCodexHistoryEntry(type, id, state = {}) {
+  return {
+    type,
+    id,
+    ...state
+  };
+}
+
+function pushCodexHistory(type, id, state = {}) {
+  codexHistory.push(createCodexHistoryEntry(type, id, state));
+}
+
+function replaceCurrentCodexHistory(type, id, state = {}) {
+  if (!codexHistory.length) {
+    pushCodexHistory(type, id, state);
+    return;
+  }
+
+  codexHistory[codexHistory.length - 1] = createCodexHistoryEntry(type, id, state);
 }
 
 function popCodexHistory() {
   codexHistory.pop();
   return getCurrentCodexPage();
+}
+
+function applyCodexHistoryEntryState(entry) {
+  if (!entry) return;
+
+  if (entry.type === "search") {
+    codexSearchQuery = entry.query || "";
+    syncCodexDesktopPersistentSearchInput(codexSearchQuery);
+    return;
+  }
+
+  codexSearchQuery = "";
+  syncCodexDesktopPersistentSearchInput("");
 }
 
 function updateCodexBackButton() {
@@ -169,23 +205,99 @@ function prepareCodexNavigation() {
 
 function openCodexPage(type = "index", id = null, options = {}) {
   const shouldPush = options.push !== false;
+  const state = options.state || {};
 
   prepareCodexNavigation();
 
-  if (shouldPush) {
-    pushCodexHistory(type, id);
+  if (codexLiveSearchActive && type !== "search") {
+    endCodexLiveSearch({ clearInput: true });
   }
 
+  if (shouldPush) {
+    pushCodexHistory(type, id, state);
+  }
+
+  const currentPage = getCurrentCodexPage();
+  applyCodexHistoryEntryState(currentPage);
   renderCodexPage(type, id);
   updateCodexBackButton();
 }
 
-function openCodexSearchResults(query) {
+function openCodexSearchResults(query, options = {}) {
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery) return;
 
+  const shouldPush = options.push !== false;
+  const shouldReplace = options.replace === true;
+
   codexSearchQuery = cleanQuery;
-  openCodexPage("search", null);
+
+  if (shouldReplace) {
+    prepareCodexNavigation();
+    replaceCurrentCodexHistory("search", null, { query: cleanQuery });
+    renderCodexPage("search", null);
+    updateCodexBackButton();
+    return;
+  }
+
+  openCodexPage("search", null, {
+    push: shouldPush,
+    state: { query: cleanQuery }
+  });
+}
+
+function startCodexLiveSearch(query) {
+  const cleanQuery = String(query || "").trim();
+  if (!cleanQuery) return;
+
+  if (!codexLiveSearchActive) {
+    codexLiveSearchActive = true;
+    codexLiveSearchReturnPage = getCurrentCodexPage()
+      ? { ...getCurrentCodexPage() }
+      : { type: "index", id: null };
+
+    openCodexSearchResults(cleanQuery, { push: true });
+    return;
+  }
+
+  openCodexSearchResults(cleanQuery, { replace: true });
+}
+
+function restoreCodexLiveSearchReturnPage() {
+  const returnPage = codexLiveSearchReturnPage || { type: "index", id: null };
+
+  if (getCurrentCodexPage()?.type === "search") {
+    codexHistory.pop();
+  }
+
+  codexLiveSearchActive = false;
+  codexLiveSearchReturnPage = null;
+  codexSearchQuery = "";
+  syncCodexDesktopPersistentSearchInput("");
+
+  renderCodexPage(returnPage.type, returnPage.id);
+  updateCodexBackButton();
+}
+
+function endCodexLiveSearch({ clearInput = false } = {}) {
+  codexLiveSearchActive = false;
+  codexLiveSearchReturnPage = null;
+
+  if (clearInput) {
+    syncCodexDesktopPersistentSearchInput("");
+  }
+}
+
+function openCodexSearchResult(type, id) {
+  endCodexLiveSearch({ clearInput: true });
+  openCodexPage(type, id);
+}
+
+function syncCodexDesktopPersistentSearchInput(value = codexSearchQuery) {
+  const input = document.getElementById("codex-desktop-search-input");
+  if (!input) return;
+
+  input.value = value || "";
 }
 
 function goBackCodex() {
@@ -195,12 +307,20 @@ function goBackCodex() {
 
   if (!previous) return;
 
+  codexLiveSearchActive = false;
+  codexLiveSearchReturnPage = null;
+
+  applyCodexHistoryEntryState(previous);
   renderCodexPage(previous.type, previous.id);
   updateCodexBackButton();
 }
 
 function resetCodexToIndex() {
   codexHistory = [];
+  codexLiveSearchActive = false;
+  codexLiveSearchReturnPage = null;
+  codexSearchQuery = "";
+  syncCodexDesktopPersistentSearchInput("");
   openCodexPage("index", null);
 }
 
@@ -238,6 +358,7 @@ function renderCodexIndex() {
   renderCodexBreadcrumbs([]);
 
   codexSearchQuery = "";
+  syncCodexDesktopPersistentSearchInput("");
 
   const content = getCodexContent();
   content.className = "codex-home";
@@ -290,6 +411,9 @@ window.openCodex = openCodex;
 window.closeCodex = closeCodex;
 window.openCodexPage = openCodexPage;
 window.openCodexSearchResults = openCodexSearchResults;
+window.openCodexSearchResult = openCodexSearchResult;
+window.startCodexLiveSearch = startCodexLiveSearch;
+window.restoreCodexLiveSearchReturnPage = restoreCodexLiveSearchReturnPage;
 window.goBackCodex = goBackCodex;
 window.resetCodexToIndex = resetCodexToIndex;
 window.openCodexMobileControls = openCodexMobileControls;
