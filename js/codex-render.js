@@ -174,6 +174,11 @@ function renderCodexRow(options) {
   `;
 }
 
+function getCodexLinkedRowOnclick(resolvedType, id, options = {}) {
+  const handler = options.onclickHandler || "openCodexPage";
+  return `${handler}('${escapeJsString(resolvedType)}', '${escapeJsString(id)}')`;
+}
+
 function renderCodexLinkedList(
   rows,
   emptyText,
@@ -181,7 +186,8 @@ function renderCodexLinkedList(
   idField,
   getLabel,
   getType = null,
-  getIcon = null
+  getIcon = null,
+  options = {}
 ) {
   if (!rows.length) {
     return `<p>${escapeHtml(emptyText)}</p>`;
@@ -211,7 +217,7 @@ function renderCodexLinkedList(
           icon,
           typeLabel,
           classes: "codex-linked-record-row",
-          onclick: `openCodexPage('${escapeJsString(resolvedType)}', '${escapeJsString(id)}')`
+          onclick: getCodexLinkedRowOnclick(resolvedType, id, options)
         });
       }).join("")}
     </div>
