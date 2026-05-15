@@ -26,6 +26,19 @@
     --codex-book-anchor-x: 67.5%;
     --codex-book-debug-display: block;
 
+    /*
+      One shared rendered-book size.
+      The background image, debug SVG, and future content panes must all use
+      these same dimensions so everything scales together as the window changes.
+
+      The book is 2800 x 1400, so width is always 2x height.
+      On shorter/wider desktop windows, height controls the scale.
+      On narrower desktop windows, width controls the scale instead of letting
+      the book keep overflowing at a stale size.
+    */
+    --codex-book-width: min(100vw, 200dvh);
+    --codex-book-height: calc(var(--codex-book-width) / 2);
+
     width: 100vw;
     max-width: none;
     height: 100vh;
@@ -42,15 +55,16 @@
 
   #codex-modal::before,
   #codex-modal::after {
+    content: "";
+
     position: absolute;
     top: 50%;
     left: 50%;
     right: auto;
     bottom: auto;
 
-    width: min(200dvh, 2800px);
-    height: auto;
-    aspect-ratio: 2 / 1;
+    width: var(--codex-book-width);
+    height: var(--codex-book-height);
 
     transform: translate(calc(-1 * var(--codex-book-anchor-x)), -50%);
     transform-origin: center center;
@@ -69,32 +83,13 @@
   }
 
   #codex-modal::after {
-    content: "";
     display: var(--codex-book-debug-display);
     z-index: 0;
 
-    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.72);
-
-    background:
-      /* Hard gutter: x 1380-1420, y 60-1340 */
-      linear-gradient(rgba(255, 64, 64, 0.30), rgba(255, 64, 64, 0.30))
-        49.2857% 4.2857% / 1.4286% 91.4286% no-repeat,
-
-      /* Left utility strip: x 1030-1290, y 150-1250 */
-      linear-gradient(rgba(64, 192, 255, 0.26), rgba(64, 192, 255, 0.26))
-        36.7857% 10.7143% / 9.2857% 78.5714% no-repeat,
-
-      /* Right safe page: x 1510-2610, y 150-1250 */
-      linear-gradient(rgba(64, 255, 128, 0.16), rgba(64, 255, 128, 0.16))
-        53.9286% 10.7143% / 39.2857% 78.5714% no-repeat,
-
-      /* Right header band: x 1510-2610, y 150-300 */
-      linear-gradient(rgba(255, 224, 64, 0.30), rgba(255, 224, 64, 0.30))
-        53.9286% 10.7143% / 39.2857% 10.7143% no-repeat,
-
-      /* Right content area: x 1510-2610, y 320-1250 */
-      linear-gradient(rgba(180, 96, 255, 0.18), rgba(180, 96, 255, 0.18))
-        53.9286% 22.8571% / 39.2857% 66.4286% no-repeat;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2800 1400" preserveAspectRatio="none"><rect x="0" y="0" width="2800" height="1400" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="8"/><rect x="1380" y="60" width="40" height="1280" fill="rgba(255,64,64,0.30)" stroke="rgba(255,64,64,0.85)" stroke-width="4"/><rect x="1030" y="150" width="260" height="1100" fill="rgba(64,192,255,0.24)" stroke="rgba(64,192,255,0.9)" stroke-width="4"/><rect x="1510" y="150" width="1100" height="1100" fill="rgba(64,255,128,0.12)" stroke="rgba(64,255,128,0.9)" stroke-width="4"/><rect x="1510" y="150" width="1100" height="150" fill="rgba(255,224,64,0.30)" stroke="rgba(255,224,64,0.95)" stroke-width="4"/><rect x="1510" y="320" width="1100" height="930" fill="rgba(180,96,255,0.18)" stroke="rgba(180,96,255,0.9)" stroke-width="4"/></svg>');
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
 
     mix-blend-mode: multiply;
   }
