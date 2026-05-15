@@ -23,7 +23,7 @@
   }
 
   #codex-modal {
-    --codex-book-anchor-x: 65%;
+    --codex-book-anchor-x: 67.5%;
     --codex-book-debug-display: block;
 
     /*
@@ -32,11 +32,15 @@
       these same dimensions so everything scales together as the window changes.
 
       The book is 2800 x 1400, so width is always 2x height.
-      Desktop scaling is height-first: the full book may overflow horizontally,
-      because the far-left decoration is not required to remain visible. This
-      keeps the useful page areas large on split-screen desktop windows.
+      Desktop scaling is height-first on normal/wide windows, but width-capped
+      on narrow desktop windows so the useful safe regions start shrinking
+      before either side clips badly.
+
+      1.18 is an intentional practical ratio, not the full book ratio. It lets
+      the far-left decoration overflow while preserving the left utility strip,
+      gutter, and right safe page near the 1100px desktop breakpoint.
     */
-    --codex-book-height: 100dvh;
+    --codex-book-height: min(100dvh, calc(100vw / 1.18));
     --codex-book-width: calc(var(--codex-book-height) * 2);
 
     width: 100vw;
