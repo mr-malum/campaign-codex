@@ -464,7 +464,8 @@ function openCodexSearchResultsModal(type) {
           "id",
           row => row.label,
           row => row.type,
-          row => getCodexSearchResultIcon(row.type)
+          row => getCodexSearchResultIcon(row.type),
+          { onclickHandler: "openCodexSearchResult" }
         )}
       </div>
 
@@ -542,7 +543,8 @@ function renderCodexSearchRowList(rows, emptyText) {
     "id",
     row => row.label,
     row => row.type,
-    row => getCodexSearchResultIcon(row.type)
+    row => getCodexSearchResultIcon(row.type),
+    { onclickHandler: "openCodexSearchResult" }
   );
 }
 
