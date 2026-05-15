@@ -547,7 +547,6 @@ function renderCodexPoiGroupPage(groupId) {
         <div class="codex-detail-meta">
           <p><strong>Type:</strong> ${escapeHtml(group?.Group_Type || "Grouped POI")}</p>
           ${population ? `<p><strong>Population:</strong> ${escapeHtml(population)}</p>` : ""}
-          <p><strong>Areas:</strong> ${pois.length}</p>
           ${maps.length ? `<p><strong>Maps:</strong> ${maps.length}</p>` : ""}
         </div>
 
