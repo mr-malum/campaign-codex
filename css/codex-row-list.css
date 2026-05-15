@@ -125,6 +125,10 @@
   opacity: 0.92;
 }
 
+.codex-row-icon-hex {
+  transform: rotate(90deg);
+}
+
 .codex-row-main {
   min-width: 0;
 
