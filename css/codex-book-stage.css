@@ -120,6 +120,13 @@
     position: absolute;
     z-index: 1;
     box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  #codex-overlay.open #codex-header,
+  #codex-overlay.open #codex-content,
+  #codex-overlay.open .codex-panel-nav,
+  #codex-overlay.open #codex-global-search-modal {
     pointer-events: auto;
   }
 
