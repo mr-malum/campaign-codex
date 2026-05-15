@@ -123,6 +123,7 @@ function bindCodexEvents() {
     .addEventListener("click", openCodexGlobalSearchModal);
 
   bindCodexDesktopPersistentSearch();
+  bindCodexDebugGuidesToggle();
 
   document
     .getElementById("codex-back")
@@ -151,6 +152,23 @@ function bindCodexEvents() {
 
 function isDesktopCodexBookLayout() {
   return window.matchMedia("(min-width: 1100px) and (min-height: 700px)").matches;
+}
+
+function bindCodexDebugGuidesToggle() {
+  const toggle = document.getElementById("codex-debug-guides-toggle");
+  const modal = document.getElementById("codex-modal");
+
+  if (!toggle || !modal) return;
+
+  toggle.addEventListener("click", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const shouldShow = !modal.classList.contains("codex-debug-guides-visible");
+
+    modal.classList.toggle("codex-debug-guides-visible", shouldShow);
+    toggle.setAttribute("aria-pressed", String(shouldShow));
+  });
 }
 
 function bindCodexDesktopPersistentSearch() {
