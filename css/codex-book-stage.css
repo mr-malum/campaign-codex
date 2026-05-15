@@ -32,6 +32,16 @@
     --codex-book-max-height: 1400px;
     --codex-visible-min-ratio: 1.16;
 
+    --codex-left-utility-x: 1060;
+    --codex-left-utility-y: 120;
+    --codex-left-utility-width: 260;
+    --codex-left-utility-height: 1160;
+
+    --codex-right-content-x: 1480;
+    --codex-right-content-y: 290;
+    --codex-right-content-width: 1160;
+    --codex-right-content-height: 990;
+
     /*
       One shared rendered-book size.
       The background image, debug SVG, debug boxes, and content stage all use
@@ -173,10 +183,10 @@
   }
 
   #codex-content {
-    left: calc(1480 / 2800 * 100%);
-    top: calc(290 / 1400 * 100%);
-    width: calc(1160 / 2800 * 100%);
-    height: calc(890 / 1400 * 100%);
+    left: calc(var(--codex-right-content-x) / 2800 * 100%);
+    top: calc(var(--codex-right-content-y) / 1400 * 100%);
+    width: calc(var(--codex-right-content-width) / 2800 * 100%);
+    height: calc(var(--codex-right-content-height) / 1400 * 100%);
 
     margin: 0;
     padding: 0 calc(32 * var(--codex-book-scale)) calc(28 * var(--codex-book-scale));
@@ -198,52 +208,204 @@
   #codex-content.codex-home:not(.codex-home-search-page),
   #codex-content.codex-home.codex-home-search-page,
   #codex-content.codex-search-page,
+  #codex-content.codex-list-page,
+  #codex-content.codex-detail-page,
   #codex-content.codex-regions-index,
   #codex-content.codex-region-detail-page {
     width: calc(1160 / 2800 * 100%);
     max-width: none;
   }
 
+  #codex-content.codex-list-page,
+  #codex-content.codex-search-page,
+  #codex-content.codex-detail-page,
+  #codex-content.codex-region-detail-page {
+    overflow: visible;
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+
   .codex-panel-nav {
-    left: calc(1480 / 2800 * 100%);
-    top: calc(1190 / 1400 * 100%);
-    width: calc(1160 / 2800 * 100%);
-    height: calc(90 / 1400 * 100%);
+    left: calc(var(--codex-left-utility-x) / 2800 * 100%);
+    top: calc(1040 / 1400 * 100%);
+    width: calc(var(--codex-left-utility-width) / 2800 * 100%);
+    height: calc(240 / 1400 * 100%);
 
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: calc(16 * var(--codex-book-scale));
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: calc(12 * var(--codex-book-scale));
 
     margin: 0;
-    padding: 0 calc(32 * var(--codex-book-scale));
+    padding: 0;
 
     background: transparent;
     border: 0;
     box-shadow: none;
   }
 
+  .codex-control-cluster {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: space-between;
+    gap: calc(5 * var(--codex-book-scale));
+    padding: calc(5 * var(--codex-book-scale));
+  }
+
   .codex-panel-nav button {
-    min-width: calc(56 * var(--codex-book-scale));
-    min-height: calc(48 * var(--codex-book-scale));
-    padding: calc(9 * var(--codex-book-scale)) calc(16 * var(--codex-book-scale));
-    border-radius: calc(12 * var(--codex-book-scale));
-    font-size: clamp(0.78rem, calc(17 * var(--codex-book-scale)), 1.05rem);
+    min-width: calc(44 * var(--codex-book-scale));
+    min-height: calc(42 * var(--codex-book-scale));
+    padding: calc(8 * var(--codex-book-scale)) calc(10 * var(--codex-book-scale));
+    border-radius: calc(8 * var(--codex-book-scale));
+    font-size: clamp(0.72rem, calc(15 * var(--codex-book-scale)), 0.96rem);
   }
 
   #codex-back,
   #codex-close,
   #mobile-panel-back {
-    width: calc(68 * var(--codex-book-scale));
-    min-width: calc(68 * var(--codex-book-scale));
+    width: calc(48 * var(--codex-book-scale));
+    min-width: calc(48 * var(--codex-book-scale));
   }
 
   #codex-breadcrumbs {
-    padding: 0 calc(12 * var(--codex-book-scale));
-    font-size: clamp(0.78rem, calc(16 * var(--codex-book-scale)), 1rem);
+    width: 100%;
+    min-height: calc(42 * var(--codex-book-scale));
+    margin: 0;
+    padding: 0;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+
+    white-space: normal;
+    text-align: center;
+    font-size: clamp(0.68rem, calc(14 * var(--codex-book-scale)), 0.92rem);
+    line-height: 1.15;
   }
 
+  #codex-breadcrumbs-inner {
+    white-space: normal;
+  }
+
+  /* Left utility strip migrations */
+  .codex-list-page-shell,
+  .codex-list-control-split-view,
+  .codex-search-page-shell,
+  .codex-detail-page-shell,
+  .codex-detail-rail-page {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .codex-list-control-split-view,
+  .codex-search-results-shell .codex-split-view,
+  .codex-detail-lower-pane {
+    display: block;
+    overflow: visible;
+  }
+
+  .codex-list-control-rail,
+  .codex-search-controls-shell,
+  .codex-search-results-shell .codex-split-rail,
+  .codex-detail-rail {
+    position: absolute;
+    left: calc((var(--codex-left-utility-x) - var(--codex-right-content-x)) * var(--codex-book-scale));
+    top: calc((var(--codex-left-utility-y) - var(--codex-right-content-y)) * var(--codex-book-scale));
+    width: calc(var(--codex-left-utility-width) * var(--codex-book-scale));
+    height: calc(900 * var(--codex-book-scale));
+
+    display: flex;
+    align-items: flex-start;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .codex-search-results-shell .codex-split-rail {
+    top: calc((280 - var(--codex-right-content-y)) * var(--codex-book-scale));
+    height: calc(740 * var(--codex-book-scale));
+  }
+
+  .codex-list-controls-shell,
+  .codex-search-controls-shell > *,
+  .codex-search-results-shell .codex-split-rail-inner,
+  .codex-detail-section-rail {
+    width: 100%;
+  }
+
+  .codex-list-scroll-shell,
+  #codex-search-results,
+  .codex-search-results-shell,
+  .codex-search-results-shell .codex-split-main,
+  .codex-detail-main {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-width: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 calc(10 * var(--codex-book-scale)) calc(24 * var(--codex-book-scale)) 0;
+    box-sizing: border-box;
+  }
+
+  .codex-list-page-shell,
+  .codex-list-control-split-view,
+  .codex-search-page-shell,
+  .codex-detail-page-shell,
+  .codex-detail-rail-page,
+  .codex-detail-lower-pane {
+    overflow: visible;
+  }
+
+  .codex-search-controls-shell {
+    padding: 0;
+  }
+
+  .codex-search-shell {
+    width: 100%;
+    margin: 0;
+  }
+
+  .codex-detail-overview-locked {
+    padding-bottom: calc(10 * var(--codex-book-scale));
+  }
+
+  .codex-detail-lower-pane {
+    height: calc(100% - 210px * var(--codex-book-scale));
+  }
+
+  .codex-list-control-rail .codex-filter-row label,
+  .codex-list-control-rail .codex-dynamic-filter,
+  .codex-list-control-rail .codex-sort-label,
+  .codex-search-category-rail .codex-row,
+  .codex-detail-section-rail-row {
+    font-size: clamp(0.62rem, calc(12 * var(--codex-book-scale)), 0.78rem);
+  }
+
+  .codex-list-control-rail select,
+  #codex-search-input {
+    font-size: clamp(0.78rem, calc(15 * var(--codex-book-scale)), 0.95rem);
+  }
+
+  /* Center the pop-up global search over the right page safe zone. */
   #codex-global-search-modal {
-    inset: 0;
+    left: calc(1480 / 2800 * 100%);
+    top: calc(120 / 1400 * 100%);
+    width: calc(1160 / 2800 * 100%);
+    height: calc(1160 / 1400 * 100%);
+
+    inset: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  #codex-global-search-modal .codex-global-search-panel {
+    width: min(72%, calc(560 * var(--codex-book-scale)));
   }
 }
