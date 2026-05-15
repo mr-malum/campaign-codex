@@ -9,10 +9,10 @@
    Coordinate reference:
    - Full book: 2800 x 1400
    - Gutter: x 1380-1420
-   - Left utility strip: x 1030-1290, y 150-1250
-   - Right safe page: x 1510-2610, y 150-1250
-   - Right header: x 1510-2610, y 150-300
-   - Right content: x 1510-2610, y 320-1250
+   - Left utility strip: x 1060-1320, y 120-1280
+   - Right safe page: x 1480-2640, y 120-1280
+   - Right header: x 1480-2640, y 120-270
+   - Right content: x 1480-2640, y 290-1280
 */
 
 @media (min-width: 1100px) {
@@ -86,7 +86,7 @@
     display: var(--codex-book-debug-display);
     z-index: 0;
 
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2800 1400" preserveAspectRatio="none"><rect x="0" y="0" width="2800" height="1400" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="8"/><rect x="1380" y="60" width="40" height="1280" fill="rgba(255,64,64,0.30)" stroke="rgba(255,64,64,0.85)" stroke-width="4"/><rect x="1030" y="150" width="260" height="1100" fill="rgba(64,192,255,0.24)" stroke="rgba(64,192,255,0.9)" stroke-width="4"/><rect x="1510" y="150" width="1100" height="1100" fill="rgba(64,255,128,0.12)" stroke="rgba(64,255,128,0.9)" stroke-width="4"/><rect x="1510" y="150" width="1100" height="150" fill="rgba(255,224,64,0.30)" stroke="rgba(255,224,64,0.95)" stroke-width="4"/><rect x="1510" y="320" width="1100" height="930" fill="rgba(180,96,255,0.18)" stroke="rgba(180,96,255,0.9)" stroke-width="4"/></svg>');
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2800 1400" preserveAspectRatio="none"><rect x="0" y="0" width="2800" height="1400" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="8"/><rect x="1380" y="60" width="40" height="1280" fill="rgba(255,64,64,0.30)" stroke="rgba(255,64,64,0.85)" stroke-width="4"/><rect x="1060" y="120" width="260" height="1160" fill="rgba(64,192,255,0.24)" stroke="rgba(64,192,255,0.9)" stroke-width="4"/><rect x="1480" y="120" width="1160" height="1160" fill="rgba(64,255,128,0.12)" stroke="rgba(64,255,128,0.9)" stroke-width="4"/><rect x="1480" y="120" width="1160" height="150" fill="rgba(255,224,64,0.30)" stroke="rgba(255,224,64,0.95)" stroke-width="4"/><rect x="1480" y="290" width="1160" height="990" fill="rgba(180,96,255,0.18)" stroke="rgba(180,96,255,0.9)" stroke-width="4"/></svg>');
     background-size: 100% 100%;
     background-position: center;
     background-repeat: no-repeat;
