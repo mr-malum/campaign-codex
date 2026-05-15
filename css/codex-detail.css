@@ -36,6 +36,34 @@
   height: calc(100vh - 285px);
   min-height: 0;
 
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+}
+
+.codex-detail-overview-locked {
+  flex: 0 0 auto;
+  min-height: 0;
+
+  padding-bottom: 12px;
+}
+
+.codex-detail-overview-panel {
+  border-bottom: 1px solid rgba(72, 43, 18, 0.18);
+}
+
+#codex-content .codex-detail-overview-panel h3 {
+  margin: 0;
+  padding: 0 0 8px;
+
+  font-size: 1.05rem;
+}
+
+.codex-detail-lower-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+
   display: grid;
   grid-template-columns: var(--codex-rail-width, 190px) minmax(0, 1fr);
   gap: 18px;
@@ -62,22 +90,23 @@
   min-height: 0;
 
   overflow-y: auto;
-  scroll-behavior: smooth;
 
   padding: 4px 12px 24px 2px;
 }
 
 .codex-detail-rail-section {
-  scroll-margin-top: 16px;
+  display: none;
 
-  margin: 0 0 26px;
+  min-height: 100%;
+
+  margin: 0;
 
   border-top: 1px solid rgba(72, 43, 18, 0.22);
   border-bottom: 1px solid rgba(255, 241, 202, 0.14);
 }
 
-.codex-detail-rail-section:first-child {
-  border-top-color: transparent;
+.codex-detail-rail-section.active {
+  display: block;
 }
 
 #codex-content .codex-detail-rail-section h3 {
@@ -114,6 +143,10 @@
   gap: 20px;
 
   padding-bottom: 18px;
+}
+
+.codex-detail-overview-panel .codex-detail-fixed {
+  padding-bottom: 12px;
 }
 
 .codex-detail-portrait-slot {
@@ -340,7 +373,8 @@
     overflow-y: auto;
   }
 
-  .codex-detail-rail-page {
+  .codex-detail-rail-page,
+  .codex-detail-lower-pane {
     display: block;
     height: auto;
     overflow: visible;
@@ -348,6 +382,12 @@
 
   .codex-detail-rail {
     display: none;
+  }
+
+  .codex-detail-rail-section {
+    display: block;
+    min-height: 0;
+    margin-bottom: 24px;
   }
 
   .codex-detail-main {
