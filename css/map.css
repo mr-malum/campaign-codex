@@ -40,11 +40,11 @@
 /* Codex Button */
 
 #codex-button {
-  bottom: 18px;
-  left: 18px;
+  bottom: 23px;
+  left: 23px;
 
-  width: 164px;
-  height: 164px;
+  width: 154px;
+  height: 154px;
 
   background-image: url("../assets/Codex_Book_Button.png");
   background-size: 144px 144px;
@@ -184,11 +184,11 @@
 /* Map Reset Button */
 
 #map-reset-button {
-  bottom: 146px;
-  left: 32px;
+  bottom: 202px;
+  left: 37px;
 
-  width: 136px;
-  height: 136px;
+  width: 126px;
+  height: 126px;
 
   background-image: url("../assets/Atlas_Compass.png");
   background-size: 116px 116px;
