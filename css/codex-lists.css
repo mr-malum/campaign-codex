@@ -468,10 +468,12 @@
   padding: 4px 4px 4px 0;
 }
 
-.codex-list-control-rail .codex-hex-region-check-row {
+.codex-list-control-rail .codex-filter-row .codex-hex-region-check-row,
+.codex-list-control-rail .codex-hex-region-checklist .codex-hex-region-check-row {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   align-items: start;
+  justify-content: stretch;
   gap: 7px;
 
   width: 100%;
@@ -495,9 +497,13 @@
   border-bottom: 0;
 }
 
-.codex-hex-region-check-row input {
+.codex-list-control-rail .codex-filter-row .codex-hex-region-check-row input,
+.codex-list-control-rail .codex-hex-region-checklist .codex-hex-region-check-row input {
   grid-column: 1;
   grid-row: 1;
+  align-self: start;
+  justify-self: start;
+
   width: 13px;
   height: 13px;
   margin: 0;
@@ -505,8 +511,10 @@
   accent-color: #8f642d;
 }
 
-.codex-hex-region-check-row span {
+.codex-list-control-rail .codex-filter-row .codex-hex-region-check-row span,
+.codex-list-control-rail .codex-hex-region-checklist .codex-hex-region-check-row span {
   grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   overflow: visible;
   text-overflow: clip;
