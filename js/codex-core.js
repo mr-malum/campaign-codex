@@ -349,6 +349,7 @@ function renderCodexPage(type, id) {
   if (type === "regions") return renderCodexRegionsIndex();
   if (type === "pois") return renderCodexPoisIndex();
   if (type === "npcs") return renderCodexNpcsIndex();
+  if (type === "hexes") return renderCodexHexesIndex();
 
   return renderCodexIndex();
 }
@@ -388,6 +389,15 @@ function renderCodexIndex() {
         <span class="codex-row-main">
           <span class="codex-row-title">NPCs</span>
           <span class="codex-row-meta">The denizens of Kadesh</span>
+        </span>
+        <span class="codex-row-arrow" aria-hidden="true">›</span>
+      </button>
+
+      <button class="codex-row codex-home-section-row" type="button" onclick="openCodexPage('hexes')">
+        <span class="codex-row-icon codex-row-icon-hex" aria-hidden="true">⬡</span>
+        <span class="codex-row-main">
+          <span class="codex-row-title">Hexes</span>
+          <span class="codex-row-meta">Browse map hexes by terrain and region</span>
         </span>
         <span class="codex-row-arrow" aria-hidden="true">›</span>
       </button>
