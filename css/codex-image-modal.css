@@ -26,42 +26,31 @@
   position: absolute;
   inset: 0;
 
-  background: rgba(12, 7, 3, 0.58);
+  background: rgba(12, 7, 3, 0.64);
   backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 .codex-image-modal-panel {
   position: relative;
   z-index: 1;
 
-  width: min(92vw, 980px);
-  height: min(86vh, 760px);
-  height: min(86dvh, 760px);
+  width: min(92vw, 1080px);
+  height: min(88vh, 820px);
+  height: min(88dvh, 820px);
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  padding: clamp(28px, 4vw, 54px);
+  padding: 0;
   box-sizing: border-box;
 
   isolation: isolate;
 }
 
 .codex-image-modal-panel::before {
-  content: "";
-
-  position: absolute;
-  inset: -34px;
-  z-index: -1;
-
-  background-image: url("../assets/codex/Mobile_Panel.png");
-  background-size: 100% 100%;
-  background-position: center;
-  background-repeat: no-repeat;
-
-  opacity: 0.98;
-  pointer-events: none;
+  content: none;
 }
 
 .codex-image-modal-frame {
@@ -74,7 +63,7 @@
   align-items: center;
   justify-content: center;
 
-  overflow: hidden;
+  overflow: visible;
 }
 
 .codex-image-modal-img {
@@ -88,63 +77,19 @@
 
   border: 0;
   outline: none;
-  box-shadow: none;
 
-  -webkit-mask-image:
-    linear-gradient(
-      to right,
-      transparent 0%,
-      rgba(0, 0, 0, 0.20) 3%,
-      rgba(0, 0, 0, 0.82) 8%,
-      black 15%,
-      black 85%,
-      rgba(0, 0, 0, 0.82) 92%,
-      rgba(0, 0, 0, 0.20) 97%,
-      transparent 100%
-    ),
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.20) 3%,
-      rgba(0, 0, 0, 0.82) 8%,
-      black 15%,
-      black 85%,
-      rgba(0, 0, 0, 0.82) 92%,
-      rgba(0, 0, 0, 0.20) 97%,
-      transparent 100%
-    );
-  -webkit-mask-composite: source-in;
+  box-shadow:
+    12px 14px 22px rgba(0, 0, 0, 0.42),
+    4px 5px 8px rgba(0, 0, 0, 0.28);
 
-  mask-image:
-    linear-gradient(
-      to right,
-      transparent 0%,
-      rgba(0, 0, 0, 0.20) 3%,
-      rgba(0, 0, 0, 0.82) 8%,
-      black 15%,
-      black 85%,
-      rgba(0, 0, 0, 0.82) 92%,
-      rgba(0, 0, 0, 0.20) 97%,
-      transparent 100%
-    ),
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.20) 3%,
-      rgba(0, 0, 0, 0.82) 8%,
-      black 15%,
-      black 85%,
-      rgba(0, 0, 0, 0.82) 92%,
-      rgba(0, 0, 0, 0.20) 97%,
-      transparent 100%
-    );
-  mask-composite: intersect;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .codex-image-modal-close {
   position: absolute;
-  top: clamp(9px, 1.6vw, 18px);
-  right: clamp(12px, 2vw, 24px);
+  top: clamp(4px, 1vw, 10px);
+  right: clamp(-46px, -3.5vw, -38px);
   z-index: 3;
 
   width: 34px;
@@ -159,7 +104,7 @@
   border: 1px solid rgba(72, 43, 18, 0.26);
   border-radius: 999px;
 
-  background: rgba(239, 211, 158, 0.72);
+  background: rgba(239, 211, 158, 0.86);
   color: #2f1d10;
 
   font-family: 'Marcellus SC', Georgia, serif;
@@ -169,30 +114,25 @@
   cursor: pointer;
 
   box-shadow:
-    0 1px 4px rgba(45, 25, 8, 0.14),
+    5px 6px 10px rgba(0, 0, 0, 0.36),
     inset 0 1px 0 rgba(255, 242, 210, 0.28);
 }
 
 .codex-image-modal-close:hover,
 .codex-image-modal-close:focus-visible {
-  background: rgba(246, 225, 182, 0.88);
+  background: rgba(246, 225, 182, 0.96);
   outline: none;
 }
 
 @media (max-width: 700px) {
   .codex-image-modal-panel {
-    width: 96vw;
-    height: 82vh;
-    height: 82dvh;
-    padding: 30px 24px 28px;
-  }
-
-  .codex-image-modal-panel::before {
-    inset: -24px;
+    width: 88vw;
+    height: 78vh;
+    height: 78dvh;
   }
 
   .codex-image-modal-close {
-    top: 5px;
-    right: 8px;
+    top: -42px;
+    right: 0;
   }
 }
