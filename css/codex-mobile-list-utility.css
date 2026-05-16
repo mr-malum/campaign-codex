@@ -215,6 +215,21 @@
     padding: 0 10px !important;
   }
 
+  #codex-mobile-utility-panel.open .codex-mobile-utility-sheet:has(.codex-hex-region-filter-panel) {
+    max-height: min(94dvh, calc(100dvh - 20px)) !important;
+    padding-top: clamp(22px, 5.5vw, 34px) !important;
+    padding-bottom: clamp(20px, 5vw, 30px) !important;
+  }
+
+  #codex-mobile-utility-panel.open .codex-mobile-utility-sheet:has(.codex-hex-region-filter-panel)::before {
+    inset: -30px -26px !important;
+  }
+
+  #codex-mobile-utility-panel.open .codex-mobile-utility-sheet:has(.codex-hex-region-filter-panel) .codex-mobile-utility-body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
   #codex-mobile-utility-panel.open .codex-mobile-list-controls-mount .codex-hex-region-filter-panel {
     width: 100% !important;
     max-width: 100% !important;
@@ -241,10 +256,9 @@
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 4px !important;
     width: 100% !important;
-    max-height: min(34dvh, 260px) !important;
+    max-height: none !important;
     padding: 2px 0 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: visible !important;
   }
 
   #codex-mobile-utility-panel.open .codex-mobile-list-controls-mount .codex-hex-region-check-row {
