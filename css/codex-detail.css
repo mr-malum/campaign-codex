@@ -467,7 +467,7 @@
 
 #codex-content.codex-regions-index .codex-region-tile-name,
 #codex-content.codex-regions-index .codex-region-tile-details {
-  -webkit-text-stroke: 1.35px rgba(238, 211, 158, 1);
+  -webkit-text-stroke: 2.35px rgba(238, 211, 158, 1);
   paint-order: stroke fill;
 }
 
