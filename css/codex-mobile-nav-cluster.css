@@ -1,0 +1,74 @@
+/* =========================================================
+   MOBILE NAV CLUSTER ALIGNMENT
+   =========================================================
+
+   Small high-specificity override for the mobile bottom nav row.
+   The existing .panel-nav button styling remains the source of truth.
+*/
+
+@media (max-width: 1099px), (max-height: 699px) {
+  #codex-overlay .codex-panel-nav {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #codex-overlay .codex-control-cluster {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: stretch !important;
+    gap: 10px !important;
+
+    pointer-events: auto !important;
+  }
+
+  #codex-overlay #codex-mobile-page-control {
+    flex: 0 0 clamp(132px, 34%, 198px) !important;
+    min-width: 0 !important;
+  }
+
+  #codex-overlay #codex-mobile-page-control[hidden] {
+    display: inline-flex !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  #codex-overlay #codex-mobile-debug-toggle {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+
+    flex: 1 1 auto !important;
+    min-width: 48px !important;
+  }
+
+  #codex-overlay #codex-back,
+  #codex-overlay #codex-search-button,
+  #codex-overlay #codex-close {
+    flex: 0 0 auto !important;
+  }
+}
+
+@media (min-width: 1100px) and (min-height: 700px) {
+  #codex-mobile-page-control,
+  #codex-mobile-debug-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  #codex-overlay .codex-control-cluster {
+    gap: 6px !important;
+  }
+
+  #codex-overlay #codex-mobile-page-control {
+    flex-basis: clamp(112px, 31%, 150px) !important;
+  }
+}
