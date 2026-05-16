@@ -118,12 +118,7 @@ function bindCodexEvents() {
   document
     .getElementById("codex-back")
     .addEventListener("click", function () {
-      if (codexHistory.length > 1) {
-        goBackCodex();
-        return;
-      }
-
-      closeCodex();
+      handleCodexBackAction();
     });
 
   document
@@ -133,6 +128,15 @@ function bindCodexEvents() {
         closeCodex();
       }
     });
+}
+
+function handleCodexBackAction() {
+  if (codexHistory.length > 1) {
+    goBackCodex();
+    return;
+  }
+
+  closeCodex();
 }
 
 function isDesktopCodexBookLayout() {
@@ -375,7 +379,7 @@ window.addEventListener("popstate", function () {
   }
 
   if (isCodexOpen()) {
-    closeCodex({ syncHistory: false });
+    handleCodexBackAction();
     return;
   }
 
