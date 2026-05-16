@@ -63,7 +63,8 @@
   align-items: center;
   justify-content: center;
 
-  overflow: visible;
+  overflow: hidden;
+  touch-action: none;
 }
 
 .codex-image-modal-img {
@@ -80,6 +81,8 @@
 
   transform-origin: center;
   transition: transform 80ms ease-out;
+  user-select: none;
+  -webkit-user-drag: none;
 
   box-shadow:
     12px 14px 22px rgba(0, 0, 0, 0.42),
@@ -90,7 +93,12 @@
 }
 
 .codex-image-modal-img.zoomed {
-  cursor: zoom-out;
+  cursor: grab;
+}
+
+.codex-image-modal-img.zoomed.panning {
+  cursor: grabbing;
+  transition: none;
 }
 
 .codex-image-modal-close,
