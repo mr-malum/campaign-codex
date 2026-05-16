@@ -5,13 +5,14 @@
 @media (max-width: 700px) {
   .codex-mobile-search-page-shell {
     gap: 10px;
+    padding-top: 8px;
   }
 
   .codex-mobile-search-query-summary {
     flex: 0 0 auto;
 
     margin: 0 0 2px;
-    padding: 0 2px 8px;
+    padding: 4px 2px 8px;
 
     font-family: 'Marcellus SC', Georgia, serif;
     font-size: clamp(0.92rem, 3.8vw, 1.04rem);
