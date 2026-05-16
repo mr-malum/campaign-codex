@@ -5,13 +5,13 @@
 @media (min-width: 1100px) and (min-height: 700px) {
   #codex-left-manuscript {
     position: absolute;
-    left: calc(470 / 2800 * 100%);
+    left: calc(215 / 2800 * 100%);
     top: calc(175 / 1400 * 100%);
-    width: calc(530 / 2800 * 100%);
+    width: calc(785 / 2800 * 100%);
     height: calc(1000 / 1400 * 100%);
 
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-content: stretch;
     column-gap: calc(34 * var(--codex-book-scale));
     row-gap: calc(20 * var(--codex-book-scale));
