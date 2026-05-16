@@ -83,6 +83,11 @@
     font-size: clamp(0.82rem, calc(18 * var(--codex-book-scale)), 1.05rem);
   }
 
+  #codex-content.codex-hexes-index-page .codex-hex-list-control-rail {
+    top: calc((300 - var(--codex-right-content-y)) * var(--codex-book-scale));
+    height: calc(660 * var(--codex-book-scale));
+  }
+
   #codex-overlay.open .codex-panel-nav #codex-back,
   #codex-overlay.open .codex-panel-nav #codex-close {
     border-color: rgba(72, 43, 18, 0.26);
