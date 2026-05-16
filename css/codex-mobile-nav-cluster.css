@@ -7,7 +7,25 @@
 */
 
 @media (max-width: 1099px), (max-height: 699px) {
+  #codex-modal {
+    --codex-mobile-nav-panel-h: clamp(92px, calc(var(--codex-mobile-image-height) * 0.104), 122px);
+    --codex-mobile-content-nav-gap: clamp(4px, calc(var(--codex-mobile-image-height) * 0.008), 10px);
+  }
+
+  #codex-overlay #codex-content {
+    height: auto !important;
+    bottom: calc(
+      var(--codex-mobile-safe-y) +
+      var(--codex-mobile-nav-panel-h) +
+      var(--codex-mobile-content-nav-gap)
+    ) !important;
+  }
+
   #codex-overlay .codex-panel-nav {
+    top: auto !important;
+    bottom: var(--codex-mobile-safe-y) !important;
+    height: var(--codex-mobile-nav-panel-h) !important;
+
     grid-template-columns: minmax(0, 1fr) !important;
     grid-template-rows: auto auto !important;
     align-content: end !important;
@@ -99,6 +117,11 @@
 }
 
 @media (max-width: 420px) {
+  #codex-modal {
+    --codex-mobile-nav-panel-h: clamp(88px, calc(var(--codex-mobile-image-height) * 0.102), 116px);
+    --codex-mobile-content-nav-gap: 4px;
+  }
+
   #codex-overlay .codex-panel-nav {
     padding: 5px !important;
     gap: 3px !important;
