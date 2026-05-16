@@ -81,6 +81,12 @@ function ensureCodexImageModal() {
   return modal;
 }
 
+function isCodexImageModalOpen() {
+  return document
+    .getElementById("codex-image-modal")
+    ?.classList.contains("open") || false;
+}
+
 function getCodexImageModalImage() {
   return document.querySelector("#codex-image-modal .codex-image-modal-img");
 }
@@ -415,5 +421,6 @@ window.addEventListener("resize", () => {
 
 window.openCodexImageModal = openCodexImageModal;
 window.closeCodexImageModal = closeCodexImageModal;
+window.isCodexImageModalOpen = isCodexImageModalOpen;
 window.stepCodexImageModal = stepCodexImageModal;
 window.setCodexImageModalScale = setCodexImageModalScale;
