@@ -251,6 +251,8 @@ function openCodexGlobalSearchModal() {
   modal.classList.add("open");
   modal.setAttribute("aria-hidden", "false");
 
+  const currentQuery = String(codexSearchQuery || "");
+
   modal.innerHTML = `
     <div class="codex-global-search-panel" role="dialog" aria-modal="true" aria-label="Search the Codex">
       <input
@@ -258,13 +260,14 @@ function openCodexGlobalSearchModal() {
         type="search"
         placeholder="Consult the Codex..."
         autocomplete="off"
-        value=""
+        value="${escapeHtml(currentQuery)}"
       >
     </div>
   `;
 
   const input = document.getElementById("codex-global-search-input");
   input?.focus();
+  input?.select?.();
 
   input?.addEventListener("keydown", function (event) {
     if (event.key !== "Enter") return;
