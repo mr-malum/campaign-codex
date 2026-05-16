@@ -3,9 +3,22 @@
    ========================================================= */
 
 @media (max-width: 700px) {
+  #codex-modal {
+    --codex-mobile-content-h: 72.7%;
+  }
+
+  #codex-content {
+    padding-bottom: 4px !important;
+  }
+
+  #codex-content.codex-search-page {
+    padding-bottom: 4px !important;
+  }
+
   .codex-mobile-search-page-shell {
     gap: 10px;
     padding-top: 8px;
+    padding-bottom: 0;
   }
 
   .codex-mobile-search-query-summary {
@@ -25,5 +38,58 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  .codex-search-results-shell {
+    padding-bottom: 4px !important;
+  }
+
+  #codex-global-search-modal {
+    align-items: flex-start;
+    justify-content: center;
+
+    padding-top: clamp(96px, 18dvh, 150px);
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+
+  .codex-global-search-panel {
+    position: relative;
+
+    width: min(calc(100vw - 28px), 460px) !important;
+    max-width: calc(100vw - 28px) !important;
+    box-sizing: border-box;
+
+    padding: clamp(18px, 5vw, 28px);
+
+    border: none;
+    border-radius: 18px;
+
+    background: transparent;
+    box-shadow: 0 12px 30px rgba(25, 12, 4, 0.28);
+    isolation: isolate;
+  }
+
+  .codex-global-search-panel::before {
+    content: "";
+    position: absolute;
+    inset: -32px -24px;
+    z-index: -1;
+
+    background-image: url("../assets/codex/Mobile_Panel.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+
+    opacity: 0.96;
+    pointer-events: none;
+  }
+
+  #codex-global-search-input {
+    position: relative;
+    z-index: 1;
+
+    padding: 12px 16px;
+    font-size: 1.05rem;
   }
 }
