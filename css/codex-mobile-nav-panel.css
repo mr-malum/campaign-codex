@@ -3,7 +3,7 @@
    =========================================================
 
    Keeps breadcrumbs static above the bottom controls and turns the bottom
-   action row into a full-width mobile control bar:
+   action row into a full-width mobile control tray:
    page tool / utility-or-debug / Back / Search / Close.
 */
 
@@ -55,28 +55,60 @@
     display: flex;
     align-items: stretch;
     justify-content: stretch;
-    gap: 8px;
+    gap: 0;
 
     width: 100%;
     min-width: 0;
+    height: 60px;
+    box-sizing: border-box;
 
-    pointer-events: none;
+    padding: 4px;
+
+    pointer-events: auto;
+
+    border: 1px solid rgba(84, 57, 27, 0.38);
+    border-radius: 10px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(246, 224, 170, 0.92),
+        rgba(206, 166, 91, 0.68)
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 244, 207, 0.58),
+      inset 0 -1px 1px rgba(82, 47, 16, 0.22),
+      0 1px 3px rgba(44, 27, 10, 0.22);
   }
 
   #codex-mobile-page-control,
-  #codex-mobile-debug-toggle {
+  #codex-mobile-debug-toggle,
+  .codex-control-cluster #codex-back,
+  .codex-control-cluster #codex-search-button,
+  .codex-control-cluster #codex-close {
     position: static !important;
     transform: none !important;
 
     pointer-events: auto;
-    min-height: 52px;
-    height: 52px;
+    min-height: 0;
+    height: 100%;
     box-sizing: border-box;
+
+    border-radius: 7px;
+    border: 1px solid rgba(83, 55, 24, 0.26);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 238, 190, 0.58),
+        rgba(190, 139, 59, 0.18)
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 248, 216, 0.52),
+      inset 0 -1px 0 rgba(91, 51, 18, 0.12);
 
     padding: 0 10px;
     font-size: 0.82rem;
     line-height: 1;
-    opacity: 0.9;
+    opacity: 1;
 
     display: inline-flex;
     align-items: center;
@@ -90,6 +122,8 @@
   #codex-mobile-page-control {
     flex: 0 0 clamp(132px, 34%, 198px);
     min-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
   }
 
   #codex-mobile-page-control[hidden] {
@@ -101,6 +135,9 @@
   #codex-mobile-debug-toggle {
     flex: 1 1 auto;
     min-width: 44px;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
   }
 
   .codex-control-cluster {
@@ -110,14 +147,26 @@
     display: flex;
     align-items: stretch;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 0;
   }
 
   .codex-control-cluster #codex-back,
   .codex-control-cluster #codex-search-button,
   .codex-control-cluster #codex-close {
-    height: 52px;
-    min-height: 52px;
+    min-height: 0;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .codex-control-cluster #codex-back,
+  .codex-control-cluster #codex-search-button {
+    border-right: 0;
+  }
+
+  .codex-control-cluster #codex-close {
+    border-top-right-radius: 7px;
+    border-bottom-right-radius: 7px;
   }
 }
 
@@ -131,29 +180,20 @@
 
 @media (max-width: 420px) {
   .codex-mobile-action-row {
-    gap: 6px;
+    height: 58px;
+    padding: 4px;
   }
 
   #codex-mobile-page-control,
-  #codex-mobile-debug-toggle {
-    min-height: 50px;
-    height: 50px;
+  #codex-mobile-debug-toggle,
+  .codex-control-cluster #codex-back,
+  .codex-control-cluster #codex-search-button,
+  .codex-control-cluster #codex-close {
     padding-inline: 8px;
     font-size: 0.72rem;
   }
 
   #codex-mobile-page-control {
     flex-basis: clamp(112px, 31%, 150px);
-  }
-
-  .codex-control-cluster {
-    gap: 6px;
-  }
-
-  .codex-control-cluster #codex-back,
-  .codex-control-cluster #codex-search-button,
-  .codex-control-cluster #codex-close {
-    height: 50px;
-    min-height: 50px;
   }
 }
