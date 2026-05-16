@@ -27,24 +27,34 @@
     --codex-mobile-safe-w: 90%;         /* 1440 / 1600 */
     --codex-mobile-safe-h: 93.333333%;  /* 2240 / 2400 */
 
-    --codex-mobile-header-x: var(--codex-mobile-safe-x);
+    /*
+      Height-first scaling can make the rendered Codex wider than the viewport.
+      These insets keep interactive zones inside BOTH the asset safe zone and
+      the actually visible viewport slice of the centered image.
+    */
+    --codex-mobile-visible-edge-inset: max(
+      var(--codex-mobile-safe-x),
+      calc((var(--codex-mobile-image-width) - 100vw) / 2 + max(14px, 2.6vw))
+    );
+
+    --codex-mobile-header-left: var(--codex-mobile-visible-edge-inset);
+    --codex-mobile-header-right: var(--codex-mobile-visible-edge-inset);
     --codex-mobile-header-y: var(--codex-mobile-safe-y);
-    --codex-mobile-header-w: var(--codex-mobile-safe-w);
     --codex-mobile-header-h: 9.166667%; /* 220 / 2400 */
 
-    --codex-mobile-utility-x: var(--codex-mobile-safe-x);
+    --codex-mobile-utility-left: var(--codex-mobile-visible-edge-inset);
+    --codex-mobile-utility-right: var(--codex-mobile-visible-edge-inset);
     --codex-mobile-utility-y: 12.916667%; /* 310 / 2400 */
-    --codex-mobile-utility-w: var(--codex-mobile-safe-w);
     --codex-mobile-utility-h: 5.833333%;  /* 140 / 2400 */
 
-    --codex-mobile-content-x: var(--codex-mobile-safe-x);
+    --codex-mobile-content-left: var(--codex-mobile-visible-edge-inset);
+    --codex-mobile-content-right: var(--codex-mobile-visible-edge-inset);
     --codex-mobile-content-y: 14.166667%; /* 340 / 2400 */
-    --codex-mobile-content-w: var(--codex-mobile-safe-w);
     --codex-mobile-content-h: 74.166667%; /* 1780 / 2400 */
 
-    --codex-mobile-nav-x: var(--codex-mobile-safe-x);
+    --codex-mobile-nav-left: var(--codex-mobile-visible-edge-inset);
+    --codex-mobile-nav-right: var(--codex-mobile-visible-edge-inset);
     --codex-mobile-nav-y: 90%; /* 2160 / 2400 */
-    --codex-mobile-nav-w: var(--codex-mobile-safe-w);
     --codex-mobile-nav-h: 6.666667%; /* 160 / 2400 */
 
     position: relative;
@@ -129,9 +139,9 @@
   }
 
   #codex-header {
-    left: var(--codex-mobile-header-x);
+    left: var(--codex-mobile-header-left);
+    right: var(--codex-mobile-header-right);
     top: var(--codex-mobile-header-y);
-    width: var(--codex-mobile-header-w);
     height: var(--codex-mobile-header-h);
 
     display: flex;
@@ -159,9 +169,9 @@
   }
 
   #codex-content {
-    left: var(--codex-mobile-content-x);
+    left: var(--codex-mobile-content-left);
+    right: var(--codex-mobile-content-right);
     top: var(--codex-mobile-content-y);
-    width: var(--codex-mobile-content-w);
     height: var(--codex-mobile-content-h);
     min-height: 0;
 
@@ -179,7 +189,6 @@
 
   #codex-content.codex-home {
     display: block;
-    width: var(--codex-mobile-content-w);
     max-width: none;
   }
 
@@ -211,12 +220,11 @@
   }
 
   .codex-panel-nav {
-    left: var(--codex-mobile-nav-x) !important;
+    left: var(--codex-mobile-nav-left) !important;
+    right: var(--codex-mobile-nav-right) !important;
     top: var(--codex-mobile-nav-y) !important;
-    right: auto !important;
     bottom: auto !important;
 
-    width: var(--codex-mobile-nav-w);
     height: var(--codex-mobile-nav-h);
 
     display: grid !important;
