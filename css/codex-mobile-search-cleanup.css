@@ -41,7 +41,23 @@
   }
 
   .codex-search-results-shell {
+    padding-top: 8px !important;
     padding-bottom: 4px !important;
+
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black 18px,
+      black calc(100% - 18px),
+      transparent 100%
+    ) !important;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black 18px,
+      black calc(100% - 18px),
+      transparent 100%
+    ) !important;
   }
 
   #codex-global-search-modal {
