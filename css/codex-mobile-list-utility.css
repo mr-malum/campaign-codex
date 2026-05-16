@@ -21,16 +21,34 @@
     padding-right: 0;
   }
 
+  .codex-mobile-list-controls-mount,
+  .codex-mobile-list-controls-mount * {
+    box-sizing: border-box !important;
+  }
+
   .codex-mobile-list-controls-mount {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .codex-mobile-list-controls-mount .codex-list-controls-shell,
   .codex-mobile-list-controls-mount .codex-mobile-controls-panel {
     display: block !important;
-    width: 100%;
-    min-width: 0;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .codex-mobile-list-controls-mount .codex-mobile-controls-heading,
@@ -40,24 +58,37 @@
 
   .codex-mobile-list-controls-mount .codex-filter-row {
     display: grid !important;
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
     gap: 12px !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+
     margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .codex-mobile-list-controls-mount .codex-dynamic-filter,
   .codex-mobile-list-controls-mount .codex-sort-label {
-    width: 100%;
-    min-width: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
 
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
 
-    margin: 0;
-    padding: 0 0 12px;
+    margin: 0 !important;
+    padding: 0 0 12px !important;
 
-    border-bottom: 1px solid rgba(72, 43, 18, 0.16);
+    border-bottom: 1px solid rgba(72, 43, 18, 0.16) !important;
+    background: transparent !important;
+    box-shadow: none !important;
 
     font-family: 'Marcellus SC', Georgia, serif;
     font-size: 0.76rem;
@@ -68,46 +99,61 @@
 
   .codex-mobile-list-controls-mount .codex-dynamic-filter:last-child,
   .codex-mobile-list-controls-mount .codex-sort-label:last-child {
-    border-bottom: 0;
-    padding-bottom: 0;
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
   }
 
   .codex-mobile-list-controls-mount select,
+  .codex-mobile-list-controls-mount .codex-dynamic-filter select,
+  .codex-mobile-list-controls-mount .codex-dynamic-filter select:not(.codex-filter-field-select),
   .codex-mobile-list-controls-mount .codex-filter-field-select,
+  .codex-mobile-list-controls-mount .codex-sort-label select,
   .codex-mobile-list-controls-mount .codex-sort-direction {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    height: 40px;
+    display: block !important;
 
-    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 40px !important;
 
-    border-radius: 4px;
-    border: 1px solid rgba(72, 43, 18, 0.28);
-    background-color: rgba(246, 232, 196, 0.58);
-    color: #2f1d10;
+    align-self: stretch !important;
 
-    font-family: 'Spectral', Georgia, serif;
-    font-size: 0.94rem;
+    margin: 0 !important;
+    padding: 0 34px 0 10px !important;
+
+    border-radius: 4px !important;
+    border: 1px solid rgba(72, 43, 18, 0.28) !important;
+    background-color: rgba(246, 232, 196, 0.58) !important;
+    color: #2f1d10 !important;
+
+    font-family: 'Spectral', Georgia, serif !important;
+    font-size: 0.94rem !important;
+    line-height: 1.1 !important;
+
+    box-shadow: none !important;
   }
 
   .codex-mobile-list-controls-mount .codex-filter-field-select,
   .codex-mobile-list-controls-mount .codex-sort-direction {
-    font-family: 'Marcellus SC', Georgia, serif;
-    font-size: 0.72rem;
-    letter-spacing: 0.04em;
+    font-family: 'Marcellus SC', Georgia, serif !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
   }
 
   .codex-mobile-list-controls-mount .codex-sort-topline {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 10px !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
   .codex-mobile-list-controls-mount .codex-sort-direction {
-    width: auto;
-    min-width: 88px;
-    padding: 0 10px;
+    width: auto !important;
+    min-width: 88px !important;
+    padding: 0 10px !important;
   }
 }
