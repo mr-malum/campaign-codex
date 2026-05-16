@@ -83,7 +83,14 @@ function renderCodexMobileSearchQuerySummary(results = null) {
     getCodexMobileSearchActiveMatchCount(searchResults)
   );
 
-  return `Search Results for query &ldquo;${escapeHtml(codexSearchQuery)}&rdquo; - ${escapeHtml(categoryLabel)}: ${escapeHtml(matchLabel)}`;
+  return `
+    <span class="codex-mobile-search-summary-query">
+      Search Results for query &ldquo;${escapeHtml(codexSearchQuery)}&rdquo;
+    </span>
+    <span class="codex-mobile-search-summary-count">
+      ${escapeHtml(categoryLabel)}: ${escapeHtml(matchLabel)}
+    </span>
+  `;
 }
 
 function updateCodexMobileSearchQuerySummary(results = null) {
