@@ -130,14 +130,19 @@ function buildRegionListLabel(row) {
 
 function buildHexListLabel(row) {
   const counts = getHexCounts(row.Hex_ID);
-  const countLine = buildCountLine(counts.poiCount, counts.npcCount);
+  const region = row.Region_ID_Ref ? db?.regionsById?.[row.Region_ID_Ref] : null;
+  const regionName = region?.Region_Name || row.Region_ID_Ref || "Unknown";
+
+  const countLine = [
+    `Region: ${regionName}`,
+    `${counts.poiCount} POI${counts.poiCount !== 1 ? "s" : ""}`,
+    `${counts.npcCount} NPC${counts.npcCount !== 1 ? "s" : ""}`,
+    row.Terrain || "Unknown Terrain"
+  ].filter(Boolean).join(" • ");
 
   return joinCodexLabel(
     `Hex ${row.Hex_ID}`,
-    [
-      row.Terrain || "Unknown Terrain",
-      countLine
-    ]
+    [countLine]
   );
 }
 
