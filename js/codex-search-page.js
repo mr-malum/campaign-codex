@@ -47,13 +47,6 @@ function renderCodexSearchPage() {
 
       <div id="codex-search-results" class="codex-search-results-shell"></div>
     </div>
-
-    <div
-      id="codex-search-results-modal"
-      class="codex-search-results-modal"
-      aria-hidden="true"
-      onclick="handleCodexSearchModalBackdropClick(event)"
-    ></div>
   `;
 
   bindCodexSearchInput();
@@ -66,6 +59,9 @@ function bindCodexSearchInput() {
   input.addEventListener("input", function () {
     codexSearchQuery = input.value;
     codexSearchActiveGroup = "all";
+
+    if (isMobileCodexSearchLayout()) return;
+
     scheduleCodexSearchResultsRender(input.value);
   });
 
@@ -74,6 +70,10 @@ function bindCodexSearchInput() {
 
     event.preventDefault();
     input.blur();
+
+    if (isMobileCodexSearchLayout()) {
+      openCodexSearchResults(input.value, { replace: true });
+    }
   });
 
   if (codexSearchQuery.trim()) {
@@ -411,12 +411,34 @@ function getCodexSearchMatchLabel(count) {
 }
 
 function renderMobileCodexSearchResultGroups(results) {
+  const totalCount = getCodexSearchTotalCount(results);
+
   return `
-    <div class="codex-mobile-search-summary">
+    <div class="codex-mobile-search-results-page">
+      <p class="codex-mobile-search-result-count">
+        ${escapeHtml(getCodexSearchMatchLabel(totalCount))}
+      </p>
+
       ${CODEX_SEARCH_GROUPS
-        .map(group => renderMobileCodexSearchSummaryButton(group, results))
+        .map(group => renderMobileCodexSearchGroupSection(group, results))
         .join("")}
     </div>
+  `;
+}
+
+function renderMobileCodexSearchGroupSection(group, results) {
+  const rows = getCodexSearchGroupRows(group, results);
+  if (!rows.length) return "";
+
+  return `
+    <section class="codex-mobile-search-group">
+      <h3 class="codex-mobile-search-group-title">
+        ${escapeHtml(group.label)}
+        <span>${escapeHtml(getCodexSearchMatchLabel(rows.length))}</span>
+      </h3>
+
+      ${renderCodexSearchRowList(rows, `No matching ${group.label}.`)}
+    </section>
   `;
 }
 
