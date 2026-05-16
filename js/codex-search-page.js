@@ -267,7 +267,7 @@ function buildPoiGroupSearchLabel(group, matchingPois) {
 
   const typeLine = [
     group.Group_Type || "Grouped POI",
-    `${allMappedAreas.length} mapped area${allMappedAreas.length !== 1 ? "s" : ""}`
+    `${allMappedAreas.length} Area${allMappedAreas.length !== 1 ? "s" : ""}`
   ].filter(Boolean).join(" • ");
 
   if (typeLine) {
@@ -275,7 +275,7 @@ function buildPoiGroupSearchLabel(group, matchingPois) {
   }
 
   const matchLine = matchingPois.length > 0
-    ? `${matchingPois.length} matching mapped area${matchingPois.length !== 1 ? "s" : ""}`
+    ? `${matchingPois.length} matching Area${matchingPois.length !== 1 ? "s" : ""}`
     : "Group match";
 
   const populationNpcLine = [
