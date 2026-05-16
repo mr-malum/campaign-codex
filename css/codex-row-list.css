@@ -60,10 +60,6 @@
     opacity 0.14s ease;
 }
 
-.codex-row:last-child {
-  border-bottom: 0;
-}
-
 .codex-row:hover,
 .codex-row:focus-visible,
 .codex-row-active {
@@ -260,10 +256,6 @@
   gap: 10px;
 
   padding: 11px 8px;
-}
-
-.codex-row-list-rail .codex-row:last-child {
-  border-bottom: 1px solid rgba(72, 43, 18, 0.18);
 }
 
 .codex-row-list-rail .codex-row-icon {
