@@ -3,10 +3,10 @@
    ========================================================= */
 
 const CODEX_SEARCH_GROUPS = [
-  { type: "poi", label: "POIs", icon: "◎" },
-  { type: "npc", label: "NPCs", icon: "♟" },
-  { type: "region", label: "Regions", icon: "✥" },
-  { type: "hex", label: "Hexes", icon: "⬡" }
+  { type: "poi", label: "POIs", iconKey: "poi" },
+  { type: "npc", label: "NPCs", iconKey: "npc" },
+  { type: "region", label: "Regions", iconKey: "region" },
+  { type: "hex", label: "Hexes", iconKey: "hex" }
 ];
 
 let codexSearchActiveGroup = "all";
@@ -524,10 +524,10 @@ function renderCodexSearchResultGroups(results) {
 }
 
 function getCodexSearchGroupIcon(type) {
-  if (type === "all") return "▤";
+  if (type === "all") return getCodexIcon("all");
 
   const group = CODEX_SEARCH_GROUPS.find(item => item.type === type);
-  return group?.icon || "•";
+  return getCodexIcon(group?.iconKey || "fallback");
 }
 
 function getCodexSearchResultIcon(type) {
