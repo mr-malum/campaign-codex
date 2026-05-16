@@ -382,6 +382,8 @@ function renderCodexIndex() {
   setCodexTitle("The Codex of Kadesh");
   renderCodexBreadcrumbs([]);
 
+  clearCodexMobileUtility?.();
+
   codexSearchQuery = "";
   syncCodexDesktopPersistentSearchInput("");
 
