@@ -437,6 +437,56 @@
   image-rendering: auto;
   transform: translateZ(0);
   backface-visibility: hidden;
+
+  -webkit-mask-image:
+    linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 4%,
+      rgba(0, 0, 0, 0.78) 12%,
+      black 22%,
+      black 78%,
+      rgba(0, 0, 0, 0.78) 88%,
+      rgba(0, 0, 0, 0.18) 96%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 4%,
+      rgba(0, 0, 0, 0.78) 12%,
+      black 22%,
+      black 50%,
+      rgba(0, 0, 0, 0.24) 66%,
+      transparent 78%,
+      transparent 100%
+    );
+  -webkit-mask-composite: source-in;
+
+  mask-image:
+    linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 4%,
+      rgba(0, 0, 0, 0.78) 12%,
+      black 22%,
+      black 78%,
+      rgba(0, 0, 0, 0.78) 88%,
+      rgba(0, 0, 0, 0.18) 96%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 4%,
+      rgba(0, 0, 0, 0.78) 12%,
+      black 22%,
+      black 50%,
+      rgba(0, 0, 0, 0.24) 66%,
+      transparent 78%,
+      transparent 100%
+    );
+  mask-composite: intersect;
 }
 
 #codex-content.codex-regions-index .codex-region-tile-info {
@@ -467,7 +517,7 @@
 
 #codex-content.codex-regions-index .codex-region-tile-name,
 #codex-content.codex-regions-index .codex-region-tile-details {
-  -webkit-text-stroke: 2.35px rgba(238, 211, 158, 1);
+  -webkit-text-stroke: 1.35px rgba(238, 211, 158, 1);
   paint-order: stroke fill;
 }
 
