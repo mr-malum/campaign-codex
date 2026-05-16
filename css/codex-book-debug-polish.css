@@ -17,7 +17,7 @@
   }
 
   #codex-header {
-    column-gap: calc(10 * var(--codex-book-scale));
+    column-gap: calc(2 * var(--codex-book-scale));
   }
 
   #codex-header::before,
@@ -28,6 +28,20 @@
       saturate(1.12)
       drop-shadow(0 0 0.6px rgba(47, 29, 16, 0.62))
       drop-shadow(0 0 0.6px rgba(47, 29, 16, 0.46));
+  }
+
+  #codex-title::after {
+    bottom: calc(-17 * var(--codex-book-scale));
+
+    width: min(122%, calc(520 * var(--codex-book-scale)));
+    height: calc(18 * var(--codex-book-scale));
+
+    background-image: url("../assets/codex/Header_Divider.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+
+    opacity: 0.92;
   }
 
   #codex-overlay.open .codex-panel-nav #codex-back,
