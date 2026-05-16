@@ -58,8 +58,15 @@ const CODEX_MANUSCRIPT_CONNECTORS = [
   " · ",
   " — ",
   " / ",
-  "  ",
-  "-"
+  "  "
+];
+
+const CODEX_MANUSCRIPT_WORD_JOINERS = [
+  "",
+  "",
+  "",
+  "-",
+  "'"
 ];
 
 const CODEX_MANUSCRIPT_MARKS = [
@@ -148,17 +155,36 @@ function pickCodexManuscriptSyllable(rng, state) {
   return syllable;
 }
 
-function buildCodexManuscriptPhrase(rng, state) {
-  const syllableCount = 2 + Math.floor(rng() * 4);
-  const parts = [];
+function buildCodexManuscriptWord(rng, state) {
+  const syllableCount = rng() < 0.58
+    ? 1
+    : 2 + Math.floor(rng() * 3);
+
+  const syllables = [];
 
   for (let i = 0; i < syllableCount; i++) {
-    parts.push(pickCodexManuscriptSyllable(rng, state));
+    syllables.push(pickCodexManuscriptSyllable(rng, state));
   }
 
-  return parts.reduce((line, part, index) => {
-    if (index === 0) return part;
-    return line + pickCodexManuscriptItem(CODEX_MANUSCRIPT_CONNECTORS, rng) + part;
+  if (syllableCount === 1) {
+    return syllables[0];
+  }
+
+  const joiner = pickCodexManuscriptItem(CODEX_MANUSCRIPT_WORD_JOINERS, rng);
+  return syllables.join(joiner);
+}
+
+function buildCodexManuscriptPhrase(rng, state) {
+  const wordCount = 2 + Math.floor(rng() * 4);
+  const words = [];
+
+  for (let i = 0; i < wordCount; i++) {
+    words.push(buildCodexManuscriptWord(rng, state));
+  }
+
+  return words.reduce((line, word, index) => {
+    if (index === 0) return word;
+    return line + pickCodexManuscriptItem(CODEX_MANUSCRIPT_CONNECTORS, rng) + word;
   }, "");
 }
 
@@ -176,7 +202,7 @@ function renderCodexManuscriptBlock(rng, index, state) {
   const lines = [];
 
   for (let i = 0; i < lineCount; i++) {
-    const useMark = rng() < 0.32;
+    const useMark = rng() < 0.16;
     const text = useMark
       ? pickCodexManuscriptItem(CODEX_MANUSCRIPT_MARKS, rng)
       : buildCodexManuscriptPhrase(rng, state);
