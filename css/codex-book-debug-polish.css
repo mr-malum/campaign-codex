@@ -29,4 +29,46 @@
       drop-shadow(0 0 0.6px rgba(47, 29, 16, 0.62))
       drop-shadow(0 0 0.6px rgba(47, 29, 16, 0.46));
   }
+
+  #codex-overlay.open .codex-panel-nav #codex-back,
+  #codex-overlay.open .codex-panel-nav #codex-close {
+    border-color: rgba(72, 43, 18, 0.26);
+    background:
+      radial-gradient(circle at 38% 26%, rgba(255, 244, 215, 0.36), transparent 44%),
+      linear-gradient(
+        to bottom,
+        rgba(238, 214, 169, 0.94),
+        rgba(209, 166, 95, 0.70)
+      );
+    color: rgba(47, 29, 16, 0.86);
+    box-shadow:
+      inset 1px 1px 0 rgba(255, 244, 218, 0.28),
+      inset 0 -1px 0 rgba(72, 43, 18, 0.12),
+      0 1px 4px rgba(45, 25, 8, 0.10);
+  }
+
+  #codex-overlay.open .codex-panel-nav #codex-back:hover,
+  #codex-overlay.open .codex-panel-nav #codex-back:focus-visible,
+  #codex-overlay.open .codex-panel-nav #codex-close:hover,
+  #codex-overlay.open .codex-panel-nav #codex-close:focus-visible {
+    border-color: rgba(72, 43, 18, 0.34);
+    background:
+      radial-gradient(circle at 38% 26%, rgba(255, 246, 222, 0.42), transparent 44%),
+      linear-gradient(
+        to bottom,
+        rgba(244, 224, 184, 0.98),
+        rgba(216, 175, 105, 0.78)
+      );
+  }
+
+  #codex-overlay.open .codex-panel-nav #codex-back:active,
+  #codex-overlay.open .codex-panel-nav #codex-close:active {
+    background:
+      radial-gradient(circle at 38% 26%, rgba(255, 244, 215, 0.25), transparent 44%),
+      linear-gradient(
+        to bottom,
+        rgba(202, 158, 87, 0.78),
+        rgba(235, 208, 160, 0.92)
+      );
+  }
 }
