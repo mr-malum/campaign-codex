@@ -3,7 +3,7 @@
    =========================================================
 
    Keeps breadcrumbs static above the bottom controls and turns the bottom
-   action row into a full-width mobile control tray:
+   action row into one full-width version of the original nav button panel:
    page tool / utility-or-debug / Back / Search / Close.
 */
 
@@ -59,25 +59,25 @@
 
     width: 100%;
     min-width: 0;
-    height: 60px;
+    height: 52px;
     box-sizing: border-box;
 
-    padding: 4px;
+    padding: 0;
 
     pointer-events: auto;
 
-    border: 1px solid rgba(84, 57, 27, 0.38);
-    border-radius: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(94, 55, 22, 0.36);
     background:
       linear-gradient(
-        180deg,
-        rgba(246, 224, 170, 0.92),
-        rgba(206, 166, 91, 0.68)
+        rgba(255, 238, 204, 0.92),
+        rgba(214, 170, 108, 0.82)
       );
     box-shadow:
-      inset 0 1px 0 rgba(255, 244, 207, 0.58),
-      inset 0 -1px 1px rgba(82, 47, 16, 0.22),
-      0 1px 3px rgba(44, 27, 10, 0.22);
+      inset 0 1px 3px rgba(255, 241, 202, 0.48),
+      0 3px 10px rgba(45, 25, 8, 0.22);
+
+    overflow: hidden;
   }
 
   #codex-mobile-page-control,
@@ -85,30 +85,32 @@
   .codex-control-cluster #codex-back,
   .codex-control-cluster #codex-search-button,
   .codex-control-cluster #codex-close {
+    appearance: none;
+    -webkit-appearance: none;
+
     position: static !important;
     transform: none !important;
 
     pointer-events: auto;
-    min-height: 0;
     height: 100%;
+    min-height: 0;
     box-sizing: border-box;
 
-    border-radius: 7px;
-    border: 1px solid rgba(83, 55, 24, 0.26);
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255, 238, 190, 0.58),
-        rgba(190, 139, 59, 0.18)
-      );
-    box-shadow:
-      inset 0 1px 0 rgba(255, 248, 216, 0.52),
-      inset 0 -1px 0 rgba(91, 51, 18, 0.12);
+    margin: 0;
+    padding: 0 18px;
 
-    padding: 0 10px;
-    font-size: 0.82rem;
+    border: 0;
+    border-left: 1px solid rgba(94, 55, 22, 0.26);
+    border-radius: 0;
+
+    background: transparent;
+    box-shadow: none;
+
+    color: #3a2614;
+    font-family: 'Marcellus SC', Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 600;
     line-height: 1;
-    opacity: 1;
 
     display: inline-flex;
     align-items: center;
@@ -122,8 +124,7 @@
   #codex-mobile-page-control {
     flex: 0 0 clamp(132px, 34%, 198px);
     min-width: 0;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+    border-left: 0;
   }
 
   #codex-mobile-page-control[hidden] {
@@ -135,9 +136,6 @@
   #codex-mobile-debug-toggle {
     flex: 1 1 auto;
     min-width: 44px;
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
   }
 
   .codex-control-cluster {
@@ -148,25 +146,28 @@
     align-items: stretch;
     justify-content: flex-end;
     gap: 0;
+
+    width: auto;
+    margin: 0;
   }
 
   .codex-control-cluster #codex-back,
   .codex-control-cluster #codex-search-button,
   .codex-control-cluster #codex-close {
-    min-height: 0;
     height: 100%;
-    margin: 0;
-    border-radius: 0;
+    min-height: 0;
   }
 
   .codex-control-cluster #codex-back,
-  .codex-control-cluster #codex-search-button {
-    border-right: 0;
+  .codex-control-cluster #codex-close {
+    width: 72px;
+    min-width: 72px;
+    padding-left: 0;
+    padding-right: 0;
   }
 
-  .codex-control-cluster #codex-close {
-    border-top-right-radius: 7px;
-    border-bottom-right-radius: 7px;
+  .codex-control-cluster #codex-search-button {
+    min-width: 110px;
   }
 }
 
@@ -180,8 +181,7 @@
 
 @media (max-width: 420px) {
   .codex-mobile-action-row {
-    height: 58px;
-    padding: 4px;
+    height: 50px;
   }
 
   #codex-mobile-page-control,
@@ -189,11 +189,23 @@
   .codex-control-cluster #codex-back,
   .codex-control-cluster #codex-search-button,
   .codex-control-cluster #codex-close {
-    padding-inline: 8px;
-    font-size: 0.72rem;
+    padding-inline: 12px;
+    font-size: 0.9rem;
   }
 
   #codex-mobile-page-control {
     flex-basis: clamp(112px, 31%, 150px);
+  }
+
+  .codex-control-cluster #codex-back,
+  .codex-control-cluster #codex-close {
+    width: 52px;
+    min-width: 52px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .codex-control-cluster #codex-search-button {
+    min-width: 78px;
   }
 }
