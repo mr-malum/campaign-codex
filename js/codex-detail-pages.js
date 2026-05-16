@@ -307,7 +307,7 @@ function buildCodexMappedAreaListLabel(poi) {
   if (locationNpcLine) meta.push(locationNpcLine);
 
   return joinCodexLabel(
-    poi.Name || poi.POI_ID || "Unnamed Mapped Area",
+    poi.Name || poi.POI_ID || "Unnamed Area",
     meta
   );
 }
@@ -413,7 +413,7 @@ function renderCodexRegionPage(regionId) {
         <div class="codex-detail-meta codex-region-detail-summary">
           <p><strong>Hexes:</strong> ${summary.hexCount}</p>
           <p><strong>Points of Interest:</strong> ${summary.poiCount}</p>
-          ${summary.mappedAreaCount > summary.poiCount ? `<p><strong>Mapped Areas:</strong> ${summary.mappedAreaCount}</p>` : ""}
+          ${summary.mappedAreaCount > summary.poiCount ? `<p><strong>Areas:</strong> ${summary.mappedAreaCount}</p>` : ""}
           <p><strong>NPCs:</strong> ${summary.npcCount}</p>
           ${maps.length ? `<p><strong>Maps:</strong> ${maps.length}</p>` : ""}
         </div>
@@ -473,7 +473,7 @@ function renderCodexPoiPage(poiId) {
       <p class="codex-overview-side-label"><strong>Related Areas:</strong></p>
       <div class="codex-detail-upper-scrollbox codex-scroll-fade">
         ${group ? `<p><strong>Parent:</strong> ${renderCodexInlineLink("poi-group", group.POI_Group_ID, group.POI_Group_Name || group.POI_Group_ID)}</p>` : `<p>No parent location recorded.</p>`}
-        ${renderCodexLinkedList(relatedPois, "No sibling mapped areas recorded.", "poi", "POI_ID", buildCodexMappedAreaListLabel)}
+        ${renderCodexLinkedList(relatedPois, "No sibling Areas recorded.", "poi", "POI_ID", buildCodexMappedAreaListLabel)}
       </div>
     </section>
   `;
@@ -533,7 +533,7 @@ function renderCodexPoiGroupPage(groupId) {
     <section class="codex-detail-npc-panel codex-detail-overview-side codex-detail-mapped-overview">
       <p class="codex-overview-side-label"><strong>Areas:</strong> ${pois.length}</p>
       <div class="codex-detail-upper-scrollbox codex-scroll-fade">
-        ${renderCodexLinkedList(pois, "No mapped areas currently recorded for this place.", "poi", "POI_ID", buildCodexMappedAreaListLabel)}
+        ${renderCodexLinkedList(pois, "No Areas currently recorded for this place.", "poi", "POI_ID", buildCodexMappedAreaListLabel)}
       </div>
     </section>
   `;
@@ -636,7 +636,7 @@ function renderCodexRegionTile(region) {
   const detailLine = [
     `${summary.hexCount} hexes`,
     `${summary.poiCount} POIs`,
-    summary.mappedAreaCount > summary.poiCount ? `${summary.mappedAreaCount} mapped areas` : "",
+    summary.mappedAreaCount > summary.poiCount ? `${summary.mappedAreaCount} Areas` : "",
     `${summary.npcCount} NPCs`
   ].filter(Boolean).join(" • ");
 
