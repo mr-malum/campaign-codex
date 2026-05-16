@@ -211,7 +211,7 @@ function setCodexDetailSection(sectionId) {
 }
 
 function getCodexRailIconClass(icon) {
-  return icon === "⬡" ? " codex-row-icon-hex" : "";
+  return icon === getCodexIcon("hex") ? " codex-row-icon-hex" : "";
 }
 
 function renderCodexDetailRail(items) {
@@ -333,10 +333,10 @@ function renderCodexHexPage(hexId) {
   setCodexTitle(`Hex ${hexId}`);
 
   const railItems = [
-    { id: "codex-detail-journal", label: "DM Journal", icon: "✎" },
-    { id: "codex-detail-pois", label: "POIs", icon: "◎", count: pois.length },
-    { id: "codex-detail-npcs", label: "NPCs", icon: "♟", count: npcs.length },
-    { id: "codex-detail-maps", label: "Maps", icon: "▧", count: maps.length }
+    { id: "codex-detail-journal", label: "DM Journal", icon: getCodexIcon("journal") },
+    { id: "codex-detail-pois", label: "POIs", icon: getCodexIcon("poi"), count: pois.length },
+    { id: "codex-detail-npcs", label: "NPCs", icon: getCodexIcon("npc"), count: npcs.length },
+    { id: "codex-detail-maps", label: "Maps", icon: getCodexIcon("map"), count: maps.length }
   ];
 
   const overview = `
@@ -396,12 +396,12 @@ function renderCodexRegionPage(regionId) {
   setCodexTitle(regionName);
 
   const railItems = [
-    { id: "codex-detail-lore", label: "Lore", icon: "▤" },
-    { id: "codex-detail-journal", label: "DM Journal", icon: "✎" },
-    { id: "codex-detail-pois", label: "POIs", icon: "◎", count: poiListRows.length },
-    { id: "codex-detail-npcs", label: "NPCs", icon: "♟", count: npcs.length },
-    { id: "codex-detail-hexes", label: "Hexes", icon: "⬡", count: hexes.length },
-    { id: "codex-detail-maps", label: "Maps", icon: "▧", count: maps.length }
+    { id: "codex-detail-lore", label: "Lore", icon: getCodexIcon("lore") },
+    { id: "codex-detail-journal", label: "DM Journal", icon: getCodexIcon("journal") },
+    { id: "codex-detail-pois", label: "POIs", icon: getCodexIcon("poi"), count: poiListRows.length },
+    { id: "codex-detail-npcs", label: "NPCs", icon: getCodexIcon("npc"), count: npcs.length },
+    { id: "codex-detail-hexes", label: "Hexes", icon: getCodexIcon("hex"), count: hexes.length },
+    { id: "codex-detail-maps", label: "Maps", icon: getCodexIcon("map"), count: maps.length }
   ];
 
   const overview = `
@@ -462,10 +462,10 @@ function renderCodexPoiPage(poiId) {
   setCodexTitle(poiName);
 
   const railItems = [
-    { id: "codex-detail-lore", label: "Lore", icon: "▤" },
-    { id: "codex-detail-journal", label: "DM Journal", icon: "✎" },
-    { id: "codex-detail-npcs", label: "NPCs", icon: "♟", count: npcs.length },
-    { id: "codex-detail-maps", label: "Maps", icon: "▧", count: maps.length }
+    { id: "codex-detail-lore", label: "Lore", icon: getCodexIcon("lore") },
+    { id: "codex-detail-journal", label: "DM Journal", icon: getCodexIcon("journal") },
+    { id: "codex-detail-npcs", label: "NPCs", icon: getCodexIcon("npc"), count: npcs.length },
+    { id: "codex-detail-maps", label: "Maps", icon: getCodexIcon("map"), count: maps.length }
   ];
 
   const relatedOverview = `
@@ -523,10 +523,10 @@ function renderCodexPoiGroupPage(groupId) {
   setCodexTitle(groupName);
 
   const railItems = [
-    { id: "codex-detail-lore", label: "Lore", icon: "▤" },
-    { id: "codex-detail-journal", label: "DM Journal", icon: "✎" },
-    { id: "codex-detail-npcs", label: "NPCs", icon: "♟", count: npcs.length },
-    { id: "codex-detail-maps", label: "Maps", icon: "▧", count: maps.length }
+    { id: "codex-detail-lore", label: "Lore", icon: getCodexIcon("lore") },
+    { id: "codex-detail-journal", label: "DM Journal", icon: getCodexIcon("journal") },
+    { id: "codex-detail-npcs", label: "NPCs", icon: getCodexIcon("npc"), count: npcs.length },
+    { id: "codex-detail-maps", label: "Maps", icon: getCodexIcon("map"), count: maps.length }
   ];
 
   const overviewMappedAreas = `
@@ -584,8 +584,8 @@ function renderCodexNpcPage(npcId) {
   `;
 
   const railItems = [
-    { id: "codex-detail-lore", label: "Lore", icon: "▤" },
-    { id: "codex-detail-journal", label: "DM Journal", icon: "✎" }
+    { id: "codex-detail-lore", label: "Lore", icon: getCodexIcon("lore") },
+    { id: "codex-detail-journal", label: "DM Journal", icon: getCodexIcon("journal") }
   ];
 
   const homeLine = homeGroup
