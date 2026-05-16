@@ -11,7 +11,7 @@
     height: calc(1000 / 1400 * 100%);
 
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--codex-manuscript-columns, 3), minmax(0, 1fr));
     align-content: stretch;
     column-gap: calc(34 * var(--codex-book-scale));
     row-gap: calc(20 * var(--codex-book-scale));
@@ -32,7 +32,7 @@
 
     opacity: 0.36;
     filter: blur(0.08px) contrast(1.08);
-    transform: rotate(-1.05deg);
+    transform: none;
     transform-origin: center center;
     mix-blend-mode: multiply;
 
