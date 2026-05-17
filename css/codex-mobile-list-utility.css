@@ -3,6 +3,11 @@
    ========================================================= */
 
 @media (max-width: 1099px), (max-height: 699px) {
+  #codex-content.codex-list-page {
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+  }
+
   #codex-content.codex-list-page .codex-mobile-filter-toggle {
     display: none !important;
   }
