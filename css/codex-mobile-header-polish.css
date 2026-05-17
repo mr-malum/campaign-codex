@@ -57,9 +57,22 @@
     letter-spacing: clamp(0.08em, 1vw, 0.14em) !important;
     text-align: center !important;
 
-    white-space: normal !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
     overflow-wrap: normal !important;
-    text-wrap: balance;
+    text-wrap: nowrap;
+  }
+
+  #codex-overlay #codex-title > div,
+  #codex-overlay #codex-title .codex-superheader,
+  #codex-overlay #codex-title .codex-mainheader,
+  #codex-overlay #codex-title .codex-subheader {
+    display: block !important;
+    max-width: 100% !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    overflow-wrap: normal !important;
+    text-wrap: nowrap;
   }
 
   #codex-overlay #codex-title::after {
