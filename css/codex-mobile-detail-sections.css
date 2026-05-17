@@ -22,6 +22,8 @@
     min-height: 0 !important;
     overflow: hidden !important;
     padding: 0 !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
   }
 
   #codex-content.codex-detail-page .codex-detail-rail-section {
@@ -61,8 +63,15 @@
     min-height: 0 !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 4px 0 24px !important;
+    padding: 4px 0 0 !important;
     -webkit-overflow-scrolling: touch !important;
+
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 18px), transparent 100%) !important;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 18px), transparent 100%) !important;
+    -webkit-mask-size: 100% 100% !important;
+    mask-size: 100% 100% !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
   }
 
   .codex-mobile-detail-section-picker {
