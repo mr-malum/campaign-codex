@@ -122,42 +122,6 @@
     min-height: 0 !important;
   }
 
-  #codex-content.codex-detail-page .codex-detail-main {
-    scroll-padding-top: 40px !important;
-  }
-
-  #codex-content.codex-detail-page .codex-detail-rail-section > h3 {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 4 !important;
-    margin: 0 !important;
-    padding: 8px 0 8px !important;
-    background-color: rgba(238, 218, 176, 0.96) !important;
-    background-image: url("../assets/Parchment_Panel.png") !important;
-    background-size: 180% 220% !important;
-    background-position: center 42% !important;
-    background-repeat: no-repeat !important;
-    box-shadow: none !important;
-    border: 0 !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  #codex-content.codex-detail-page .codex-detail-rail-section > h3::before {
-    content: "" !important;
-    position: absolute !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    height: 1px !important;
-    pointer-events: none !important;
-    background: linear-gradient(to right, rgba(72, 43, 18, 0.42), rgba(72, 43, 18, 0.14), transparent) !important;
-  }
-
-  #codex-content.codex-detail-page .codex-detail-rail-section-content {
-    padding-top: 4px !important;
-  }
-
   #codex-overlay #codex-title .codex-header-link {
     appearance: none !important;
     -webkit-appearance: none !important;
