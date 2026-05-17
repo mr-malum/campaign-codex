@@ -9,36 +9,6 @@
 
 let codexPoiGroupAreasContext = null;
 
-function renderCodexHeaderLink(type, id, label) {
-  return `
-    <button
-      class="codex-header-link"
-      type="button"
-      onclick="openCodexPage('${escapeJsString(type)}', '${escapeJsString(id)}')"
-    >${escapeHtml(label)}</button>
-  `;
-}
-
-function setCodexHexStackedHeader(hexId) {
-  const hex = db?.hexesById?.[hexId];
-  const region = hex?.Region_ID_Ref ? db?.regionsById?.[hex.Region_ID_Ref] : null;
-  const titleEl = document.getElementById("codex-title");
-  if (!titleEl) return;
-
-  const regionLabel = region?.Region_Name || hex?.Region_ID_Ref || "Unknown Region";
-  const regionLine = region?.Region_ID
-    ? renderCodexHeaderLink("region", region.Region_ID, regionLabel)
-    : escapeHtml(regionLabel);
-
-  titleEl.innerHTML = `
-    <div class="codex-superheader">${regionLine}</div>
-    <div class="codex-mainheader">Hex ${escapeHtml(hexId)}</div>
-    <div class="codex-subheader">${escapeHtml(hex?.Terrain || "Unknown Terrain")}</div>
-  `;
-
-  requestAnimationFrame(() => fitCodexHeaderText?.());
-}
-
 function installCodexPoiGroupAreasSectionPatch() {
   if (typeof renderCodexDetailRailPage !== "function") return;
   if (renderCodexDetailRailPage.__mobileAreasSectionPatched) return;
@@ -124,7 +94,6 @@ function patchCodexMobileDetailContentRenderer(fnName, afterRender, beforeRender
 function initializeCodexMobileDetailContent() {
   installCodexPoiGroupAreasSectionPatch();
 
-  patchCodexMobileDetailContentRenderer("renderCodexHexPage", setCodexHexStackedHeader);
   patchCodexMobileDetailContentRenderer(
     "renderCodexPoiGroupPage",
     null,
