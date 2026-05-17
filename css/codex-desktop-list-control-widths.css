@@ -5,9 +5,13 @@
    Last-mile desktop-only hardening for the dynamic POI/NPC/Hex filter rails.
    Mobile filter controls are intentionally untouched; mobile owns the same
    moved DOM under .codex-mobile-list-controls-mount.
+
+   This is keyed to desktop input behavior instead of book-stage viewport size,
+   because desktop/narrow testing can fall below the full desktop book media
+   breakpoint while still showing the desktop rail.
 */
 
-@media (min-width: 1100px) and (min-height: 700px) {
+@media (hover: hover) and (pointer: fine) {
   #codex-content.codex-list-page .codex-list-control-rail,
   #codex-content.codex-list-page .codex-list-control-rail * {
     box-sizing: border-box !important;
@@ -15,13 +19,17 @@
 
   #codex-content.codex-list-page .codex-list-control-rail {
     inline-size: var(--codex-rail-width, 190px) !important;
-    min-inline-size: 0 !important;
+    min-inline-size: var(--codex-rail-width, 190px) !important;
     max-inline-size: var(--codex-rail-width, 190px) !important;
+    width: var(--codex-rail-width, 190px) !important;
+    min-width: var(--codex-rail-width, 190px) !important;
+    max-width: var(--codex-rail-width, 190px) !important;
     overflow: hidden !important;
   }
 
   #codex-content.codex-list-page .codex-list-control-rail .codex-list-controls-shell,
   #codex-content.codex-list-page .codex-list-control-rail .codex-mobile-controls-panel,
+  #codex-content.codex-list-page .codex-list-control-rail .codex-mobile-controls-panel > .codex-filter-row,
   #codex-content.codex-list-page .codex-list-control-rail .codex-filter-row,
   #codex-content.codex-list-page .codex-list-control-rail .codex-dynamic-filter,
   #codex-content.codex-list-page .codex-list-control-rail .codex-sort-label {
@@ -40,6 +48,7 @@
     flex-direction: column !important;
     align-items: stretch !important;
     justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
   }
 
   #codex-content.codex-list-page .codex-list-control-rail .codex-dynamic-filter,
