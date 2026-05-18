@@ -245,7 +245,7 @@
   <div class="codex-editor-sheet">
     <h2 id="codex-editor-title">Add NPC</h2>
 
-    <form id="codex-add-npc-form">
+    <form id="codex-add-npc-form" class="codex-editor-form">
       <div class="codex-editor-fields">
         <label>
           <span>Name *</span>
@@ -286,6 +286,45 @@
       <div class="codex-editor-actions">
         <button type="submit">Create NPC</button>
         <button id="codex-editor-close" type="button">Cancel</button>
+      </div>
+    </form>
+
+    <form id="codex-add-poi-form" class="codex-editor-form" hidden>
+      <div class="codex-editor-fields">
+        <label>
+          <span>Name *</span>
+          <input id="codex-add-poi-name" type="text" required>
+        </label>
+
+        <label>
+          <span>Type *</span>
+          <input id="codex-add-poi-type" type="text" required>
+        </label>
+
+        <label>
+          <span>Hex *</span>
+          <select id="codex-add-poi-hex" required></select>
+        </label>
+
+        <label>
+          <span>Notoriety</span>
+          <input id="codex-add-poi-notoriety" type="text">
+        </label>
+
+        <label>
+          <span>Population</span>
+          <input id="codex-add-poi-population" type="text">
+        </label>
+
+        <label>
+          <span>Lore</span>
+          <textarea id="codex-add-poi-lore" rows="5"></textarea>
+        </label>
+      </div>
+
+      <div class="codex-editor-actions">
+        <button type="submit">Create POI</button>
+        <button id="codex-poi-editor-close" type="button">Cancel</button>
       </div>
     </form>
 

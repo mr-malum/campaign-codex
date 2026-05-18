@@ -24,12 +24,59 @@ function populateNpcHomeOptions() {
   select.innerHTML = options.join("");
 }
 
-function openAddNpcEditor() {
-  document.getElementById("codex-add-npc-form")?.reset();
-  populateNpcHomeOptions();
+function populatePoiHexOptions() {
+  const select = document.getElementById("codex-add-poi-hex");
+  if (!select) return;
+
+  const options = [
+    `<option value="">Select a hex...</option>`,
+    ...(db?.raw?.hexes || [])
+      .slice()
+      .sort((a, b) => String(a.Hex_ID).localeCompare(String(b.Hex_ID), undefined, { numeric: true }))
+      .map(hex => {
+        const region = db?.regionsById?.[hex.Region_ID_Ref]?.Region_Name || hex.Region_ID_Ref || "No region";
+        return `
+          <option value="${escapeHtml(hex.Hex_ID)}">
+            ${escapeHtml(hex.Hex_ID)} — ${escapeHtml(region)}
+          </option>
+        `;
+      })
+  ];
+
+  select.innerHTML = options.join("");
+}
+
+function setEditorMode(mode) {
+  const title = document.getElementById("codex-editor-title");
+  const npcForm = document.getElementById("codex-add-npc-form");
+  const poiForm = document.getElementById("codex-add-poi-form");
+
+  if (title) {
+    title.textContent = mode === "poi" ? "Add POI" : "Add NPC";
+  }
+
+  if (npcForm) npcForm.hidden = mode !== "npc";
+  if (poiForm) poiForm.hidden = mode !== "poi";
+}
+
+function openEditorModal() {
   setCodexEditorStatus("");
   document.getElementById("codex-editor-modal")?.classList.remove("hidden");
   document.getElementById("codex-editor-modal")?.setAttribute("aria-hidden", "false");
+}
+
+function openAddNpcEditor() {
+  setEditorMode("npc");
+  document.getElementById("codex-add-npc-form")?.reset();
+  populateNpcHomeOptions();
+  openEditorModal();
+}
+
+function openAddPoiEditor() {
+  setEditorMode("poi");
+  document.getElementById("codex-add-poi-form")?.reset();
+  populatePoiHexOptions();
+  openEditorModal();
 }
 
 function closeCodexEditor() {
@@ -232,6 +279,11 @@ function getPoiUuidByLegacyId(poiId) {
   return poi?.__uuid || null;
 }
 
+function getHexUuidByLegacyId(hexId) {
+  const hex = (db?.raw?.hexes || []).find(row => row.Hex_ID === hexId);
+  return hex?.__uuid || null;
+}
+
 function adaptCreatedNpcRow(row) {
   const createdRow = Array.isArray(row) ? row[0] : row;
 
@@ -258,6 +310,42 @@ function addCreatedNpcToLocalDb(npc) {
       db.npcsByHomeId[npc.Home_ID_Ref] = [];
     }
     db.npcsByHomeId[npc.Home_ID_Ref].push(npc);
+  }
+}
+
+function adaptCreatedPoiRow(row) {
+  const createdRow = Array.isArray(row) ? row[0] : row;
+
+  return {
+    __uuid: createdRow.id,
+    POI_ID: createdRow.ref_code,
+    POI_Group_ID: "",
+    Name: createdRow.name || "",
+    Hex_ID_Ref: db?.raw?.hexes?.find(hex => hex.__uuid === createdRow.hex_id)?.Hex_ID || "",
+    POI_Type: createdRow.poi_type || "",
+    "Notoriety Tier": createdRow.notoriety_tier || "",
+    Population: createdRow.population || "",
+    Lore: createdRow.lore || "",
+    Image: ""
+  };
+}
+
+function addCreatedPoiToLocalDb(poi) {
+  db.raw.pois.push(poi);
+  db.poisById[poi.POI_ID] = poi;
+
+  if (poi.Hex_ID_Ref) {
+    if (!db.poisByHexId[poi.Hex_ID_Ref]) {
+      db.poisByHexId[poi.Hex_ID_Ref] = [];
+    }
+    db.poisByHexId[poi.Hex_ID_Ref].push(poi);
+  }
+
+  if (poi.POI_Group_ID) {
+    if (!db.poisByGroupId[poi.POI_Group_ID]) {
+      db.poisByGroupId[poi.POI_Group_ID] = [];
+    }
+    db.poisByGroupId[poi.POI_Group_ID].push(poi);
   }
 }
 
@@ -307,6 +395,50 @@ async function handleAddNpcSubmit(event) {
   }
 }
 
+async function handleAddPoiSubmit(event) {
+  event.preventDefault();
+
+  const campaign = getActiveCampaign?.();
+  if (!campaign) return;
+
+  const name = document.getElementById("codex-add-poi-name")?.value.trim();
+  const poiType = document.getElementById("codex-add-poi-type")?.value.trim();
+  const hexId = document.getElementById("codex-add-poi-hex")?.value || "";
+  const notoriety = document.getElementById("codex-add-poi-notoriety")?.value.trim();
+  const population = document.getElementById("codex-add-poi-population")?.value.trim();
+  const lore = document.getElementById("codex-add-poi-lore")?.value.trim();
+
+  if (!name || !poiType || !hexId) {
+    setCodexEditorStatus("Name, Type, and Hex are required.");
+    return;
+  }
+
+  setCodexEditorStatus("Creating POI...");
+
+  try {
+    const { data, error } = await campaignSupabase.rpc("create_poi_with_next_ref_code", {
+      target_campaign_id: campaign.id,
+      poi_name: name,
+      poi_type: poiType,
+      poi_hex_id: getHexUuidByLegacyId(hexId),
+      poi_notoriety_tier: notoriety || null,
+      poi_population: population || null,
+      poi_lore: lore || null,
+      poi_visibility: "shared"
+    });
+
+    if (error) throw error;
+
+    const createdPoi = adaptCreatedPoiRow(data);
+    addCreatedPoiToLocalDb(createdPoi);
+    closeCodexEditor();
+    renderPoiListIntoContainer();
+  } catch (error) {
+    console.error("Failed to create POI:", error);
+    setCodexEditorStatus(error.message || "Unable to create POI.");
+  }
+}
+
 function updateCodexContextAction(type) {
   const mobileButton = document.getElementById("codex-context-action");
   const mobileDeleteButton = document.getElementById("codex-context-delete");
@@ -325,16 +457,17 @@ function updateCodexContextAction(type) {
   };
 
   const isNpcIndex = type === "npcs";
+  const isPoiIndex = type === "pois";
   const isDetailPage = ["hex", "region", "poi", "poi-group", "npc"].includes(type);
 
-  if (isNpcIndex) {
+  if (isNpcIndex || isPoiIndex) {
     if (desktopShell) desktopShell.hidden = false;
     deleteButtons.forEach(hideButton);
     buttons.forEach((button) => {
       button.hidden = false;
       button.disabled = false;
       button.textContent = "Add";
-      button.onclick = openAddNpcEditor;
+      button.onclick = isPoiIndex ? openAddPoiEditor : openAddNpcEditor;
     });
     return;
   }
@@ -364,7 +497,11 @@ function updateCodexContextAction(type) {
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("codex-add-npc-form")
     ?.addEventListener("submit", handleAddNpcSubmit);
+  document.getElementById("codex-add-poi-form")
+    ?.addEventListener("submit", handleAddPoiSubmit);
   document.getElementById("codex-editor-close")
+    ?.addEventListener("click", closeCodexEditor);
+  document.getElementById("codex-poi-editor-close")
     ?.addEventListener("click", closeCodexEditor);
   document.getElementById("codex-delete-cancel")
     ?.addEventListener("click", closeCodexDeleteModal);
@@ -373,4 +510,5 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.openAddNpcEditor = openAddNpcEditor;
+window.openAddPoiEditor = openAddPoiEditor;
 window.updateCodexContextAction = updateCodexContextAction;
