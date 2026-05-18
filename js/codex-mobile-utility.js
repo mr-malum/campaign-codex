@@ -128,6 +128,131 @@ function patchCodexContentUtilityReset() {
   setCodexContent = window.setCodexContent;
 }
 
+/* =========================================================
+   MOBILE BUTTON STATE CLEANUP
+   =========================================================
+
+   Mobile browsers can leave tapped buttons in a focused/active-looking state
+   until another element is tapped. Blur Codex/map UI controls after touch/click
+   activation so visual state resets immediately.
+*/
+
+function shouldClearCodexMobileButtonState(target) {
+  return Boolean(target?.closest?.(`
+    .codex-control-cluster button,
+    .codex-panel-nav button,
+    #codex-mobile-page-control,
+    #codex-search-button,
+    #codex-back,
+    #codex-close,
+    #codex-mobile-debug-toggle,
+    #codex-button,
+    #map-reset-button,
+    .codex-image-modal-close,
+    .codex-image-modal-nav
+  `));
+}
+
+function clearCodexMobileButtonState(target) {
+  const control = target?.closest?.("button, [role='button']");
+  if (!control || typeof control.blur !== "function") return;
+
+  window.setTimeout(() => {
+    control.blur();
+
+    if (document.activeElement === control) {
+      document.activeElement?.blur?.();
+    }
+  }, 0);
+}
+
+function bindCodexMobileButtonStateCleanup() {
+  if (bindCodexMobileButtonStateCleanup.__bound) return;
+  bindCodexMobileButtonStateCleanup.__bound = true;
+
+  document.addEventListener("pointerup", event => {
+    if (event.pointerType && event.pointerType !== "touch") return;
+    if (!shouldClearCodexMobileButtonState(event.target)) return;
+    clearCodexMobileButtonState(event.target);
+  }, true);
+
+  document.addEventListener("touchend", event => {
+    if (!shouldClearCodexMobileButtonState(event.target)) return;
+    clearCodexMobileButtonState(event.target);
+  }, true);
+
+  document.addEventListener("click", event => {
+    if (!shouldClearCodexMobileButtonState(event.target)) return;
+    clearCodexMobileButtonState(event.target);
+  }, true);
+}
+
+/* =========================================================
+   MOBILE TAP FEEDBACK
+   =========================================================
+
+   Touch browsers can make :active states too fleeting to notice on quick taps.
+   Add a short-lived class at touch start so mobile taps visibly borrow the
+   same styling language desktop users get from hover.
+*/
+
+const codexMobileTapFeedbackSelector = `
+  .codex-row,
+  .codex-link-button,
+  .codex-section-button,
+  .codex-region-tile,
+  .codex-map-card[href],
+  .codex-mobile-utility-close,
+  .codex-mobile-utility-option,
+  .codex-image-modal-close,
+  .codex-image-modal-nav,
+  .panel-nav button,
+  .codex-breadcrumb-button
+`;
+
+function getCodexMobileTapFeedbackTarget(target) {
+  return target?.closest?.(codexMobileTapFeedbackSelector) || null;
+}
+
+function clearCodexMobileTapFeedback(control) {
+  if (!control) return;
+
+  window.clearTimeout(control.__codexTapFeedbackTimeout);
+  control.__codexTapFeedbackTimeout = window.setTimeout(() => {
+    control.classList.remove("codex-tap-active");
+  }, 90);
+}
+
+function bindCodexMobileTapFeedback() {
+  if (bindCodexMobileTapFeedback.__bound) return;
+  bindCodexMobileTapFeedback.__bound = true;
+
+  document.addEventListener("pointerdown", event => {
+    if (event.pointerType && event.pointerType !== "touch") return;
+
+    const control = getCodexMobileTapFeedbackTarget(event.target);
+    if (!control) return;
+
+    control.classList.add("codex-tap-active");
+  }, true);
+
+  document.addEventListener("touchstart", event => {
+    const control = getCodexMobileTapFeedbackTarget(event.target);
+    if (!control) return;
+
+    control.classList.add("codex-tap-active");
+  }, { passive: true, capture: true });
+
+  ["pointerup", "pointercancel", "touchend", "touchcancel"].forEach(eventName => {
+    document.addEventListener(eventName, event => {
+      const control = getCodexMobileTapFeedbackTarget(event.target);
+      if (!control) return;
+
+      clearCodexMobileTapFeedback(control);
+    }, true);
+  });
+}
+
 function initializeCodexMobileUtility() {
   ensureCodexMobileUtilityPanel();
   patchCodexContentUtilityReset();
@@ -136,7 +261,19 @@ function initializeCodexMobileUtility() {
     .getElementById("codex-mobile-page-control")
     ?.addEventListener("click", openCodexMobileUtilityPanel);
 
+  bindCodexMobileButtonStateCleanup();
+  bindCodexMobileTapFeedback();
   updateCodexMobileUtilityButton();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    bindCodexMobileButtonStateCleanup();
+    bindCodexMobileTapFeedback();
+  });
+} else {
+  bindCodexMobileButtonStateCleanup();
+  bindCodexMobileTapFeedback();
 }
 
 window.setCodexMobileUtility = setCodexMobileUtility;

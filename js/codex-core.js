@@ -36,7 +36,9 @@ function closeCodex(options = {}) {
   codexLiveSearchActive = false;
   codexLiveSearchReturnPage = null;
   codexLastManuscriptPageType = null;
+  codexHistory = [];
   syncCodexDesktopPersistentSearchInput("");
+  clearCodexDetailSectionStateCache?.();
 
   closeCodexGlobalSearchModal?.();
   overlay.classList.remove("open");
@@ -71,10 +73,39 @@ function getCodexHeaderFitLines() {
   return [titleEl];
 }
 
+function shouldFitCodexHeaderTextForMobile() {
+  return window.matchMedia?.(
+    "(hover: none) and (pointer: coarse), (max-width: 700px)"
+  )?.matches === true;
+}
+
+function resetCodexHeaderFitStyles() {
+  const titleEl = getCodexTitle();
+  if (!titleEl) return;
+
+  const lines = [
+    titleEl,
+    ...titleEl.querySelectorAll?.(
+      ".codex-superheader, .codex-mainheader, .codex-subheader"
+    ) || []
+  ];
+
+  lines.forEach(line => {
+    line.style.fontSize = "";
+    line.style.whiteSpace = "";
+    delete line.dataset.codexBaseFontSize;
+  });
+}
+
 function fitCodexHeaderText() {
   const titleEl = getCodexTitle();
   const headerEl = document.getElementById("codex-header");
   if (!titleEl || !headerEl) return;
+
+  if (!shouldFitCodexHeaderTextForMobile()) {
+    resetCodexHeaderFitStyles();
+    return;
+  }
 
   const availableWidth = titleEl.clientWidth || headerEl.clientWidth;
   if (!availableWidth) return;
@@ -156,9 +187,14 @@ function renderCodexBreadcrumbs(breadcrumbs = []) {
     ))
     .join("");
 
-  const leadingMobileCrumbs = displayCrumbs.length > 2
-    ? displayCrumbs.slice(0, 2)
-    : displayCrumbs.slice(0, -1);
+  const hasGroupedPoiTrail = displayCrumbs.length === 4
+    && displayCrumbs[1]?.label === "POIs";
+
+  const leadingMobileCrumbs = hasGroupedPoiTrail
+    ? displayCrumbs.slice(0, -1)
+    : displayCrumbs.length > 2
+      ? displayCrumbs.slice(0, 2)
+      : displayCrumbs.slice(0, -1);
   const currentMobileCrumb = displayCrumbs[displayCrumbs.length - 1];
 
   const mobileHtml = `
@@ -166,7 +202,9 @@ function renderCodexBreadcrumbs(breadcrumbs = []) {
       .map((crumb, index) => renderCodexMobileBreadcrumbItem(
         crumb,
         false,
-        "codex-breadcrumb-fixed"
+        hasGroupedPoiTrail && index === 2
+          ? "codex-breadcrumb-parent-group"
+          : "codex-breadcrumb-fixed"
       ))
       .join("")}
 
@@ -458,6 +496,7 @@ function renderCodexIndex() {
 
   clearCodexMobileUtility?.();
   resetCodexMobileListState?.();
+  clearCodexDetailSectionStateCache?.();
   codexSearchActiveGroup = "all";
 
   codexSearchQuery = "";
@@ -533,3 +572,4 @@ window.resetCodexToIndex = resetCodexToIndex;
 window.openCodexMobileControls = openCodexMobileControls;
 window.closeCodexMobileControls = closeCodexMobileControls;
 window.fitCodexHeaderText = fitCodexHeaderText;
+window.resetCodexHeaderFitStyles = resetCodexHeaderFitStyles;
