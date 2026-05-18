@@ -1,0 +1,130 @@
+{
+  "createPoiSuccess": {
+    "ok": true,
+    "action": "createRecord",
+    "entityType": "poi",
+    "id": "POI-0124",
+    "rowNumber": 126,
+    "row": {
+      "POI_ID": "POI-0124",
+      "Name": "The Salt-Crowned Shrine",
+      "POI_Type": "Shrine",
+      "Hex_ID_Ref": "HEX-0123",
+      "Region_ID_Ref": "REG-0007",
+      "POI_Group_ID": "PGRP-0002",
+      "Notoriety Tier": "Local",
+      "Summary": "A wind-scoured shrine overlooking the coast.",
+      "Description": "Ancient stones crusted with sea salt surround a cracked altar.",
+      "Player_Visible": "TRUE",
+      "Created_At": "2026-05-17T22:45:00.000Z",
+      "Created_By": "writer@example.com",
+      "Updated_At": "2026-05-17T22:45:00.000Z",
+      "Updated_By": "writer@example.com"
+    },
+    "actor": {
+      "actorEmail": "writer@example.com",
+      "mode": "session-email"
+    }
+  },
+  "updatePoiSuccess": {
+    "ok": true,
+    "action": "updateRecord",
+    "entityType": "poi",
+    "id": "POI-0042",
+    "rowNumber": 44,
+    "row": {
+      "POI_ID": "POI-0042",
+      "Name": "Existing POI",
+      "Summary": "Updated short player-facing summary.",
+      "Notoriety Tier": "Regional",
+      "Updated_At": "2026-05-17T22:46:00.000Z",
+      "Updated_By": "writer@example.com"
+    },
+    "actor": {
+      "actorEmail": "writer@example.com",
+      "mode": "session-email"
+    }
+  },
+  "uploadSuccess": {
+    "ok": true,
+    "action": "uploadFile",
+    "entityType": "poi",
+    "upload": {
+      "fileId": "1abcDEFghiJKLmnoPQRstuVWxyz",
+      "name": "salt-crowned-shrine.webp",
+      "mimeType": "image/webp",
+      "url": "https://drive.google.com/file/d/1abcDEFghiJKLmnoPQRstuVWxyz/view?usp=drivesdk",
+      "folderKey": "poiImage"
+    },
+    "actor": {
+      "actorEmail": "writer@example.com",
+      "mode": "session-email"
+    }
+  },
+  "uploadAndLinkSuccess": {
+    "ok": true,
+    "action": "uploadAndLinkFile",
+    "entityType": "poi",
+    "linkedEntityType": "poi",
+    "id": "POI-0042",
+    "upload": {
+      "fileId": "1abcDEFghiJKLmnoPQRstuVWxyz",
+      "name": "salt-crowned-shrine.webp",
+      "mimeType": "image/webp",
+      "url": "https://drive.google.com/file/d/1abcDEFghiJKLmnoPQRstuVWxyz/view?usp=drivesdk",
+      "folderKey": "poiImage"
+    },
+    "rowNumber": 44,
+    "row": {
+      "POI_ID": "POI-0042",
+      "Image_Drive_ID": "1abcDEFghiJKLmnoPQRstuVWxyz"
+    },
+    "actor": {
+      "actorEmail": "writer@example.com",
+      "mode": "session-email"
+    }
+  },
+  "journalSuccess": {
+    "ok": true,
+    "action": "createDmJournalEntry",
+    "entityType": "dmJournal",
+    "id": "JRN-00018",
+    "rowNumber": 19,
+    "row": {
+      "Entry_ID": "JRN-00018",
+      "Timestamp": "2026-05-17T22:47:00.000Z",
+      "Created_By": "writer@example.com",
+      "Session_ID": "S004",
+      "Source_Type": "poi",
+      "Source_ID": "POI-0042",
+      "Entry_Type": "secret",
+      "Entry_Body": "The shrine bell rings only when something beneath the bay moves.",
+      "Player_Visible": "FALSE"
+    },
+    "actor": {
+      "actorEmail": "writer@example.com",
+      "mode": "session-email"
+    }
+  },
+  "errorUnknownField": {
+    "ok": false,
+    "error": {
+      "message": "Unsupported field(s): Made_Up_Field",
+      "name": "Error"
+    }
+  },
+  "errorUnauthorized": {
+    "ok": false,
+    "error": {
+      "message": "Unauthorized writer: someone@example.com.",
+      "name": "Error"
+    }
+  },
+  "errorMissingHeader": {
+    "ok": false,
+    "error": {
+      "message": "POIs is missing required header(s): POI_ID",
+      "name": "Error"
+    }
+  }
+}
