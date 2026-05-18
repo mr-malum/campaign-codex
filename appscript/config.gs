@@ -1,12 +1,12 @@
 /**
  * Kadesh Codex Apps Script write-back prototype configuration.
  *
- * Keep this file explicit. The prototype should fail closed when required
- * spreadsheet IDs, folder IDs, tab names, or headers have not been confirmed.
+ * This version is aligned to the current live Google Sheet tab/header schema
+ * provided during prototype setup.
  */
 
 const KADESH_CONFIG = {
-  apiVersion: "prototype-0.1",
+  apiVersion: "prototype-0.2",
 
   /**
    * ScriptProperties expected before deployment:
@@ -16,6 +16,8 @@ const KADESH_CONFIG = {
    * - KADESH_FOLDER_POI_IMAGES: Drive folder ID for POI images
    * - KADESH_FOLDER_NPC_IMAGES: Drive folder ID for NPC images
    * - KADESH_FOLDER_MAP_IMAGES: Drive folder ID for map images
+   * - KADESH_FOLDER_REGION_IMAGES: Drive folder ID for region images
+   * - KADESH_FOLDER_POI_GROUP_IMAGES: Drive folder ID for POI group images
    * - KADESH_FOLDER_MISC_UPLOADS: fallback Drive folder ID
    */
   scriptProperties: {
@@ -23,7 +25,9 @@ const KADESH_CONFIG = {
     allowedWriters: "KADESH_ALLOWED_WRITERS",
     sharedSecret: "KADESH_SHARED_SECRET",
     folders: {
+      regionImage: "KADESH_FOLDER_REGION_IMAGES",
       poiImage: "KADESH_FOLDER_POI_IMAGES",
+      poiGroupImage: "KADESH_FOLDER_POI_GROUP_IMAGES",
       npcImage: "KADESH_FOLDER_NPC_IMAGES",
       mapImage: "KADESH_FOLDER_MAP_IMAGES",
       misc: "KADESH_FOLDER_MISC_UPLOADS"
@@ -31,10 +35,37 @@ const KADESH_CONFIG = {
   },
 
   /**
-   * These names/headers are deliberately explicit. Adjust these to the real
-   * Sheet tab names and header rows before connecting the frontend.
+   * Current live Sheet ID supplied for prototype use:
+   * 1vb-y-jgWLUIhDstZwObQph_lfJUkVhhEKuln4OuORvo
+   *
+   * Store it as ScriptProperty KADESH_SPREADSHEET_ID rather than hard-coding
+   * it here, so the same code can be tested against clones.
    */
   entities: {
+    region: {
+      label: "Region",
+      sheetName: "Regions",
+      idField: "Region_ID",
+      idPrefix: "REG-",
+      idPadding: 4,
+      requiredCreateFields: ["Region_Name"],
+      allowedCreateFields: ["Region_ID", "Region_Name", "Lore", "Image"],
+      allowedUpdateFields: ["Region_Name", "Lore", "Image"],
+      assetField: "Image",
+      assetFolderKey: "regionImage"
+    },
+
+    hex: {
+      label: "Hex",
+      sheetName: "Hexes",
+      idField: "Hex_ID",
+      idPrefix: "HEX-",
+      idPadding: 4,
+      requiredCreateFields: ["Region_ID_Ref", "Terrain", "Map_XY"],
+      allowedCreateFields: ["Hex_ID", "Region_ID_Ref", "Terrain", "Map_XY"],
+      allowedUpdateFields: ["Region_ID_Ref", "Terrain", "Map_XY"]
+    },
+
     poi: {
       label: "POI",
       sheetName: "POIs",
@@ -43,17 +74,48 @@ const KADESH_CONFIG = {
       idPadding: 4,
       requiredCreateFields: ["Name"],
       allowedCreateFields: [
-        "POI_ID", "Name", "POI_Type", "Hex_ID_Ref", "Region_ID_Ref", "POI_Group_ID",
-        "Notoriety Tier", "Description", "Summary", "Image_Drive_ID", "Map_ID_Ref",
-        "Faction_ID_Ref", "Tags", "Player_Visible", "DM_Notes"
+        "POI_ID", "POI_Group_ID", "Name", "Hex_ID_Ref", "POI_Type",
+        "Notoriety Tier", "Population", "Lore", "Image"
       ],
       allowedUpdateFields: [
-        "Name", "POI_Type", "Hex_ID_Ref", "Region_ID_Ref", "POI_Group_ID",
-        "Notoriety Tier", "Description", "Summary", "Image_Drive_ID", "Map_ID_Ref",
-        "Faction_ID_Ref", "Tags", "Player_Visible", "DM_Notes"
+        "POI_Group_ID", "Name", "Hex_ID_Ref", "POI_Type",
+        "Notoriety Tier", "Population", "Lore", "Image"
       ],
-      assetField: "Image_Drive_ID",
+      assetField: "Image",
       assetFolderKey: "poiImage"
+    },
+
+    poiGroup: {
+      label: "POI Group",
+      sheetName: "POI_Groups",
+      idField: "POI_Group_ID",
+      idPrefix: "PGRP-",
+      idPadding: 4,
+      requiredCreateFields: ["POI_Group_Name"],
+      allowedCreateFields: [
+        "POI_Group_ID", "POI_Group_Name", "Group_Type", "Population", "Lore", "Image"
+      ],
+      allowedUpdateFields: ["POI_Group_Name", "Group_Type", "Population", "Lore", "Image"],
+      assetField: "Image",
+      assetFolderKey: "poiGroupImage"
+    },
+
+    map: {
+      label: "Map",
+      sheetName: "Maps",
+      idField: "Map_ID",
+      idPrefix: "MAP-",
+      idPadding: 4,
+      requiredCreateFields: ["Owner_Type", "Owner_ID_Ref", "Map_Name"],
+      allowedCreateFields: [
+        "Map_ID", "Owner_Type", "Owner_ID_Ref", "Map_Name", "Map_Type",
+        "Image", "Sort_Order", "Lore"
+      ],
+      allowedUpdateFields: [
+        "Owner_Type", "Owner_ID_Ref", "Map_Name", "Map_Type", "Image", "Sort_Order", "Lore"
+      ],
+      assetField: "Image",
+      assetFolderKey: "mapImage"
     },
 
     npc: {
@@ -64,54 +126,47 @@ const KADESH_CONFIG = {
       idPadding: 4,
       requiredCreateFields: ["Name"],
       allowedCreateFields: [
-        "NPC_ID", "Name", "Race", "Occupation", "Faction", "Home_ID_Ref", "POI_ID_Ref",
-        "POI_Group_ID_Ref", "Description", "Summary", "Image_Drive_ID", "Tags",
-        "Player_Visible", "DM_Notes"
+        "NPC_ID", "Home_ID_Ref", "Title", "Name", "Organization",
+        "Race", "Occupation", "Lore", "Image"
       ],
       allowedUpdateFields: [
-        "Name", "Race", "Occupation", "Faction", "Home_ID_Ref", "POI_ID_Ref",
-        "POI_Group_ID_Ref", "Description", "Summary", "Image_Drive_ID", "Tags",
-        "Player_Visible", "DM_Notes"
+        "Home_ID_Ref", "Title", "Name", "Organization", "Race", "Occupation", "Lore", "Image"
       ],
-      assetField: "Image_Drive_ID",
+      assetField: "Image",
       assetFolderKey: "npcImage"
-    },
-
-    map: {
-      label: "Map",
-      sheetName: "Maps",
-      idField: "Map_ID",
-      idPrefix: "MAP-",
-      idPadding: 4,
-      requiredCreateFields: ["Map_Name", "Owner_Type", "Owner_ID_Ref"],
-      allowedCreateFields: [
-        "Map_ID", "Map_Name", "Owner_Type", "Owner_ID_Ref", "Map_Drive_ID",
-        "Sort_Order", "Caption", "Player_Visible", "DM_Notes"
-      ],
-      allowedUpdateFields: [
-        "Map_Name", "Owner_Type", "Owner_ID_Ref", "Map_Drive_ID",
-        "Sort_Order", "Caption", "Player_Visible", "DM_Notes"
-      ],
-      assetField: "Map_Drive_ID",
-      assetFolderKey: "mapImage"
     },
 
     dmJournal: {
       label: "DM Journal",
-      sheetName: "DM Journal",
+      sheetName: "DM_Journal",
       idField: "Entry_ID",
       idPrefix: "JRN-",
       idPadding: 5,
-      requiredCreateFields: ["Source_Type", "Source_ID", "Entry_Body"],
+      requiredCreateFields: ["Entry_Body", "Entry_Type", "Source_Type", "Source_ID"],
       allowedCreateFields: [
-        "Entry_ID", "Timestamp", "Created_By", "Session_ID", "Source_Type", "Source_ID",
-        "Entry_Type", "Entry_Body", "Player_Visible"
+        "Entry_ID", "Entry_Body", "Entry_Type", "Source_Type", "Source_ID",
+        "Timestamp", "Created_By", "Session_ID", "Visibility"
       ],
       allowedUpdateFields: [
-        "Timestamp", "Created_By", "Session_ID", "Source_Type", "Source_ID",
-        "Entry_Type", "Entry_Body", "Player_Visible"
+        "Entry_Body", "Entry_Type", "Source_Type", "Source_ID",
+        "Timestamp", "Created_By", "Session_ID", "Visibility"
       ]
     }
+  },
+
+  entityAliases: {
+    regions: "region",
+    hexes: "hex",
+    pois: "poi",
+    poi_group: "poiGroup",
+    poi_groups: "poiGroup",
+    poigroup: "poiGroup",
+    poigroups: "poiGroup",
+    maps: "map",
+    npcs: "npc",
+    dm_journal: "dmJournal",
+    dmjournal: "dmJournal",
+    journal: "dmJournal"
   },
 
   allowedMimeTypes: [
@@ -150,7 +205,9 @@ function getFolderId_(folderKey) {
 }
 
 function getEntityConfig_(entityType) {
-  const key = String(entityType || "").trim();
+  const rawKey = String(entityType || "").trim();
+  const aliasKey = rawKey.toLowerCase();
+  const key = KADESH_CONFIG.entityAliases[aliasKey] || rawKey;
   const entity = KADESH_CONFIG.entities[key];
   if (!entity) {
     throw new Error(`Unsupported entityType: ${entityType}`);
