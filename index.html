@@ -48,9 +48,48 @@
     <h2 id="campaign-settings-title">Settings</h2>
     <div class="campaign-settings-actions">
       <button id="campaign-settings-guides-button" type="button">Guides</button>
+      <button id="campaign-settings-campaign-button" type="button">Campaign Settings</button>
       <button id="campaign-settings-signout-button" type="button">Sign Out</button>
     </div>
     <button id="campaign-settings-close-button" type="button">Close</button>
+  </div>
+
+  <div id="campaign-manage-menu" class="campaign-settings-menu hidden" role="dialog" aria-modal="true" aria-labelledby="campaign-manage-title">
+    <h2 id="campaign-manage-title">Campaign Settings</h2>
+
+    <section class="campaign-settings-members" aria-label="Campaign members">
+      <h3>Members</h3>
+      <div id="campaign-settings-member-list" class="campaign-settings-member-list"></div>
+      <button id="campaign-open-add-member-button" type="button">Add Member</button>
+      <p id="campaign-member-status" class="campaign-member-status" role="status"></p>
+    </section>
+
+    <button id="campaign-manage-back-button" type="button">Back</button>
+  </div>
+
+  <div id="campaign-add-member-menu" class="campaign-settings-menu hidden" role="dialog" aria-modal="true" aria-labelledby="campaign-add-member-title">
+    <h2 id="campaign-add-member-title">Add Member</h2>
+
+    <form id="campaign-add-member-form">
+      <label>
+        <span>Username</span>
+        <input id="campaign-add-member-username" type="text" autocomplete="off" required>
+      </label>
+
+      <label>
+        <span>Role</span>
+        <select id="campaign-add-member-role">
+          <option value="editor">Editor</option>
+          <option value="viewer">Viewer</option>
+          <option value="player">Player</option>
+        </select>
+      </label>
+
+      <button id="campaign-add-member-submit" type="submit">Add Member</button>
+    </form>
+
+    <p id="campaign-add-member-status" class="campaign-member-status" role="status"></p>
+    <button id="campaign-add-member-back-button" type="button">Back</button>
   </div>
 </div>
 

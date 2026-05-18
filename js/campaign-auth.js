@@ -37,6 +37,20 @@ function hideCampaignAuthGate() {
   getCampaignAuthGate()?.classList.add("hidden");
 }
 
+function setCampaignMemberStatus(message = "") {
+  const status = document.getElementById("campaign-member-status");
+  if (status) {
+    status.textContent = message;
+  }
+}
+
+function setCampaignAddMemberStatus(message = "") {
+  const status = document.getElementById("campaign-add-member-status");
+  if (status) {
+    status.textContent = message;
+  }
+}
+
 function escapeCampaignHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -66,10 +80,13 @@ function hideCampaignSettings() {
 function openCampaignSettingsMenu() {
   document.getElementById("campaign-settings-menu")?.classList.remove("hidden");
   document.getElementById("campaign-settings-button")?.setAttribute("aria-expanded", "true");
+  refreshCampaignMembers();
 }
 
 function closeCampaignSettingsMenu() {
   document.getElementById("campaign-settings-menu")?.classList.add("hidden");
+  document.getElementById("campaign-manage-menu")?.classList.add("hidden");
+  document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
   document.getElementById("campaign-settings-button")?.setAttribute("aria-expanded", "false");
 }
 
@@ -81,6 +98,83 @@ function toggleCampaignSettingsMenu() {
   } else {
     closeCampaignSettingsMenu();
   }
+}
+
+async function fetchCampaignMembers(campaignId) {
+  const { data: memberships, error } = await campaignSupabase
+    .from("campaign_members")
+    .select("user_id, role, created_at")
+    .eq("campaign_id", campaignId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const userIds = (memberships || []).map(member => member.user_id);
+  if (!userIds.length) return [];
+
+  const { data: profiles, error: profileError } = await campaignSupabase
+    .from("profiles")
+    .select("id, username")
+    .in("id", userIds);
+
+  if (profileError) throw profileError;
+
+  const profilesById = Object.fromEntries((profiles || []).map(profile => [profile.id, profile]));
+
+  return (memberships || []).map(member => ({
+    ...member,
+    username: profilesById[member.user_id]?.username || ""
+  }));
+}
+
+function renderCampaignMembers(members) {
+  const list = document.getElementById("campaign-settings-member-list");
+  if (!list) return;
+
+  if (!members.length) {
+    list.innerHTML = `<div class="campaign-picker-empty">No members recorded.</div>`;
+    return;
+  }
+
+  list.innerHTML = members.map(member => `
+    <div class="campaign-settings-member-row">
+      <span>${escapeCampaignHtml(member.username || "Unknown user")}</span>
+      <span>${escapeCampaignHtml(member.role === "owner" ? "Owner" : member.role || "")}</span>
+    </div>
+  `).join("");
+}
+
+async function refreshCampaignMembers() {
+  if (!activeCampaign) return;
+
+  try {
+    const members = await fetchCampaignMembers(activeCampaign.id);
+    renderCampaignMembers(members);
+  } catch (error) {
+    console.error("Failed to load campaign members:", error);
+    setCampaignMemberStatus("Unable to load members.");
+  }
+}
+
+function openCampaignManageMenu() {
+  document.getElementById("campaign-settings-menu")?.classList.add("hidden");
+  document.getElementById("campaign-manage-menu")?.classList.remove("hidden");
+  document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
+  setCampaignMemberStatus("");
+  refreshCampaignMembers();
+}
+
+function openCampaignAddMemberMenu() {
+  document.getElementById("campaign-settings-menu")?.classList.add("hidden");
+  document.getElementById("campaign-manage-menu")?.classList.add("hidden");
+  document.getElementById("campaign-add-member-menu")?.classList.remove("hidden");
+  setCampaignAddMemberStatus("");
+}
+
+function returnToMainSettingsMenu() {
+  document.getElementById("campaign-settings-menu")?.classList.remove("hidden");
+  document.getElementById("campaign-manage-menu")?.classList.add("hidden");
+  document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
 }
 
 function setCampaignAuthMode(mode) {
@@ -276,6 +370,37 @@ async function handleCampaignSignOut() {
   setCampaignAuthStatus("");
 }
 
+async function handleAddCampaignMember(event) {
+  event.preventDefault();
+
+  if (!activeCampaign) return;
+
+  const username = document.getElementById("campaign-add-member-username")?.value.trim();
+  const role = document.getElementById("campaign-add-member-role")?.value;
+
+  if (!username || !role) return;
+
+  setCampaignAddMemberStatus("Adding member...");
+
+  try {
+    const { error } = await campaignSupabase.rpc("add_campaign_member_by_username", {
+      target_campaign_id: activeCampaign.id,
+      target_username: username,
+      target_role: role
+    });
+
+    if (error) throw error;
+
+    document.getElementById("campaign-add-member-form")?.reset();
+    setCampaignAddMemberStatus("Member added.");
+    await refreshCampaignMembers();
+    openCampaignManageMenu();
+  } catch (error) {
+    console.error("Failed to add campaign member:", error);
+    setCampaignAddMemberStatus(error.message || "Unable to add member.");
+  }
+}
+
 function handleCampaignPickerClick(event) {
   const button = event.target.closest("[data-campaign-id]");
   if (!button) return;
@@ -307,6 +432,16 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", handleCampaignSignOut);
   document.getElementById("campaign-settings-close-button")
     ?.addEventListener("click", closeCampaignSettingsMenu);
+  document.getElementById("campaign-settings-campaign-button")
+    ?.addEventListener("click", openCampaignManageMenu);
+  document.getElementById("campaign-open-add-member-button")
+    ?.addEventListener("click", openCampaignAddMemberMenu);
+  document.getElementById("campaign-manage-back-button")
+    ?.addEventListener("click", returnToMainSettingsMenu);
+  document.getElementById("campaign-add-member-back-button")
+    ?.addEventListener("click", openCampaignManageMenu);
+  document.getElementById("campaign-add-member-form")
+    ?.addEventListener("submit", handleAddCampaignMember);
   document.getElementById("campaign-settings-button")
     ?.addEventListener("click", toggleCampaignSettingsMenu);
   document.getElementById("campaign-settings-guides-button")
