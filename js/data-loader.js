@@ -416,7 +416,7 @@ function groupMapsByOwner(rows) {
 
 async function loadDatabase() {
   const campaign = await bootstrapCampaignSession();
-  if (!campaign) {
+  if (!campaign || getActiveCampaign()?.id !== campaign.id) {
     return null;
   }
 
