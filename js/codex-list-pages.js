@@ -291,6 +291,10 @@ function renderCodexPoisIndex() {
 
     renderList: renderPoiListIntoContainer
   });
+
+  if (typeof injectKadeshPoiWritebackButton === "function") {
+    injectKadeshPoiWritebackButton();
+  }
 }
 
 function renderCodexNpcsIndex() {
