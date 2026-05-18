@@ -129,7 +129,8 @@
     pointer-events: none !important;
   }
 
-  #codex-overlay #codex-mobile-debug-toggle {
+  #codex-overlay #codex-context-action,
+  #codex-overlay #codex-context-delete {
     position: static !important;
     left: auto !important;
     right: auto !important;
@@ -140,16 +141,26 @@
     min-width: 40px !important;
   }
 
+  #codex-overlay #codex-context-action[hidden],
+  #codex-overlay #codex-context-delete[hidden] {
+    display: none !important;
+  }
+
   #codex-overlay #codex-back,
   #codex-overlay #codex-search-button,
   #codex-overlay #codex-close {
     flex: 0 0 auto !important;
   }
+
+  #codex-overlay #codex-back {
+    margin-left: auto !important;
+  }
 }
 
 @media (min-width: 1100px) and (min-height: 700px) {
   #codex-mobile-page-control,
-  #codex-mobile-debug-toggle {
+  #codex-context-action,
+  #codex-context-delete {
     display: none !important;
   }
 }
@@ -173,7 +184,8 @@
     flex-basis: clamp(104px, 28%, 140px) !important;
   }
 
-  #codex-overlay #codex-mobile-debug-toggle {
+  #codex-overlay #codex-context-action,
+  #codex-overlay #codex-context-delete {
     min-width: 36px !important;
   }
 }

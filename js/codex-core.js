@@ -457,6 +457,7 @@ function maybeRefreshCodexLeftManuscript(type) {
 }
 
 function renderCodexPage(type, id) {
+  updateCodexContextAction?.(type);
   maybeRefreshCodexLeftManuscript(type);
 
   if (databaseLoadError) {

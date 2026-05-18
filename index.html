@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/codex-book-stage.css">
   <link rel="stylesheet" href="css/codex-left-manuscript.css">
   <link rel="stylesheet" href="css/codex-image-modal.css">
+  <link rel="stylesheet" href="css/codex-editor.css">
   <link rel="stylesheet" href="css/mobile.css">
   <link rel="stylesheet" href="css/codex-mobile-foundation.css">
   <link rel="stylesheet" href="css/codex-mobile-nav.css">
@@ -47,8 +48,9 @@
   <div id="campaign-settings-menu" class="campaign-settings-menu hidden" role="dialog" aria-modal="true" aria-labelledby="campaign-settings-title">
     <h2 id="campaign-settings-title">Settings</h2>
     <div class="campaign-settings-actions">
-      <button id="campaign-settings-guides-button" type="button">Guides</button>
+      <button id="campaign-settings-guides-button" type="button">Debug</button>
       <button id="campaign-settings-campaign-button" type="button">Campaign Settings</button>
+      <button id="campaign-settings-picker-button" type="button">Return to Campaign List</button>
       <button id="campaign-settings-signout-button" type="button">Sign Out</button>
     </div>
     <button id="campaign-settings-close-button" type="button">Close</button>
@@ -64,6 +66,7 @@
       <p id="campaign-member-status" class="campaign-member-status" role="status"></p>
     </section>
 
+    <button id="campaign-settings-leave-button" type="button">Leave Campaign</button>
     <button id="campaign-manage-back-button" type="button">Back</button>
   </div>
 
@@ -214,6 +217,11 @@
       <div class="panel-nav codex-panel-nav">
         <div id="codex-breadcrumbs"></div>
 
+        <div id="codex-desktop-context-action-shell" hidden>
+          <button id="codex-desktop-context-delete" type="button" hidden>Delete</button>
+          <button id="codex-desktop-context-action" type="button"></button>
+        </div>
+
         <div class="codex-control-cluster" aria-label="Codex controls">
           <button
             id="codex-mobile-page-control"
@@ -221,6 +229,8 @@
             hidden
           ></button>
 
+          <button id="codex-context-delete" type="button" hidden>Delete</button>
+          <button id="codex-context-action" type="button" hidden></button>
           <button id="codex-back" type="button" disabled aria-label="Back">❮</button>
           <button id="codex-search-button" type="button">Search</button>
           <button id="codex-close" type="button" aria-label="Close">✕</button>
@@ -228,6 +238,72 @@
       </div>
 
     </div>
+  </div>
+</div>
+
+<div id="codex-editor-modal" class="codex-editor-modal hidden" aria-hidden="true">
+  <div class="codex-editor-sheet">
+    <h2 id="codex-editor-title">Add NPC</h2>
+
+    <form id="codex-add-npc-form">
+      <div class="codex-editor-fields">
+        <label>
+          <span>Name *</span>
+          <input id="codex-add-npc-name" type="text" required>
+        </label>
+
+        <label>
+          <span>Title</span>
+          <input id="codex-add-npc-title" type="text">
+        </label>
+
+        <label>
+          <span>Organization</span>
+          <input id="codex-add-npc-organization" type="text">
+        </label>
+
+        <label>
+          <span>Race *</span>
+          <input id="codex-add-npc-race" type="text" required>
+        </label>
+
+        <label>
+          <span>Occupation *</span>
+          <input id="codex-add-npc-occupation" type="text" required>
+        </label>
+
+        <label>
+          <span>Home *</span>
+          <select id="codex-add-npc-home" required></select>
+        </label>
+
+        <label>
+          <span>Lore</span>
+          <textarea id="codex-add-npc-lore" rows="5"></textarea>
+        </label>
+      </div>
+
+      <div class="codex-editor-actions">
+        <button type="submit">Create NPC</button>
+        <button id="codex-editor-close" type="button">Cancel</button>
+      </div>
+    </form>
+
+    <p id="codex-editor-status" class="campaign-member-status" role="status"></p>
+  </div>
+</div>
+
+<div id="codex-delete-modal" class="codex-editor-modal hidden" aria-hidden="true">
+  <div class="codex-editor-sheet codex-delete-sheet">
+    <h2>Delete Record</h2>
+    <p id="codex-delete-message" class="codex-delete-message"></p>
+
+    <div class="codex-editor-actions">
+      <button id="codex-delete-confirm" type="button">Delete</button>
+      <button id="codex-delete-cancel" type="button">Cancel</button>
+    </div>
+
+    <p id="codex-delete-status" class="campaign-member-status" role="status"></p>
   </div>
 </div>
  
@@ -269,6 +345,7 @@
 <script src="js/codex-list-pages.js"></script>
 <script src="js/codex-list-config.js"></script>
 <script src="js/codex-search-page.js"></script>
+<script src="js/codex-editor.js"></script>
 <script src="js/codex-mobile-utility.js"></script>
 <script src="js/codex-mobile-list-utility.js"></script>
 <script src="js/codex-mobile-detail-sections.js"></script>

@@ -77,6 +77,16 @@ function hideCampaignSettings() {
   closeCampaignSettingsMenu();
 }
 
+function clearActiveCampaignState() {
+  activeCampaign = null;
+  window.db = null;
+  if (typeof db !== "undefined") {
+    db = null;
+  }
+  closeCodex?.();
+  closePanel?.({ clearSelection: true });
+}
+
 function openCampaignSettingsMenu() {
   document.getElementById("campaign-settings-menu")?.classList.remove("hidden");
   document.getElementById("campaign-settings-button")?.setAttribute("aria-expanded", "true");
@@ -138,8 +148,16 @@ function renderCampaignMembers(members) {
 
   list.innerHTML = members.map(member => `
     <div class="campaign-settings-member-row">
-      <span>${escapeCampaignHtml(member.username || "Unknown user")}</span>
-      <span>${escapeCampaignHtml(member.role === "owner" ? "Owner" : member.role || "")}</span>
+      <span class="campaign-settings-member-name">${escapeCampaignHtml(member.username || "Unknown user")}</span>
+      <span class="campaign-settings-member-role">${escapeCampaignHtml(member.role === "owner" ? "Owner" : member.role || "")}</span>
+      ${member.role === "owner"
+        ? `<span class="campaign-settings-member-locked">—</span>`
+        : `<button
+            class="campaign-remove-member-button"
+            type="button"
+            data-user-id="${escapeCampaignHtml(member.user_id)}"
+            data-username="${escapeCampaignHtml(member.username || "Unknown user")}"
+          >Remove</button>`}
     </div>
   `).join("");
 }
@@ -200,6 +218,21 @@ async function fetchAvailableCampaigns() {
   return data || [];
 }
 
+async function fetchCurrentCampaignRole(campaignId) {
+  const userId = activeSession?.user?.id;
+  if (!campaignId || !userId) return null;
+
+  const { data, error } = await campaignSupabase
+    .from("campaign_members")
+    .select("role")
+    .eq("campaign_id", campaignId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.role || null;
+}
+
 async function fetchCurrentProfile() {
   const userId = activeSession?.user?.id;
   if (!userId) return null;
@@ -236,15 +269,32 @@ function renderCampaignPicker(profile, campaigns) {
   }
 
   list.innerHTML = campaigns.map(campaign => `
-    <button
-      class="campaign-picker-item"
-      type="button"
-      data-campaign-id="${campaign.id}"
-    >
-      <strong>${escapeCampaignHtml(campaign.name)}</strong>
-      <span>${escapeCampaignHtml(campaign.slug)}</span>
-    </button>
+    <div class="campaign-picker-row">
+      <button
+        class="campaign-picker-item"
+        type="button"
+        data-campaign-id="${campaign.id}"
+      >
+        <strong>${escapeCampaignHtml(campaign.name)}</strong>
+        <span>${escapeCampaignHtml(campaign.slug)}</span>
+      </button>
+      <button
+        class="campaign-picker-leave-button"
+        type="button"
+        data-leave-campaign-id="${campaign.id}"
+        data-campaign-name="${escapeCampaignHtml(campaign.name)}"
+      >Leave</button>
+    </div>
   `).join("");
+}
+
+async function showCampaignPickerForCurrentUser() {
+  availableCampaigns = await fetchAvailableCampaigns();
+  const profile = await fetchCurrentProfile();
+  renderCampaignPicker(profile, availableCampaigns);
+  hideCampaignAuthGate();
+  hideCampaignSettings();
+  showCampaignPickerGate();
 }
 
 async function bootstrapCampaignSession() {
@@ -265,13 +315,7 @@ async function bootstrapCampaignSession() {
       return activeCampaign;
     }
 
-    availableCampaigns = await fetchAvailableCampaigns();
-    const profile = await fetchCurrentProfile();
-
-    hideCampaignAuthGate();
-    hideCampaignSettings();
-    renderCampaignPicker(profile, availableCampaigns);
-    showCampaignPickerGate();
+    await showCampaignPickerForCurrentUser();
     return null;
   })();
 
@@ -370,13 +414,9 @@ async function handleCampaignSignupSubmit(event) {
 
 async function handleCampaignSignOut() {
   await campaignSupabase.auth.signOut();
-  activeCampaign = null;
+  clearActiveCampaignState();
   activeSession = null;
   availableCampaigns = [];
-  window.db = null;
-  if (typeof db !== "undefined") {
-    db = null;
-  }
   hideCampaignPickerGate();
   showCampaignAuthGate();
   hideCampaignSettings();
@@ -388,12 +428,19 @@ async function handleCampaignSignOut() {
   setCampaignAuthStatus("");
 }
 
+async function returnToCampaignList() {
+  if (!activeSession) return;
+
+  clearActiveCampaignState();
+  await showCampaignPickerForCurrentUser();
+}
+
 async function handleAddCampaignMember(event) {
   event.preventDefault();
 
   if (!activeCampaign) return;
 
-  const username = document.getElementById("campaign-add-member-username")?.value.trim();
+  const username = document.getElementById("campaign-add-member-username")?.value.trim().toLowerCase();
   const role = document.getElementById("campaign-add-member-role")?.value;
 
   if (!username || !role) return;
@@ -419,7 +466,79 @@ async function handleAddCampaignMember(event) {
   }
 }
 
+async function handleRemoveCampaignMember(event) {
+  const button = event.target.closest(".campaign-remove-member-button");
+  if (!button || !activeCampaign) return;
+
+  const username = button.dataset.username || "this member";
+  const confirmed = window.confirm(`Remove ${username} from this campaign?`);
+  if (!confirmed) return;
+
+  button.disabled = true;
+  setCampaignMemberStatus("Removing member...");
+
+  try {
+    const { error } = await campaignSupabase.rpc("remove_campaign_member", {
+      target_campaign_id: activeCampaign.id,
+      target_user_id: button.dataset.userId
+    });
+
+    if (error) throw error;
+
+    setCampaignMemberStatus("Member removed.");
+    await refreshCampaignMembers();
+  } catch (error) {
+    console.error("Failed to remove campaign member:", error);
+    setCampaignMemberStatus(error.message || "Unable to remove member.");
+    button.disabled = false;
+  }
+}
+
+async function leaveCampaign(campaignId, campaignName = "this campaign") {
+  const role = await fetchCurrentCampaignRole(campaignId);
+  if (role === "owner") {
+    const message = "You can not leave owned campaign.";
+    setCampaignMemberStatus(message);
+    window.alert(message);
+    return;
+  }
+
+  const confirmed = window.confirm(`ARE YOU SURE?\n\nLeave ${campaignName}? You will lose access unless an owner adds you back.`);
+  if (!confirmed) return;
+
+  try {
+    const { error } = await campaignSupabase.rpc("leave_campaign", {
+      target_campaign_id: campaignId
+    });
+
+    if (error) throw error;
+
+    if (activeCampaign?.id === campaignId) {
+      clearActiveCampaignState();
+    }
+
+    await showCampaignPickerForCurrentUser();
+  } catch (error) {
+    console.error("Failed to leave campaign:", error);
+    setCampaignMemberStatus(error.message || "Unable to leave campaign.");
+  }
+}
+
+async function handleLeaveActiveCampaign() {
+  if (!activeCampaign) return;
+  await leaveCampaign(activeCampaign.id, activeCampaign.name);
+}
+
 function handleCampaignPickerClick(event) {
+  const leaveButton = event.target.closest("[data-leave-campaign-id]");
+  if (leaveButton) {
+    leaveCampaign(
+      leaveButton.dataset.leaveCampaignId,
+      leaveButton.dataset.campaignName || "this campaign"
+    );
+    return;
+  }
+
   const button = event.target.closest("[data-campaign-id]");
   if (!button) return;
 
@@ -452,6 +571,10 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", closeCampaignSettingsMenu);
   document.getElementById("campaign-settings-campaign-button")
     ?.addEventListener("click", openCampaignManageMenu);
+  document.getElementById("campaign-settings-picker-button")
+    ?.addEventListener("click", returnToCampaignList);
+  document.getElementById("campaign-settings-leave-button")
+    ?.addEventListener("click", handleLeaveActiveCampaign);
   document.getElementById("campaign-open-add-member-button")
     ?.addEventListener("click", openCampaignAddMemberMenu);
   document.getElementById("campaign-manage-back-button")
@@ -460,6 +583,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", openCampaignManageMenu);
   document.getElementById("campaign-add-member-form")
     ?.addEventListener("submit", handleAddCampaignMember);
+  document.getElementById("campaign-settings-member-list")
+    ?.addEventListener("click", handleRemoveCampaignMember);
   document.getElementById("campaign-settings-button")
     ?.addEventListener("click", toggleCampaignSettingsMenu);
   document.getElementById("campaign-settings-guides-button")

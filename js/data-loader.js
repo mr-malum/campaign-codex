@@ -118,6 +118,7 @@ function adaptCampaignRows(rows, assetsById) {
   const recordMaps = buildLegacyRecordMaps(rows);
 
   const regions = rows.regions.map(region => ({
+    __uuid: region.id,
     Region_ID: region.ref_code,
     Region_Name: region.name || "",
     Lore: region.lore || "",
@@ -125,6 +126,7 @@ function adaptCampaignRows(rows, assetsById) {
   }));
 
   const hexes = rows.hexes.map(hex => ({
+    __uuid: hex.id,
     Hex_ID: hex.ref_code,
     Region_ID_Ref: recordMaps.regionsByUuid[hex.region_id] || "",
     Terrain: hex.terrain || "",
@@ -132,6 +134,7 @@ function adaptCampaignRows(rows, assetsById) {
   }));
 
   const poiGroups = rows.poiGroups.map(group => ({
+    __uuid: group.id,
     POI_Group_ID: group.slug,
     POI_Group_Name: group.name || "",
     Group_Type: group.group_type || "",
@@ -141,6 +144,7 @@ function adaptCampaignRows(rows, assetsById) {
   }));
 
   const pois = rows.pois.map(poi => ({
+    __uuid: poi.id,
     POI_ID: poi.ref_code,
     POI_Group_ID: recordMaps.poiGroupsByUuid[poi.poi_group_id] || "",
     Name: poi.name || "",
@@ -171,6 +175,7 @@ function adaptCampaignRows(rows, assetsById) {
     }
 
     return {
+      __uuid: map.id,
       Map_ID: map.ref_code,
       Owner_Type: ownerType,
       Owner_ID_Ref: ownerId,
@@ -185,6 +190,7 @@ function adaptCampaignRows(rows, assetsById) {
   });
 
   const npcs = rows.npcs.map(npc => ({
+    __uuid: npc.id,
     NPC_ID: npc.ref_code,
     Home_ID_Ref: recordMaps.poisByUuid[npc.home_poi_id] || "",
     Title: npc.title || "",
