@@ -71,6 +71,35 @@ async function postKadeshWriteback(payload) {
   return result;
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result || "");
+      resolve(value.includes(",") ? value.split(",").pop() : value);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadAndLinkKadeshPoiImage(poiId, file) {
+  return postKadeshWriteback({
+    action: "uploadAndLinkFile",
+    entityType: "poi",
+    file: {
+      name: file.name,
+      mimeType: file.type || "application/octet-stream",
+      base64: await fileToBase64(file),
+      description: `Uploaded from Kadesh POI edit prototype for ${poiId}`
+    },
+    linkTo: {
+      entityType: "poi",
+      id: poiId
+    }
+  });
+}
+
 function getKadeshWritebackPoiDefaults() {
   const firstHex = db?.raw?.hexes?.[0];
 
@@ -201,24 +230,12 @@ function openKadeshCreatePoiModal() {
 
   document.body.appendChild(modal);
 
-  modal
-    .querySelector(".kadesh-writeback-close")
-    ?.addEventListener("click", closeKadeshWritebackModal);
-
-  modal
-    .querySelector("[data-kadesh-writeback-cancel]")
-    ?.addEventListener("click", closeKadeshWritebackModal);
-
-  modal.addEventListener("click", function (event) {
-    if (event.target === modal) {
-      closeKadeshWritebackModal();
-    }
+  modal.querySelector(".kadesh-writeback-close")?.addEventListener("click", closeKadeshWritebackModal);
+  modal.querySelector("[data-kadesh-writeback-cancel]")?.addEventListener("click", closeKadeshWritebackModal);
+  modal.addEventListener("click", event => {
+    if (event.target === modal) closeKadeshWritebackModal();
   });
-
-  modal
-    .querySelector("#kadesh-create-poi-form")
-    ?.addEventListener("submit", handleKadeshCreatePoiSubmit);
-
+  modal.querySelector("#kadesh-create-poi-form")?.addEventListener("submit", handleKadeshCreatePoiSubmit);
   modal.querySelector("input[name='Name']")?.focus();
 }
 
@@ -258,10 +275,7 @@ async function handleKadeshCreatePoiSubmit(event) {
     });
 
     closeKadeshWritebackModal();
-
-    window.alert(
-      `Created ${result.id}.\n\nRefresh the Codex after the published Sheet CSV catches up.`
-    );
+    window.alert(`Created ${result.id}.\n\nRefresh the Codex after the published Sheet CSV catches up.`);
   } catch (error) {
     window.alert(`Create POI failed:\n\n${error.message}`);
   } finally {
@@ -302,11 +316,9 @@ function injectKadeshPoiDetailWritebackButton() {
 
   overviewPanel.prepend(toolbar);
 
-  document
-    .getElementById("kadesh-edit-poi-prototype-button")
-    ?.addEventListener("click", function () {
-      openKadeshEditPoiModal(poi);
-    });
+  document.getElementById("kadesh-edit-poi-prototype-button")?.addEventListener("click", function () {
+    openKadeshEditPoiModal(poi);
+  });
 }
 
 function openKadeshEditPoiModal(poi) {
@@ -332,11 +344,7 @@ function openKadeshEditPoiModal(poi) {
           <h3>Edit POI</h3>
           <p class="kadesh-writeback-subtitle">${escapeHtml(poi.POI_ID)}</p>
         </div>
-        <button
-          class="kadesh-writeback-close"
-          type="button"
-          aria-label="Close edit POI form"
-        >✕</button>
+        <button class="kadesh-writeback-close" type="button" aria-label="Close edit POI form">✕</button>
       </div>
 
       <form id="kadesh-edit-poi-form" class="kadesh-writeback-form" data-poi-id="${escapeHtml(poi.POI_ID)}">
@@ -378,6 +386,11 @@ function openKadeshEditPoiModal(poi) {
         </label>
 
         <label>
+          <span>Upload/replace POI image</span>
+          <input name="ImageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+        </label>
+
+        <label>
           <span>Lore</span>
           <textarea name="Lore" rows="9">${escapeHtml(poi.Lore || "")}</textarea>
         </label>
@@ -388,7 +401,7 @@ function openKadeshEditPoiModal(poi) {
         </div>
 
         <p class="kadesh-writeback-note">
-          Saves directly to Google Sheets. Current on-screen data still comes from the published CSV and may require refresh after Google republishes it.
+          If an image file is selected, it uploads to Drive and the returned file ID is written into the Image field. Current on-screen data still comes from the published CSV and may require refresh.
         </p>
       </form>
     </div>
@@ -396,24 +409,12 @@ function openKadeshEditPoiModal(poi) {
 
   document.body.appendChild(modal);
 
-  modal
-    .querySelector(".kadesh-writeback-close")
-    ?.addEventListener("click", closeKadeshWritebackModal);
-
-  modal
-    .querySelector("[data-kadesh-writeback-cancel]")
-    ?.addEventListener("click", closeKadeshWritebackModal);
-
-  modal.addEventListener("click", function (event) {
-    if (event.target === modal) {
-      closeKadeshWritebackModal();
-    }
+  modal.querySelector(".kadesh-writeback-close")?.addEventListener("click", closeKadeshWritebackModal);
+  modal.querySelector("[data-kadesh-writeback-cancel]")?.addEventListener("click", closeKadeshWritebackModal);
+  modal.addEventListener("click", event => {
+    if (event.target === modal) closeKadeshWritebackModal();
   });
-
-  modal
-    .querySelector("#kadesh-edit-poi-form")
-    ?.addEventListener("submit", handleKadeshEditPoiSubmit);
-
+  modal.querySelector("#kadesh-edit-poi-form")?.addEventListener("submit", handleKadeshEditPoiSubmit);
   modal.querySelector("input[name='Name']")?.focus();
 }
 
@@ -423,6 +424,7 @@ async function handleKadeshEditPoiSubmit(event) {
   const form = event.currentTarget;
   const submitButton = form.querySelector("button[type='submit']");
   const poiId = form.dataset.poiId;
+  const imageFile = form.querySelector("input[name='ImageUpload']")?.files?.[0] || null;
 
   const fields = {
     POI_Group_ID: getFormValue_(form, "POI_Group_ID"),
@@ -436,21 +438,28 @@ async function handleKadeshEditPoiSubmit(event) {
   };
 
   submitButton.disabled = true;
-  submitButton.textContent = "Saving...";
+  submitButton.textContent = imageFile ? "Saving + Uploading..." : "Saving...";
 
   try {
-    const result = await postKadeshWriteback({
+    const updateResult = await postKadeshWriteback({
       action: "updateRecord",
       entityType: "poi",
       id: poiId,
       fields
     });
 
+    let uploadResult = null;
+    if (imageFile) {
+      uploadResult = await uploadAndLinkKadeshPoiImage(poiId, imageFile);
+    }
+
     closeKadeshWritebackModal();
 
-    window.alert(
-      `Saved ${result.id}.\n\nRefresh the Codex after the published Sheet CSV catches up.`
-    );
+    const uploadLine = uploadResult?.upload?.fileId
+      ? `\nUploaded image: ${uploadResult.upload.fileId}`
+      : "";
+
+    window.alert(`Saved ${updateResult.id}.${uploadLine}\n\nRefresh the Codex after the published Sheet CSV catches up.`);
   } catch (error) {
     window.alert(`Edit POI failed:\n\n${error.message}`);
   } finally {
@@ -507,6 +516,7 @@ window.KADESH_WRITEBACK_PROTOTYPE = KADESH_WRITEBACK_PROTOTYPE;
 window.postKadeshWriteback = postKadeshWriteback;
 window.openKadeshCreatePoiModal = openKadeshCreatePoiModal;
 window.openKadeshEditPoiModal = openKadeshEditPoiModal;
+window.uploadAndLinkKadeshPoiImage = uploadAndLinkKadeshPoiImage;
 window.injectKadeshPoiWritebackButton = injectKadeshPoiWritebackButton;
 window.injectKadeshPoiDetailWritebackButton = injectKadeshPoiDetailWritebackButton;
 window.clearKadeshWritebackSecret = clearKadeshWritebackSecret;
