@@ -143,6 +143,20 @@ function getNpcImageUrl(npc) {
 
 function getCodexMapImageValue(map) {
   return getCodexRawAssetValue(map, [
+    "Map_Preview_URL",
+    "Map_Image_File_ID",
+    "Image_File_ID",
+    "Map_Image",
+    "Map_Image_URL",
+    "Image",
+    "Image_URL"
+  ]);
+}
+
+function getCodexMapHrefValue(map) {
+  return getCodexRawAssetValue(map, [
+    "Map_File_URL",
+    "Map_Preview_URL",
     "Map_Image_File_ID",
     "Image_File_ID",
     "Map_Image",
@@ -157,7 +171,7 @@ function getCodexMapImageUrl(map) {
 }
 
 function getCodexMapImageHref(map) {
-  return resolveCodexAssetHref(getCodexMapImageValue(map));
+  return resolveCodexAssetHref(getCodexMapHrefValue(map));
 }
 
 function getCodexAssetAttrs(imageUrl, assetKind = "record") {
@@ -193,7 +207,7 @@ function renderCodexMapCard(map) {
   const mapName = map.Map_Name || map.Map_ID || "Unnamed Map";
   const content = `<span class="codex-map-card-title">${escapeHtml(mapName)}</span>`;
 
-  if (!imageUrl) {
+  if (!mapHref) {
     return `
       <div class="codex-map-card codex-map-card-disabled codex-map-card-missing">
         ${renderCodexImageStateLabel("Map not recorded")}
@@ -204,7 +218,7 @@ function renderCodexMapCard(map) {
 
   return `
     <a
-      class="codex-map-card"
+      class="codex-map-card ${imageUrl ? "" : "codex-map-card-missing"}"
       href="${escapeHtml(mapHref || imageUrl)}"
       target="_blank"
       rel="noopener noreferrer"

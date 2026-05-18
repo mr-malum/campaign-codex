@@ -13,20 +13,30 @@ function refreshOpenCodexAfterDatabaseLoad() {
   updateCodexBackButton();
 }
 
-loadDatabase()
-  .then(loadedDb => {
-    db = loadedDb;
-    databaseLoadError = null;
+function initializeDatabaseLoad() {
+  loadDatabase()
+    .then(loadedDb => {
+      if (!loadedDb) return;
 
-    console.log("Database loaded:", db);
-    refreshOpenCodexAfterDatabaseLoad();
-  })
-  .catch(error => {
-    databaseLoadError = error;
+      db = loadedDb;
+      databaseLoadError = null;
 
-    console.error("Database failed to load:", error);
-    refreshOpenCodexAfterDatabaseLoad();
-  });
+      console.log("Database loaded:", db);
+      refreshOpenCodexAfterDatabaseLoad();
+    })
+    .catch(error => {
+      databaseLoadError = error;
+
+      console.error("Database failed to load:", error);
+      refreshOpenCodexAfterDatabaseLoad();
+    });
+}
+
+initializeDatabaseLoad();
+
+window.addEventListener("campaign-authenticated", () => {
+  initializeDatabaseLoad();
+});
 
 const map = L.map("map", {
   crs: L.CRS.Simple,

@@ -1,84 +1,233 @@
-const sheetUrls = {
-  hexes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0ads-k6v3CiG58JEZkZa7sya_IqLMBiUTh0IfnKOGeWCmbbw9qLJL9KITnd_GadRzMVz_e0otMzaD/pub?gid=1899494677&single=true&output=csv",
-  pois: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0ads-k6v3CiG58JEZkZa7sya_IqLMBiUTh0IfnKOGeWCmbbw9qLJL9KITnd_GadRzMVz_e0otMzaD/pub?gid=1900621664&single=true&output=csv",
-  npcs: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0ads-k6v3CiG58JEZkZa7sya_IqLMBiUTh0IfnKOGeWCmbbw9qLJL9KITnd_GadRzMVz_e0otMzaD/pub?gid=603218189&single=true&output=csv",
-  regions: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0ads-k6v3CiG58JEZkZa7sya_IqLMBiUTh0IfnKOGeWCmbbw9qLJL9KITnd_GadRzMVz_e0otMzaD/pub?gid=30419630&single=true&output=csv",
-  poiGroups: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0ads-k6v3CiG58JEZkZa7sya_IqLMBiUTh0IfnKOGeWCmbbw9qLJL9KITnd_GadRzMVz_e0otMzaD/pub?gid=1000348883&single=true&output=csv",
-  maps: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0ads-k6v3CiG58JEZkZa7sya_IqLMBiUTh0IfnKOGeWCmbbw9qLJL9KITnd_GadRzMVz_e0otMzaD/pub?gid=1435181261&single=true&output=csv",
-  dmJournal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0ads-k6v3CiG58JEZkZa7sya_IqLMBiUTh0IfnKOGeWCmbbw9qLJL9KITnd_GadRzMVz_e0otMzaD/pub?gid=2138300710&single=true&output=csv"
-};
+function getAssetValue(asset) {
+  return asset?.signedUrl || "";
+}
 
-function parseCSV(csvText) {
-  const rows = [];
-  let currentRow = [];
-  let currentValue = "";
-  let insideQuotes = false;
+function getPreviewAssetValue(asset) {
+  return String(asset?.mime_type || "").startsWith("image/")
+    ? getAssetValue(asset)
+    : "";
+}
 
-  for (let i = 0; i < csvText.length; i++) {
-    const char = csvText[i];
-    const nextChar = csvText[i + 1];
+async function fetchAllCampaignRows(tableName, columns, campaignId) {
+  const pageSize = 1000;
+  const allRows = [];
 
-    if (char === '"' && insideQuotes && nextChar === '"') {
-      currentValue += '"';
-      i++;
-    } else if (char === '"') {
-      insideQuotes = !insideQuotes;
-    } else if (char === "," && !insideQuotes) {
-      currentRow.push(currentValue.trim());
-      currentValue = "";
-    } else if ((char === "\n" || char === "\r") && !insideQuotes) {
-      if (currentValue || currentRow.length) {
-        currentRow.push(currentValue.trim());
-        rows.push(currentRow);
-        currentRow = [];
-        currentValue = "";
-      }
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await campaignSupabase
+      .from(tableName)
+      .select(columns)
+      .eq("campaign_id", campaignId)
+      .range(from, to);
 
-      if (char === "\r" && nextChar === "\n") {
-        i++;
-      }
-    } else {
-      currentValue += char;
+    if (error) throw error;
+
+    const rows = data || [];
+    allRows.push(...rows);
+
+    if (rows.length < pageSize) {
+      break;
     }
   }
 
-  if (currentValue || currentRow.length) {
-    currentRow.push(currentValue.trim());
-    rows.push(currentRow);
-  }
-
-  const headers = rows.shift();
-
-  return rows
-    .filter(row => row.some(cell => cell !== ""))
-    .map(row => {
-      const obj = {};
-
-      headers.forEach((header, index) => {
-        obj[header] = row[index] || "";
-      });
-
-      return obj;
-    });
+  return allRows;
 }
 
-async function fetchSheet(url) {
-  const response = await fetch(url);
+async function fetchCampaignRows(campaignId) {
+  const [
+    regions,
+    hexes,
+    poiGroups,
+    pois,
+    maps,
+    npcs,
+    dmJournal
+  ] = await Promise.all([
+    fetchAllCampaignRows("regions", "id, ref_code, name, lore, image_asset_id", campaignId),
+    fetchAllCampaignRows("hexes", "id, ref_code, terrain, map_xy, region_id", campaignId),
+    fetchAllCampaignRows("poi_groups", "id, slug, name, group_type, population, lore, image_asset_id", campaignId),
+    fetchAllCampaignRows("pois", "id, ref_code, poi_group_id, name, hex_id, poi_type, notoriety_tier, population, lore, image_asset_id", campaignId),
+    fetchAllCampaignRows("maps", "id, ref_code, name, map_type, sort_order, lore, image_asset_id, region_owner_id, poi_group_owner_id, poi_owner_id, hex_owner_id", campaignId),
+    fetchAllCampaignRows("npcs", "id, ref_code, home_poi_id, title, name, organization, race, occupation, lore, image_asset_id", campaignId),
+    fetchAllCampaignRows("dm_journal", "id, ref_code, entry_body, entry_type, source_type, source_id, occurred_at, created_by_user_id, session_id, visibility", campaignId)
+  ]);
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch sheet: ${url}`);
-  }
-
-  const csvText = await response.text();
-  return parseCSV(csvText);
+  return {
+    regions,
+    hexes,
+    poiGroups,
+    pois,
+    maps,
+    npcs,
+    dmJournal
+  };
 }
 
-async function fetchOptionalSheet(url) {
-  if (!url) {
-    return [];
-  }
+async function fetchCampaignAssets(campaignId) {
+  const { data, error } = await campaignSupabase
+    .from("assets")
+    .select("id, storage_bucket, storage_path, mime_type")
+    .eq("campaign_id", campaignId);
 
-  return fetchSheet(url);
+  if (error) throw error;
+
+  const assets = data || [];
+  if (!assets.length) return {};
+
+  const byBucket = assets.reduce((groups, asset) => {
+    if (!groups[asset.storage_bucket]) groups[asset.storage_bucket] = [];
+    groups[asset.storage_bucket].push(asset);
+    return groups;
+  }, {});
+
+  const signedAssetEntries = await Promise.all(
+    Object.entries(byBucket).map(async ([bucket, bucketAssets]) => {
+      const paths = bucketAssets.map(asset => asset.storage_path);
+      const { data: signedRows, error: signedError } = await campaignSupabase
+        .storage
+        .from(bucket)
+        .createSignedUrls(paths, 60 * 60 * 24);
+
+      if (signedError) throw signedError;
+
+      return bucketAssets.map((asset, index) => [
+        asset.id,
+        {
+          ...asset,
+          signedUrl: signedRows?.[index]?.signedUrl || ""
+        }
+      ]);
+    })
+  );
+
+  return Object.fromEntries(signedAssetEntries.flat());
+}
+
+function buildLegacyRecordMaps(rows) {
+  return {
+    regionsByUuid: Object.fromEntries(rows.regions.map(region => [region.id, region.ref_code])),
+    hexesByUuid: Object.fromEntries(rows.hexes.map(hex => [hex.id, hex.ref_code])),
+    poiGroupsByUuid: Object.fromEntries(rows.poiGroups.map(group => [group.id, group.slug])),
+    poisByUuid: Object.fromEntries(rows.pois.map(poi => [poi.id, poi.ref_code])),
+    mapsByUuid: Object.fromEntries(rows.maps.map(map => [map.id, map.ref_code])),
+    npcsByUuid: Object.fromEntries(rows.npcs.map(npc => [npc.id, npc.ref_code]))
+  };
+}
+
+function adaptCampaignRows(rows, assetsById) {
+  const recordMaps = buildLegacyRecordMaps(rows);
+
+  const regions = rows.regions.map(region => ({
+    Region_ID: region.ref_code,
+    Region_Name: region.name || "",
+    Lore: region.lore || "",
+    Image: getAssetValue(assetsById[region.image_asset_id])
+  }));
+
+  const hexes = rows.hexes.map(hex => ({
+    Hex_ID: hex.ref_code,
+    Region_ID_Ref: recordMaps.regionsByUuid[hex.region_id] || "",
+    Terrain: hex.terrain || "",
+    Map_XY: hex.map_xy || ""
+  }));
+
+  const poiGroups = rows.poiGroups.map(group => ({
+    POI_Group_ID: group.slug,
+    POI_Group_Name: group.name || "",
+    Group_Type: group.group_type || "",
+    Population: group.population || "",
+    Lore: group.lore || "",
+    Image: getAssetValue(assetsById[group.image_asset_id])
+  }));
+
+  const pois = rows.pois.map(poi => ({
+    POI_ID: poi.ref_code,
+    POI_Group_ID: recordMaps.poiGroupsByUuid[poi.poi_group_id] || "",
+    Name: poi.name || "",
+    Hex_ID_Ref: recordMaps.hexesByUuid[poi.hex_id] || "",
+    POI_Type: poi.poi_type || "",
+    "Notoriety Tier": poi.notoriety_tier || "",
+    Population: poi.population || "",
+    Lore: poi.lore || "",
+    Image: getAssetValue(assetsById[poi.image_asset_id])
+  }));
+
+  const maps = rows.maps.map(map => {
+    let ownerType = "";
+    let ownerId = "";
+
+    if (map.region_owner_id) {
+      ownerType = "region";
+      ownerId = recordMaps.regionsByUuid[map.region_owner_id] || "";
+    } else if (map.poi_group_owner_id) {
+      ownerType = "poi-group";
+      ownerId = recordMaps.poiGroupsByUuid[map.poi_group_owner_id] || "";
+    } else if (map.poi_owner_id) {
+      ownerType = "poi";
+      ownerId = recordMaps.poisByUuid[map.poi_owner_id] || "";
+    } else if (map.hex_owner_id) {
+      ownerType = "hex";
+      ownerId = recordMaps.hexesByUuid[map.hex_owner_id] || "";
+    }
+
+    return {
+      Map_ID: map.ref_code,
+      Owner_Type: ownerType,
+      Owner_ID_Ref: ownerId,
+      Map_Name: map.name || "",
+      Map_Type: map.map_type || "",
+      Image: getPreviewAssetValue(assetsById[map.image_asset_id]),
+      Map_File_URL: getAssetValue(assetsById[map.image_asset_id]),
+      Map_Mime_Type: assetsById[map.image_asset_id]?.mime_type || "",
+      Sort_Order: map.sort_order == null ? "" : String(map.sort_order),
+      Lore: map.lore || ""
+    };
+  });
+
+  const npcs = rows.npcs.map(npc => ({
+    NPC_ID: npc.ref_code,
+    Home_ID_Ref: recordMaps.poisByUuid[npc.home_poi_id] || "",
+    Title: npc.title || "",
+    Name: npc.name || "",
+    Organization: npc.organization || "",
+    Race: npc.race || "",
+    Occupation: npc.occupation || "",
+    Lore: npc.lore || "",
+    Image: getAssetValue(assetsById[npc.image_asset_id])
+  }));
+
+  const sourceMaps = {
+    region: recordMaps.regionsByUuid,
+    hex: recordMaps.hexesByUuid,
+    poi_group: recordMaps.poiGroupsByUuid,
+    poi: recordMaps.poisByUuid,
+    npc: recordMaps.npcsByUuid,
+    map: recordMaps.mapsByUuid
+  };
+
+  const dmJournal = rows.dmJournal.map(entry => ({
+    Entry_ID: entry.ref_code,
+    Entry_Body: entry.entry_body || "",
+    Entry_Type: entry.entry_type || "",
+    Source_Type: entry.source_type || "",
+    Source_ID: entry.source_type === "campaign"
+      ? getActiveCampaign()?.id || ""
+      : sourceMaps[entry.source_type]?.[entry.source_id] || "",
+    Timestamp: entry.occurred_at || "",
+    Created_By: entry.created_by_user_id || "",
+    Session_ID: entry.session_id || "",
+    Visibility: entry.visibility || ""
+  }));
+
+  return {
+    hexes,
+    pois,
+    npcs,
+    regions,
+    poiGroups,
+    maps,
+    dmJournal
+  };
 }
 
 function indexById(rows, idField) {
@@ -266,25 +415,17 @@ function groupMapsByOwner(rows) {
 }
 
 async function loadDatabase() {
-  const [hexes, pois, npcs, regions, poiGroups, maps, dmJournal] = await Promise.all([
-    fetchSheet(sheetUrls.hexes),
-    fetchSheet(sheetUrls.pois),
-    fetchSheet(sheetUrls.npcs),
-    fetchSheet(sheetUrls.regions),
-    fetchSheet(sheetUrls.poiGroups),
-    fetchOptionalSheet(sheetUrls.maps),
-    fetchOptionalSheet(sheetUrls.dmJournal)
+  const campaign = await bootstrapCampaignSession();
+  if (!campaign) {
+    return null;
+  }
+
+  const [rows, assetsById] = await Promise.all([
+    fetchCampaignRows(campaign.id),
+    fetchCampaignAssets(campaign.id)
   ]);
 
-  const appData = {
-    hexes,
-    pois,
-    npcs,
-    regions,
-    poiGroups,
-    maps,
-    dmJournal
-  };
+  const appData = adaptCampaignRows(rows, assetsById);
 
   const dmJournalBySourceKey = hydrateCentralJournal(appData);
 

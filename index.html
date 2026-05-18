@@ -28,12 +28,37 @@
   <link rel="stylesheet" href="css/codex-mobile-detail-sections.css">
   <link rel="stylesheet" href="css/codex-mobile-tap-highlight.css">
   <link rel="stylesheet" href="css/codex-mobile-landscape-blocker.css">
+  <link rel="stylesheet" href="css/campaign-auth.css">
 </head>
 
 <body>
 
 <div id="parchment-bg"></div>
 <div id="map"></div>
+
+<div id="campaign-auth-gate" class="campaign-auth-gate" aria-live="polite">
+  <div class="campaign-auth-card">
+    <p class="campaign-auth-kicker">Campaign Codex</p>
+    <h1 id="campaign-auth-title">Sign in</h1>
+    <p id="campaign-auth-copy">Enter your account details to open your campaigns.</p>
+
+    <form id="campaign-auth-form">
+      <label>
+        <span>Email</span>
+        <input id="campaign-auth-email" type="email" autocomplete="email" required>
+      </label>
+
+      <label>
+        <span>Password</span>
+        <input id="campaign-auth-password" type="password" autocomplete="current-password" required>
+      </label>
+
+      <button id="campaign-auth-submit" type="submit">Open Codex</button>
+    </form>
+
+    <p id="campaign-auth-status" class="campaign-auth-status" role="status"></p>
+  </div>
+</div>
 
 <div id="map-reset-button" role="button" aria-label="Center Map"></div>
 <div id="codex-button" role="button" aria-label="Open Codex"></div>
@@ -134,6 +159,9 @@
 </div>
  
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/campaign-auth.js"></script>
 <script src="js/data-loader.js"></script>
 <script src="js/app-core.js"></script>
 <script src="js/map-ui.js"></script>
