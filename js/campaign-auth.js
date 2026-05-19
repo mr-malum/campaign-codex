@@ -2,6 +2,7 @@ let activeCampaign = null;
 let activeSession = null;
 let campaignBootstrapPromise = null;
 let availableCampaigns = [];
+let activeProfile = null;
 
 function getCampaignAuthGate() {
   return document.getElementById("campaign-auth-gate");
@@ -51,6 +52,21 @@ function setCampaignAddMemberStatus(message = "") {
   }
 }
 
+function setCampaignUserSettingsStatus(message = "") {
+  const status = document.getElementById("campaign-user-settings-status");
+  if (status) {
+    status.textContent = message;
+  }
+}
+
+function getCurrentUserEmail() {
+  return activeSession?.user?.email || "";
+}
+
+function isValidCampaignUsername(username) {
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$/.test(String(username || "").trim());
+}
+
 function escapeCampaignHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -77,8 +93,15 @@ function hideCampaignSettings() {
   closeCampaignSettingsMenu();
 }
 
+function setCampaignDocumentTitle(campaign = null) {
+  document.title = campaign?.name
+    ? `${campaign.name} Codex`
+    : "Campaign Codex";
+}
+
 function clearActiveCampaignState() {
   activeCampaign = null;
+  setCampaignDocumentTitle(null);
   window.db = null;
   if (typeof db !== "undefined") {
     db = null;
@@ -97,6 +120,7 @@ function closeCampaignSettingsMenu() {
   document.getElementById("campaign-settings-menu")?.classList.add("hidden");
   document.getElementById("campaign-manage-menu")?.classList.add("hidden");
   document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
+  document.getElementById("campaign-user-settings-menu")?.classList.add("hidden");
   document.getElementById("campaign-settings-button")?.setAttribute("aria-expanded", "false");
 }
 
@@ -178,6 +202,7 @@ function openCampaignManageMenu() {
   document.getElementById("campaign-settings-menu")?.classList.add("hidden");
   document.getElementById("campaign-manage-menu")?.classList.remove("hidden");
   document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
+  document.getElementById("campaign-user-settings-menu")?.classList.add("hidden");
   setCampaignMemberStatus("");
   refreshCampaignMembers();
 }
@@ -186,13 +211,62 @@ function openCampaignAddMemberMenu() {
   document.getElementById("campaign-settings-menu")?.classList.add("hidden");
   document.getElementById("campaign-manage-menu")?.classList.add("hidden");
   document.getElementById("campaign-add-member-menu")?.classList.remove("hidden");
+  document.getElementById("campaign-user-settings-menu")?.classList.add("hidden");
   setCampaignAddMemberStatus("");
+}
+
+function openCampaignUserSettingsMenu({ fromPicker = false } = {}) {
+  document.getElementById("campaign-settings-menu")?.classList.add("hidden");
+  document.getElementById("campaign-manage-menu")?.classList.add("hidden");
+  document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
+  document.getElementById("campaign-user-settings-menu")?.classList.remove("hidden");
+  document.getElementById("campaign-user-settings-menu")?.classList.toggle("from-picker", fromPicker);
+  document.getElementById("campaign-change-password-form")?.reset();
+  document.getElementById("campaign-change-username-form")?.reset();
+  showUserSettingsMainPanel();
+  const usernameInput = document.getElementById("campaign-new-username");
+  const usernameValue = document.getElementById("campaign-current-username-value");
+  if (usernameInput) usernameInput.value = activeProfile?.username || "";
+  if (usernameValue) usernameValue.textContent = activeProfile?.username || "Unknown";
+  setCampaignUserSettingsStatus("");
+  if (fromPicker) showCampaignSettings();
+}
+
+function showUserSettingsMainPanel() {
+  document.getElementById("campaign-user-settings-main")?.removeAttribute("hidden");
+  document.getElementById("campaign-change-username-section")?.setAttribute("hidden", "");
+  document.getElementById("campaign-change-password-section")?.setAttribute("hidden", "");
+  document.getElementById("campaign-user-settings-back-button")?.removeAttribute("hidden");
+  setCampaignUserSettingsStatus("");
+}
+
+function showUserSettingsSection(section) {
+  document.getElementById("campaign-user-settings-main")?.setAttribute("hidden", "");
+  document.getElementById("campaign-change-username-section")?.toggleAttribute("hidden", section !== "username");
+  document.getElementById("campaign-change-password-section")?.toggleAttribute("hidden", section !== "password");
+  document.getElementById("campaign-user-settings-back-button")?.setAttribute("hidden", "");
+  setCampaignUserSettingsStatus("");
+}
+
+function returnFromUserSettingsMenu() {
+  const menu = document.getElementById("campaign-user-settings-menu");
+  const fromPicker = menu?.classList.contains("from-picker");
+  menu?.classList.add("hidden");
+
+  if (fromPicker || !activeCampaign) {
+    hideCampaignSettings();
+    showCampaignPickerGate();
+    return;
+  }
+
+  returnToMainSettingsMenu();
 }
 
 function returnToMainSettingsMenu() {
   document.getElementById("campaign-settings-menu")?.classList.remove("hidden");
   document.getElementById("campaign-manage-menu")?.classList.add("hidden");
   document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
+  document.getElementById("campaign-user-settings-menu")?.classList.add("hidden");
 }
 
 function setCampaignAuthMode(mode) {
@@ -211,11 +285,77 @@ function setCampaignAuthMode(mode) {
 async function fetchAvailableCampaigns() {
   const { data, error } = await campaignSupabase
     .from("campaigns")
-    .select("id, name, slug")
+    .select("id, name, slug, owner_user_id, main_map_asset_id, main_map_width, main_map_height")
     .order("name", { ascending: true });
 
   if (error) throw error;
-  return data || [];
+
+  const campaigns = data || [];
+  const userId = activeSession?.user?.id;
+  const campaignIds = campaigns.map(campaign => campaign.id);
+  const ownerIds = [...new Set(campaigns.map(campaign => campaign.owner_user_id).filter(Boolean))];
+  const mainMapAssetIds = [...new Set(campaigns.map(campaign => campaign.main_map_asset_id).filter(Boolean))];
+
+  const [
+    { data: memberships, error: membershipError },
+    { data: owners, error: ownerError },
+    { data: mainMapAssets, error: mainMapAssetError }
+  ] = await Promise.all([
+    campaignIds.length && userId
+      ? campaignSupabase
+          .from("campaign_members")
+          .select("campaign_id, role")
+          .eq("user_id", userId)
+          .in("campaign_id", campaignIds)
+      : Promise.resolve({ data: [], error: null }),
+    ownerIds.length
+      ? campaignSupabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", ownerIds)
+      : Promise.resolve({ data: [], error: null }),
+    mainMapAssetIds.length
+      ? campaignSupabase
+          .from("assets")
+          .select("id, storage_bucket, storage_path, mime_type")
+          .in("id", mainMapAssetIds)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+
+  if (membershipError) throw membershipError;
+  if (ownerError) throw ownerError;
+  if (mainMapAssetError) throw mainMapAssetError;
+
+  const signedMainMapEntries = await Promise.all((mainMapAssets || []).map(async asset => {
+    const { data: signedData, error: signedError } = await campaignSupabase
+      .storage
+      .from(asset.storage_bucket)
+      .createSignedUrl(asset.storage_path, 60 * 60 * 24);
+
+    if (signedError) {
+      console.warn("Campaign main map asset could not be signed:", asset.storage_path, signedError);
+      return [asset.id, ""];
+    }
+
+    return [asset.id, signedData?.signedUrl || ""];
+  }));
+
+  const rolesByCampaignId = Object.fromEntries(
+    (memberships || []).map(member => [member.campaign_id, member.role])
+  );
+
+  const ownersById = Object.fromEntries(
+    (owners || []).map(owner => [owner.id, owner.username])
+  );
+
+  const mainMapUrlsByAssetId = Object.fromEntries(signedMainMapEntries);
+
+  return campaigns.map(campaign => ({
+    ...campaign,
+    currentUserRole: rolesByCampaignId[campaign.id] || "",
+    ownerUsername: ownersById[campaign.owner_user_id] || "Unknown",
+    mainMapUrl: mainMapUrlsByAssetId[campaign.main_map_asset_id] || ""
+  }));
 }
 
 async function fetchCurrentCampaignRole(campaignId) {
@@ -244,7 +384,8 @@ async function fetchCurrentProfile() {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  activeProfile = data || null;
+  return activeProfile;
 }
 
 function renderCampaignPicker(profile, campaigns) {
@@ -275,8 +416,13 @@ function renderCampaignPicker(profile, campaigns) {
         type="button"
         data-campaign-id="${campaign.id}"
       >
-        <strong>${escapeCampaignHtml(campaign.name)}</strong>
-        <span>${escapeCampaignHtml(campaign.slug)}</span>
+        <span class="campaign-picker-item-main">
+          <strong>${escapeCampaignHtml(campaign.name)}</strong>
+          <span>${escapeCampaignHtml(campaign.currentUserRole || "")}</span>
+        </span>
+        <span class="campaign-picker-owner">
+          Owner: ${escapeCampaignHtml(campaign.ownerUsername || "Unknown")}
+        </span>
       </button>
       <button
         class="campaign-picker-leave-button"
@@ -289,6 +435,7 @@ function renderCampaignPicker(profile, campaigns) {
 }
 
 async function showCampaignPickerForCurrentUser() {
+  setCampaignDocumentTitle(null);
   availableCampaigns = await fetchAvailableCampaigns();
   const profile = await fetchCurrentProfile();
   renderCampaignPicker(profile, availableCampaigns);
@@ -435,6 +582,124 @@ async function returnToCampaignList() {
   await showCampaignPickerForCurrentUser();
 }
 
+async function handleChangeUsername(event) {
+  event.preventDefault();
+
+  const username = document.getElementById("campaign-new-username")?.value.trim() || "";
+  const currentPassword = document.getElementById("campaign-username-current-password")?.value || "";
+  const email = getCurrentUserEmail();
+
+  if (!username || !currentPassword) return;
+
+  if (!email) {
+    setCampaignUserSettingsStatus("Unable to verify current account.");
+    return;
+  }
+
+  if (!isValidCampaignUsername(username)) {
+    setCampaignUserSettingsStatus("Username must be 3–32 characters and use letters, numbers, underscores, or hyphens.");
+    return;
+  }
+
+  if (activeProfile?.username && username === activeProfile.username) {
+    setCampaignUserSettingsStatus("That is already your username.");
+    return;
+  }
+
+  setCampaignUserSettingsStatus("Changing username...");
+
+  try {
+    const { data: verifyData, error: verifyError } = await campaignSupabase.auth.signInWithPassword({
+      email,
+      password: currentPassword
+    });
+    if (verifyError) throw new Error("Current password is incorrect.");
+    if (verifyData?.session) activeSession = verifyData.session;
+
+    const { data, error } = await campaignSupabase.rpc("change_username", {
+      new_username: username
+    });
+
+    if (error) throw error;
+
+    activeProfile = data || {
+      ...(activeProfile || {}),
+      username
+    };
+
+    const { error: metadataError } = await campaignSupabase.auth.updateUser({
+      data: {
+        username: activeProfile.username,
+        display_name: activeProfile.username
+      }
+    });
+
+    if (metadataError) {
+      console.warn("Username changed, but auth display metadata was not updated:", metadataError);
+    }
+
+    if (activeCampaign) {
+      await fetchCurrentProfile();
+      await refreshCampaignMembers();
+      openCampaignUserSettingsMenu();
+    } else {
+      await showCampaignPickerForCurrentUser();
+      showCampaignSettings();
+      openCampaignUserSettingsMenu({ fromPicker: true });
+    }
+    setCampaignUserSettingsStatus("Username changed.");
+  } catch (error) {
+    console.error("Failed to change username:", error);
+    setCampaignUserSettingsStatus(error.message || "Unable to change username.");
+  }
+}
+
+async function handleChangePassword(event) {
+  event.preventDefault();
+
+  const currentPassword = document.getElementById("campaign-current-password")?.value || "";
+  const password = document.getElementById("campaign-new-password")?.value || "";
+  const confirmPassword = document.getElementById("campaign-confirm-password")?.value || "";
+  const email = getCurrentUserEmail();
+
+  if (!currentPassword || !password || !confirmPassword) return;
+
+  if (!email) {
+    setCampaignUserSettingsStatus("Unable to verify current account.");
+    return;
+  }
+
+  if (password.length < 6) {
+    setCampaignUserSettingsStatus("Password must be at least 6 characters.");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setCampaignUserSettingsStatus("Passwords do not match.");
+    return;
+  }
+
+  setCampaignUserSettingsStatus("Changing password...");
+
+  try {
+    const { data: verifyData, error: verifyError } = await campaignSupabase.auth.signInWithPassword({
+      email,
+      password: currentPassword
+    });
+    if (verifyError) throw new Error("Current password is incorrect.");
+    if (verifyData?.session) activeSession = verifyData.session;
+
+    const { error } = await campaignSupabase.auth.updateUser({ password });
+    if (error) throw error;
+
+    document.getElementById("campaign-change-password-form")?.reset();
+    setCampaignUserSettingsStatus("Password changed.");
+  } catch (error) {
+    console.error("Failed to change password:", error);
+    setCampaignUserSettingsStatus(error.message || "Unable to change password.");
+  }
+}
+
 async function handleAddCampaignMember(event) {
   event.preventDefault();
 
@@ -546,6 +811,7 @@ function handleCampaignPickerClick(event) {
   if (!campaign) return;
 
   activeCampaign = campaign;
+  setCampaignDocumentTitle(campaign);
   hideCampaignPickerGate();
   showCampaignSettings();
 
@@ -563,16 +829,32 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", () => setCampaignAuthMode("signin"));
   document.getElementById("campaign-auth-tab-signup")
     ?.addEventListener("click", () => setCampaignAuthMode("signup"));
-  document.getElementById("campaign-signout-button")
-    ?.addEventListener("click", handleCampaignSignOut);
-  document.getElementById("campaign-settings-signout-button")
+  document.getElementById("campaign-user-settings-signout-button")
     ?.addEventListener("click", handleCampaignSignOut);
   document.getElementById("campaign-settings-close-button")
     ?.addEventListener("click", closeCampaignSettingsMenu);
   document.getElementById("campaign-settings-campaign-button")
     ?.addEventListener("click", openCampaignManageMenu);
+  document.getElementById("campaign-settings-user-button")
+    ?.addEventListener("click", () => openCampaignUserSettingsMenu());
   document.getElementById("campaign-settings-picker-button")
     ?.addEventListener("click", returnToCampaignList);
+  document.getElementById("campaign-picker-user-settings-button")
+    ?.addEventListener("click", () => openCampaignUserSettingsMenu({ fromPicker: true }));
+  document.getElementById("campaign-user-settings-back-button")
+    ?.addEventListener("click", returnFromUserSettingsMenu);
+  document.getElementById("campaign-open-change-username-button")
+    ?.addEventListener("click", () => showUserSettingsSection("username"));
+  document.getElementById("campaign-open-change-password-button")
+    ?.addEventListener("click", () => showUserSettingsSection("password"));
+  document.getElementById("campaign-change-username-back-button")
+    ?.addEventListener("click", showUserSettingsMainPanel);
+  document.getElementById("campaign-change-password-back-button")
+    ?.addEventListener("click", showUserSettingsMainPanel);
+  document.getElementById("campaign-change-username-form")
+    ?.addEventListener("submit", handleChangeUsername);
+  document.getElementById("campaign-change-password-form")
+    ?.addEventListener("submit", handleChangePassword);
   document.getElementById("campaign-settings-leave-button")
     ?.addEventListener("click", handleLeaveActiveCampaign);
   document.getElementById("campaign-open-add-member-button")
@@ -597,4 +879,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.getActiveCampaign = () => activeCampaign;
+window.getActiveCampaignSession = () => activeSession;
+window.getActiveCampaignProfile = () => activeProfile;
 window.bootstrapCampaignSession = bootstrapCampaignSession;
+window.showCampaignSettings = showCampaignSettings;
+window.openCampaignSettingsMenu = openCampaignSettingsMenu;

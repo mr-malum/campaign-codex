@@ -35,6 +35,7 @@ function initializeDatabaseLoad() {
 initializeDatabaseLoad();
 
 window.addEventListener("campaign-authenticated", () => {
+  setCampaignMainMapImage(getActiveCampaign?.());
   initializeDatabaseLoad();
 });
 
@@ -46,12 +47,18 @@ const map = L.map("map", {
   maxBoundsViscosity: 0.5
 });
 
+const DEFAULT_CAMPAIGN_MAP_IMAGE = "assets/Kadesh.png";
 const imageWidth = 6417;
 const imageHeight = 7575;
 const bounds = [[0, 0], [imageHeight, imageWidth]];
 
-L.imageOverlay("assets/Kadesh.png", bounds).addTo(map);
+const campaignMapOverlay = L.imageOverlay(DEFAULT_CAMPAIGN_MAP_IMAGE, bounds).addTo(map);
 map.fitBounds(bounds);
+
+function setCampaignMainMapImage(campaign = null) {
+  const mapUrl = campaign?.mainMapUrl || DEFAULT_CAMPAIGN_MAP_IMAGE;
+  campaignMapOverlay.setUrl(mapUrl);
+}
 
 function updatePanBounds() {
   const zoom = map.getZoom();

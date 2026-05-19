@@ -86,8 +86,10 @@ function parseCodexRowLabel(label) {
 function getCodexRecordTypeIcon(type) {
   switch (type) {
     case "poi":
-    case "poi-group":
       return getCodexIcon("poi");
+
+    case "poi-group":
+      return getCodexIcon("poi-group");
 
     case "npc":
       return getCodexIcon("npc");

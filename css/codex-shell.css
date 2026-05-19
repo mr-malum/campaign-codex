@@ -105,6 +105,37 @@
   cursor: default;
 }
 
+.codex-control-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.codex-nav-pocket {
+  display: contents;
+}
+
+#codex-mobile-close-reveal {
+  display: none !important;
+}
+
+#codex-mobile-settings-reveal,
+#codex-mobile-edit-reveal {
+  display: none !important;
+}
+
+@media (min-width: 1100px) and (min-height: 700px) {
+  #codex-mobile-action-pocket,
+  #codex-mobile-settings-pocket {
+    display: contents !important;
+  }
+}
+
+#codex-context-delete,
+#codex-desktop-context-delete {
+  color: #8f1f16 !important;
+}
+
 /* Codex Modal */
 
 #codex-overlay {

@@ -110,12 +110,26 @@
     justify-content: stretch !important;
     gap: 8px !important;
 
-    overflow: hidden !important;
+    overflow: visible !important;
     pointer-events: auto !important;
   }
 
-  #codex-overlay .codex-control-cluster > button {
+  #codex-overlay .codex-control-cluster > button,
+  #codex-overlay .codex-control-cluster > .codex-nav-pocket {
     box-sizing: border-box !important;
+  }
+
+  #codex-overlay .codex-nav-pocket[hidden] {
+    display: none !important;
+  }
+
+  #codex-overlay .codex-nav-pocket {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    isolation: isolate !important;
   }
 
   #codex-overlay #codex-mobile-page-control {
@@ -129,16 +143,127 @@
     pointer-events: none !important;
   }
 
-  #codex-overlay #codex-context-action,
-  #codex-overlay #codex-context-delete {
+  #codex-overlay #codex-context-action {
     position: static !important;
     left: auto !important;
     right: auto !important;
     bottom: auto !important;
     transform: none !important;
 
+    width: 100% !important;
     flex: 1 1 auto !important;
     min-width: 40px !important;
+    padding-top: 15px !important;
+  }
+
+  #codex-overlay #codex-context-action[aria-label="Add"],
+  #codex-overlay #codex-context-action[aria-label="Record actions"] {
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 12px !important;
+    padding-bottom: 10px !important;
+    font-size: 1.42rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+  }
+
+  #codex-overlay #codex-mobile-action-pocket {
+    flex: 1 1 auto !important;
+  }
+
+  #codex-overlay .codex-nav-reveal-button,
+  #codex-overlay #codex-context-delete {
+    position: absolute !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: calc(100% + 10px) !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    min-height: 58px !important;
+    z-index: 2 !important;
+    white-space: nowrap !important;
+    transform: translateX(-50%) !important;
+    flex: none !important;
+    animation: none !important;
+  }
+
+  #codex-overlay .codex-nav-pocket.open::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: -8px !important;
+    top: -72px !important;
+    width: max(100%, 92px) !important;
+    z-index: -1 !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(94, 55, 22, 0.30) !important;
+    background:
+      linear-gradient(
+        rgba(255, 238, 204, 0.88),
+        rgba(214, 170, 108, 0.78)
+      ) !important;
+    box-shadow:
+      inset 0 1px 4px rgba(255, 241, 202, 0.42),
+      0 4px 14px rgba(45, 25, 8, 0.20) !important;
+    transform: translateX(-50%) !important;
+  }
+
+  #codex-overlay #codex-mobile-settings-pocket.open::before {
+    left: auto !important;
+    right: -10px !important;
+    width: max(100%, 148px) !important;
+    top: -138px !important;
+    transform: none !important;
+  }
+
+  #codex-overlay #codex-mobile-settings-pocket .codex-nav-reveal-button {
+    left: auto !important;
+    right: 0 !important;
+    min-width: 132px !important;
+    transform: none !important;
+  }
+
+  #codex-overlay #codex-mobile-settings-reveal {
+    bottom: calc(200% + 20px) !important;
+  }
+
+  #codex-overlay #codex-mobile-action-pocket.has-reveal.open::before {
+    top: -138px !important;
+  }
+
+  #codex-overlay #codex-mobile-edit-reveal {
+    bottom: calc(100% + 10px) !important;
+  }
+
+  #codex-overlay #codex-context-delete {
+    bottom: calc(200% + 20px) !important;
+  }
+
+  #codex-overlay #codex-mobile-action-pocket .codex-nav-reveal-button,
+  #codex-overlay #codex-context-delete {
+    min-width: max(100%, 82px) !important;
+    padding-inline: 12px !important;
+  }
+
+  #codex-overlay #codex-mobile-settings-pocket #codex-close,
+  #codex-overlay #codex-mobile-action-pocket.has-reveal #codex-context-action {
+    position: relative !important;
+    padding-top: 15px !important;
+  }
+
+  #codex-overlay #codex-mobile-settings-pocket #codex-close::after,
+  #codex-overlay #codex-mobile-action-pocket.has-reveal #codex-context-action::after {
+    content: "⌃";
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Spectral', Georgia, serif;
+    font-size: 0.72rem;
+    line-height: 1;
+    opacity: 0.72;
+    pointer-events: none;
   }
 
   #codex-overlay #codex-context-action[hidden],
@@ -146,9 +271,35 @@
     display: none !important;
   }
 
+  #codex-overlay .codex-nav-pocket:not(.open) .codex-nav-reveal-button,
+  #codex-overlay .codex-nav-pocket:not(.open) #codex-context-delete,
+  #codex-overlay #codex-mobile-action-pocket:not(.open) #codex-mobile-edit-reveal,
+  #codex-overlay #codex-mobile-action-pocket:not(.open) #codex-context-delete,
+  #codex-overlay #codex-mobile-settings-reveal[hidden],
+  #codex-overlay #codex-mobile-edit-reveal[hidden],
+  #codex-overlay #codex-mobile-close-reveal[hidden] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  #codex-overlay #codex-mobile-settings-reveal,
+  #codex-overlay #codex-mobile-edit-reveal,
+  #codex-overlay #codex-mobile-close-reveal {
+    display: flex !important;
+    visibility: visible !important;
+  }
+
+  #codex-overlay #codex-mobile-settings-reveal[hidden],
+  #codex-overlay #codex-mobile-edit-reveal[hidden],
+  #codex-overlay #codex-mobile-close-reveal[hidden] {
+    display: none !important;
+  }
+
   #codex-overlay #codex-back,
   #codex-overlay #codex-search-button,
-  #codex-overlay #codex-close {
+  #codex-overlay #codex-close,
+  #codex-overlay #codex-mobile-settings-pocket {
     flex: 0 0 auto !important;
   }
 
@@ -184,8 +335,7 @@
     flex-basis: clamp(104px, 28%, 140px) !important;
   }
 
-  #codex-overlay #codex-context-action,
-  #codex-overlay #codex-context-delete {
+  #codex-overlay #codex-context-action {
     min-width: 36px !important;
   }
 }

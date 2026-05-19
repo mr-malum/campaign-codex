@@ -4,7 +4,8 @@
 
 const CODEX_ICONS = {
   region: "✥",
-  poi: "◎",
+  poi: "○",
+  "poi-group": "◎",
   npc: "♟",
   hex: "⬡",
   map: "▧",

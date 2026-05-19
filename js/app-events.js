@@ -12,6 +12,61 @@ let appBrowserHistoryDepth = 0;
 let appBrowserHistoryReleaseCount = 0;
 let codexDesktopLiveSearchTimer = null;
 
+function isMobileCodexNav() {
+  return window.matchMedia?.("(max-width: 700px)")?.matches === true;
+}
+
+function closeCodexNavPockets(exceptPocket = null) {
+  document.querySelectorAll(".codex-nav-pocket.open").forEach(pocket => {
+    if (pocket === exceptPocket) return;
+    pocket.classList.remove("open");
+  });
+
+  if (exceptPocket?.id !== "codex-mobile-settings-pocket") {
+    document.getElementById("codex-mobile-settings-reveal")?.setAttribute("hidden", "");
+    document.getElementById("codex-mobile-close-reveal")?.setAttribute("hidden", "");
+  }
+}
+
+function openCodexNavPocket(pocketId) {
+  const pocket = document.getElementById(pocketId);
+  if (!pocket) return;
+
+  closeCodexNavPockets(pocket);
+  pocket.classList.add("open");
+
+  if (pocketId === "codex-mobile-settings-pocket") {
+    document.getElementById("codex-mobile-settings-reveal")?.removeAttribute("hidden");
+    document.getElementById("codex-mobile-close-reveal")?.removeAttribute("hidden");
+  }
+}
+
+function isCodexNavPocketOpen(pocketId) {
+  return document.getElementById(pocketId)?.classList.contains("open") === true;
+}
+
+function handleCodexCloseOrSettingsClick(event) {
+  if (!isMobileCodexNav()) {
+    closeCodex();
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (isCodexNavPocketOpen("codex-mobile-settings-pocket")) {
+    closeCodexNavPockets();
+    return;
+  }
+
+  openCodexNavPocket("codex-mobile-settings-pocket");
+}
+
+window.isMobileCodexNav = isMobileCodexNav;
+window.closeCodexNavPockets = closeCodexNavPockets;
+window.openCodexNavPocket = openCodexNavPocket;
+window.isCodexNavPocketOpen = isCodexNavPocketOpen;
+
 function initializeHexGrid() {
   for (let xxx = HEX_GRID_MIN; xxx < HEX_GRID_MAX; xxx++) {
     for (let yyy = HEX_GRID_MIN; yyy < HEX_GRID_MAX; yyy++) {
@@ -105,13 +160,33 @@ function bindCodexEvents() {
 
   document
     .getElementById("codex-close")
-    .addEventListener("click", function () {
+    .addEventListener("click", handleCodexCloseOrSettingsClick);
+
+  document
+    .getElementById("codex-mobile-settings-reveal")
+    ?.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCodexNavPockets();
+      window.showCampaignSettings?.();
+      window.openCampaignSettingsMenu?.();
+    });
+
+  document
+    .getElementById("codex-mobile-close-reveal")
+    ?.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCodexNavPockets();
       closeCodex();
     });
 
   document
     .getElementById("codex-search-button")
-    .addEventListener("click", openCodexGlobalSearchModal);
+    .addEventListener("click", function () {
+      closeCodexNavPockets();
+      openCodexGlobalSearchModal();
+    });
 
   document
     .getElementById("codex-mobile-debug-toggle")
@@ -122,6 +197,7 @@ function bindCodexEvents() {
   document
     .getElementById("codex-back")
     .addEventListener("click", function () {
+      closeCodexNavPockets();
       handleCodexBackAction();
     });
 
@@ -132,6 +208,12 @@ function bindCodexEvents() {
         closeCodex();
       }
     });
+
+  document.addEventListener("click", function (event) {
+    if (!isMobileCodexNav()) return;
+    if (event.target.closest(".codex-nav-pocket")) return;
+    closeCodexNavPockets();
+  });
 }
 
 function isCodexGlobalSearchModalOpen() {

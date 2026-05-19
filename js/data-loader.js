@@ -49,8 +49,25 @@ async function fetchCampaignRows(campaignId) {
     fetchAllCampaignRows("pois", "id, ref_code, poi_group_id, name, hex_id, poi_type, notoriety_tier, population, lore, image_asset_id", campaignId),
     fetchAllCampaignRows("maps", "id, ref_code, name, map_type, sort_order, lore, image_asset_id, region_owner_id, poi_group_owner_id, poi_owner_id, hex_owner_id", campaignId),
     fetchAllCampaignRows("npcs", "id, ref_code, home_poi_id, title, name, organization, race, occupation, lore, image_asset_id", campaignId),
-    fetchAllCampaignRows("dm_journal", "id, ref_code, entry_body, entry_type, source_type, source_id, occurred_at, created_by_user_id, session_id, visibility", campaignId)
+    fetchAllCampaignRows("dm_journal", "id, ref_code, entry_title, entry_body, entry_type, source_type, source_id, occurred_at, created_by_user_id, session_id, visibility", campaignId)
   ]);
+
+  const journalAuthorIds = [...new Set(
+    (dmJournal || [])
+      .map(entry => entry.created_by_user_id)
+      .filter(Boolean)
+  )];
+
+  let journalProfiles = [];
+  if (journalAuthorIds.length) {
+    const { data: profileRows, error: profileError } = await campaignSupabase
+      .from("profiles")
+      .select("id, username")
+      .in("id", journalAuthorIds);
+
+    if (profileError) throw profileError;
+    journalProfiles = profileRows || [];
+  }
 
   return {
     regions,
@@ -59,7 +76,8 @@ async function fetchCampaignRows(campaignId) {
     pois,
     maps,
     npcs,
-    dmJournal
+    dmJournal,
+    journalProfiles
   };
 }
 
@@ -211,8 +229,14 @@ function adaptCampaignRows(rows, assetsById) {
     map: recordMaps.mapsByUuid
   };
 
+  const journalProfilesById = Object.fromEntries(
+    (rows.journalProfiles || []).map(profile => [profile.id, profile])
+  );
+
   const dmJournal = rows.dmJournal.map(entry => ({
+    __uuid: entry.id,
     Entry_ID: entry.ref_code,
+    Entry_Title: entry.entry_title || "",
     Entry_Body: entry.entry_body || "",
     Entry_Type: entry.entry_type || "",
     Source_Type: entry.source_type || "",
@@ -221,6 +245,7 @@ function adaptCampaignRows(rows, assetsById) {
       : sourceMaps[entry.source_type]?.[entry.source_id] || "",
     Timestamp: entry.occurred_at || "",
     Created_By: entry.created_by_user_id || "",
+    Created_By_Username: journalProfilesById[entry.created_by_user_id]?.username || "",
     Session_ID: entry.session_id || "",
     Visibility: entry.visibility || ""
   }));
@@ -337,13 +362,15 @@ function formatJournalTimestamp(timestamp) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return timestamp;
 
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  const pad = value => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join("-") + " | " + [
+    pad(date.getHours()),
+    pad(date.getMinutes())
+  ].join(":");
 }
 
 function formatJournalEntriesText(entries) {
@@ -351,8 +378,7 @@ function formatJournalEntriesText(entries) {
     .map(entry => {
       const meta = [
         formatJournalTimestamp(entry.Timestamp),
-        entry.Created_By ? `by ${entry.Created_By}` : "",
-        entry.Session_ID || "",
+        entry.Created_By_Username ? `by ${entry.Created_By_Username}` : "",
         entry.Entry_Type || ""
       ].filter(Boolean).join(" • ");
 

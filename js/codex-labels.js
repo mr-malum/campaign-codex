@@ -59,7 +59,8 @@ function buildPoiGroupListLabel(group) {
 
   const typeLine = [
     group.Group_Type || "Grouped POI",
-    `${groupPois.length} Area${groupPois.length !== 1 ? "s" : ""}`
+    `${groupPois.length} Area${groupPois.length !== 1 ? "s" : ""}`,
+    formatPoiGroupNotorietyRange(group)
   ].filter(Boolean).join(" • ");
 
   if (typeLine) {

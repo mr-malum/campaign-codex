@@ -686,7 +686,7 @@ function getCodexSearchGroupIcon(type) {
 }
 
 function getCodexSearchResultIcon(type) {
-  if (type === "poi-group") return getCodexSearchGroupIcon("poi");
+  if (type === "poi-group") return getCodexIcon("poi-group");
   return getCodexSearchGroupIcon(type);
 }
 

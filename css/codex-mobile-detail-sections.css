@@ -59,6 +59,11 @@
     animation-name: codex-mobile-detail-slide-in-from-left;
   }
 
+  #codex-content.codex-detail-page .codex-detail-rail-section-header {
+    padding: 0 24px !important;
+  }
+
+  #codex-content.codex-detail-page .codex-detail-rail-section-header h3,
   #codex-content.codex-detail-page .codex-detail-rail-section > h3 {
     position: relative !important;
     position: static !important;
@@ -106,11 +111,13 @@
     right: 0;
   }
 
+  #codex-content.codex-detail-page .codex-detail-rail-section-header h3::before,
   #codex-content.codex-detail-page .codex-detail-rail-section > h3::before {
     content: none !important;
     display: none !important;
   }
 
+  #codex-content.codex-detail-page .codex-detail-rail-section-header h3::after,
   #codex-content.codex-detail-page .codex-detail-rail-section > h3::after {
     content: "" !important;
     display: block !important;

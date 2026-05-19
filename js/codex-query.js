@@ -52,6 +52,62 @@ function getPoiNotorietyRank(value) {
   return fallbackOrder[clean] || 999;
 }
 
+function getPoiNotorietyDisplayValue(value) {
+  const clean = String(value || "").trim();
+  const numberMatch = clean.match(/\d+/);
+  return numberMatch ? numberMatch[0] : clean;
+}
+
+function getPoiGroupNotorietyRange(groupOrId) {
+  const groupId = typeof groupOrId === "string"
+    ? groupOrId
+    : groupOrId?.POI_Group_ID;
+
+  const ranks = getPoisForGroup(groupId)
+    .map(poi => ({
+      rank: getPoiNotorietyRank(poi["Notoriety Tier"]),
+      display: getPoiNotorietyDisplayValue(poi["Notoriety Tier"])
+    }))
+    .filter(item => item.rank < 999 && item.display);
+
+  if (!ranks.length) {
+    return null;
+  }
+
+  ranks.sort((a, b) => a.rank - b.rank);
+
+  return {
+    lowest: ranks[0].display,
+    highest: ranks[ranks.length - 1].display,
+    lowestRank: ranks[0].rank,
+    highestRank: ranks[ranks.length - 1].rank,
+    mixed: ranks[0].rank !== ranks[ranks.length - 1].rank
+  };
+}
+
+function getPoiEffectiveNotorietyRank(row) {
+  if (row?.__codexRecordType === "poi-group") {
+    return getPoiGroupNotorietyRange(row)?.lowestRank || 999;
+  }
+
+  return getPoiNotorietyRank(row?.["Notoriety Tier"]);
+}
+
+function formatPoiGroupNotorietyRange(groupOrId) {
+  const range = getPoiGroupNotorietyRange(groupOrId);
+  if (!range) return "";
+  if (!range.mixed) return `Notoriety: ${range.lowest}`;
+  return `Notoriety: ${range.lowest}–${range.highest}`;
+}
+
+function getPoiListSortName(row) {
+  if (row?.__codexRecordType === "poi-group") {
+    return row.POI_Group_Name || row.POI_Group_ID || "";
+  }
+
+  return row?.Name || row?.POI_ID || "";
+}
+
 function getPoiGroupForPoi(poi) {
   const groupId = poi?.POI_Group_ID;
   if (!groupId) return null;
@@ -119,6 +175,19 @@ function createPoiGroupListRows(pois) {
       __codexRecordType: "poi-group",
       __codexRecordId: group.POI_Group_ID,
       __codexGroupPois: getPoisForGroup(group.POI_Group_ID)
+    });
+  });
+
+  (db?.raw?.poiGroups || []).forEach(group => {
+    if (seenGroupIds.has(group.POI_Group_ID)) return;
+    if (getPoisForGroup(group.POI_Group_ID).length) return;
+
+    seenGroupIds.add(group.POI_Group_ID);
+    rows.push({
+      ...group,
+      __codexRecordType: "poi-group",
+      __codexRecordId: group.POI_Group_ID,
+      __codexGroupPois: []
     });
   });
 

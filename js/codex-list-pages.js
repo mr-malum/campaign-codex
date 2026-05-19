@@ -3,24 +3,30 @@
    ========================================================= */
 
 function bindCodexListControls(config) {
+  const renderAndBlur = function () {
+    config.render();
+    this.blur?.();
+  };
+
   config.filters.forEach(filter => {
     document.getElementById(filter.fieldId)?.addEventListener(
       "change",
       function () {
         filter.updateOptions();
         config.render();
+        this.blur?.();
       }
     );
 
     document.getElementById(filter.valueId)?.addEventListener(
       "change",
-      config.render
+      renderAndBlur
     );
   });
 
   document.getElementById(config.sortId)?.addEventListener(
     "change",
-    config.render
+    renderAndBlur
   );
 
   document.getElementById(config.directionId)?.addEventListener(
@@ -132,7 +138,10 @@ function renderPoiListIntoContainer() {
     sortDirection
   );
 
-  const listRows = createPoiGroupListRows(pois);
+  let listRows = createPoiGroupListRows(pois);
+  if (sortMode === "name") {
+    listRows = sortRows(listRows, (a, b) => compareText(getPoiListSortName(a), getPoiListSortName(b)), sortDirection);
+  }
 
   listEl.innerHTML = renderCodexLinkedList(
     listRows,

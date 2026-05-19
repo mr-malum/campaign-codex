@@ -39,14 +39,14 @@ const poiCodexListConfig = {
   ],
 
   sortComparators: {
-    name: (a, b) => compareText(a.Name, b.Name),
+    name: (a, b) => compareText(getPoiListSortName(a), getPoiListSortName(b)),
 
     type: compareByTextThenName(row => row.POI_Type),
 
     notoriety: (a, b) => {
       const primary =
-        getPoiNotorietyRank(a["Notoriety Tier"]) -
-        getPoiNotorietyRank(b["Notoriety Tier"]);
+        getPoiEffectiveNotorietyRank(a) -
+        getPoiEffectiveNotorietyRank(b);
 
       return primary !== 0
         ? primary
@@ -201,13 +201,19 @@ const hexCodexListConfig = {
 
     terrain: compareByTextThenName(row => row.Terrain),
 
-    "poi-count": compareByNumberThenName(row =>
-      getHexCounts(row.Hex_ID).poiCount
-    ),
+    "poi-count": (a, b) => {
+      const primary = getHexCounts(b.Hex_ID).poiCount - getHexCounts(a.Hex_ID).poiCount;
+      return primary !== 0
+        ? primary
+        : String(a.Hex_ID || "").localeCompare(String(b.Hex_ID || ""), undefined, { numeric: true, sensitivity: "base" });
+    },
 
-    "npc-count": compareByNumberThenName(row =>
-      getHexCounts(row.Hex_ID).npcCount
-    )
+    "npc-count": (a, b) => {
+      const primary = getHexCounts(b.Hex_ID).npcCount - getHexCounts(a.Hex_ID).npcCount;
+      return primary !== 0
+        ? primary
+        : String(a.Hex_ID || "").localeCompare(String(b.Hex_ID || ""), undefined, { numeric: true, sensitivity: "base" });
+    }
   },
 
   bindControls: () => bindCodexListControls({
