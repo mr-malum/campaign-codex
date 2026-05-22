@@ -138,7 +138,16 @@
 
   /* Floating map controls */
 
+  .campaign-settings-shell {
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+  }
+
   #campaign-settings-button {
+    display: block;
+  }
+
+  .campaign-settings-shell.codex-map-settings-hidden {
     display: none;
   }
 

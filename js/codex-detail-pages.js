@@ -126,6 +126,21 @@ function renderImageStyle(imageUrl) {
     : "";
 }
 
+function renderRegionImageStyle(imageUrl, region) {
+  const color = getRegionDisplayColor(region) || "transparent";
+  const regionStyle = `--codex-region-color: ${escapeHtml(color)}`;
+  const imageAttrs = renderImageStyle(imageUrl);
+
+  return imageAttrs
+    ? imageAttrs.replace("style=\"", `style="${regionStyle}; `)
+    : `style="${regionStyle}"`;
+}
+
+function renderRegionColorStyle(region) {
+  const color = getRegionDisplayColor(region) || "transparent";
+  return `style="--codex-region-color: ${escapeHtml(color)}"`;
+}
+
 function renderMapTileStyle(imageUrl) {
   return imageUrl
     ? `style="--codex-map-image: url('${escapeJsString(imageUrl)}')"`
@@ -168,6 +183,31 @@ function renderCodexMapCard(map) {
       <span class="codex-map-card-info">${content}</span>
     </a>
   `;
+}
+
+function getRegionDisplayColor(region) {
+  const namedColors = {
+    red: "#ff2d2d",
+    blue: "#1f7cff",
+    yellow: "#ffe600",
+    green: "#39ff14",
+    orange: "#ff8a00",
+    purple: "#bf4dff",
+    black: "#070707",
+    white: "#ffffff",
+    brown: "#d9782d",
+    gold: "#ffd84d"
+  };
+  const value = String(region?.Border_Color || "#ffd84d").trim().toLowerCase();
+  if (value === "none") return "";
+  if (/^#[0-9a-f]{6}$/.test(value)) return value;
+  return namedColors[value] || "#ffd84d";
+}
+
+function renderRegionColorSwatch(region) {
+  const color = getRegionDisplayColor(region);
+  if (!color) return `<span class="codex-region-color-none">None</span>`;
+  return `<span class="codex-region-color-swatch" style="--codex-region-color: ${escapeHtml(color)}" aria-label="Region color"></span>`;
 }
 
 function renderCodexMapsPanel(maps, fallback = "No maps recorded.") {
@@ -447,6 +487,7 @@ function renderCodexUpperListPanel(title, rows, emptyText, type, idField, getLab
 function renderCodexHexPage(hexId) {
   const hex = db?.hexesById?.[hexId];
   const region = hex?.Region_ID_Ref ? db?.regionsById?.[hex.Region_ID_Ref] : null;
+  const politicalRegion = hex?.Political_Region_ID_Ref ? db?.regionsById?.[hex.Political_Region_ID_Ref] : null;
   const pois = getPoisForHex(hexId);
   const npcs = getNpcsForHex(hexId);
   const maps = getMapsForOwner("hex", hexId);
@@ -470,6 +511,13 @@ function renderCodexHexPage(hexId) {
             ? renderCodexInlineLink("region", region.Region_ID, region.Region_Name)
             : escapeHtml(hex?.Region_ID_Ref || "Unknown")
         }</p>
+        ${politicalRegion || hex?.Political_Region_ID_Ref ? `
+          <p><strong>Political Region:</strong> ${
+            politicalRegion
+              ? renderCodexInlineLink("region", politicalRegion.Region_ID, politicalRegion.Region_Name)
+              : escapeHtml(hex?.Political_Region_ID_Ref || "Unknown")
+          }</p>
+        ` : ""}
       </div>
     </section>
   `;
@@ -525,7 +573,10 @@ function renderCodexRegionTerrainRows(regionName, terrainCounts) {
 
 function renderCodexRegionPage(regionId) {
   const region = db?.regionsById?.[regionId];
-  const hexes = getRowsByField(db?.raw?.hexes, "Region_ID_Ref", regionId);
+  const regionField = region?.Region_Type === "political"
+    ? "Political_Region_ID_Ref"
+    : "Region_ID_Ref";
+  const hexes = getRowsByField(db?.raw?.hexes, regionField, regionId);
   const regionName = region?.Region_Name || regionId || "Unknown Region";
   const summary = getRegionSummary(regionId);
   const imageUrl = getRegionImageUrl(region);
@@ -534,7 +585,6 @@ function renderCodexRegionPage(regionId) {
   const pois = hexes.flatMap(hex => getPoisForHex(hex.Hex_ID));
   const poiListRows = createPoiGroupListRows(pois);
   const npcs = pois.flatMap(poi => getNpcsForPoi(poi.POI_ID));
-
   const terrainCounts = hexes.reduce((counts, hex) => {
     const terrain = hex.Terrain || "Unknown";
     counts[terrain] = (counts[terrain] || 0) + 1;
@@ -556,9 +606,12 @@ function renderCodexRegionPage(regionId) {
     <section class="codex-detail-overview-panel codex-detail-overview-section">
       <h3>Overview</h3>
       <div class="codex-detail-fixed codex-detail-fixed-region">
-        <div class="codex-detail-portrait-slot codex-region-detail-image codex-placeholder-region" ${renderImageStyle(imageUrl)}></div>
+        <div class="codex-detail-portrait-slot codex-region-detail-image codex-placeholder-region" ${renderRegionImageStyle(imageUrl, region)}>
+          <span class="codex-region-detail-stroke" aria-hidden="true"></span>
+        </div>
 
         <div class="codex-detail-meta codex-region-detail-summary">
+          <p><strong>Type:</strong> ${escapeHtml(region?.Region_Type === "political" ? "Political" : "Geographic")}</p>
           <p><strong>Hexes:</strong> ${summary.hexCount}</p>
           <p><strong>Terrain Types:</strong> ${Object.keys(terrainCounts).length}</p>
           <p><strong>Points of Interest:</strong> ${summary.poiCount}</p>
@@ -865,8 +918,10 @@ function renderCodexRegionTile(region) {
   ].filter(Boolean).join(" • ");
 
   return `
-    <button class="codex-region-tile" type="button" onclick="openCodexPage('region', '${escapeJsString(regionId)}')">
-      <span class="codex-region-tile-image codex-placeholder-region" ${renderImageStyle(imageUrl)} data-codex-image-expand="false"></span>
+    <button class="codex-region-tile" type="button" ${renderRegionColorStyle(region)} onclick="openCodexPage('region', '${escapeJsString(regionId)}')">
+      <span class="codex-region-tile-image codex-placeholder-region" ${renderRegionImageStyle(imageUrl, region)} data-codex-image-expand="false"></span>
+      <span class="codex-region-tile-hover" aria-hidden="true"></span>
+      <span class="codex-region-tile-stroke" aria-hidden="true"></span>
       <span class="codex-region-tile-info">
         <span class="codex-region-tile-name">${escapeHtml(regionName)}</span>
         <span class="codex-region-tile-details">${escapeHtml(detailLine)}</span>
@@ -876,27 +931,145 @@ function renderCodexRegionTile(region) {
 }
 
 function renderCodexRegionsIndex() {
-  const regions = [...(db?.raw?.regions || [])].sort((a, b) => {
-    return String(a.Region_Name || a.Region_ID || "")
-      .localeCompare(String(b.Region_Name || b.Region_ID || ""));
-  });
+  const regions = [...(db?.raw?.regions || [])]
+    .filter(region => region.Region_ID !== "REG-0000")
+    .sort((a, b) => {
+      return String(a.Region_Name || a.Region_ID || "")
+        .localeCompare(String(b.Region_Name || b.Region_ID || ""), undefined, {
+          numeric: true,
+          sensitivity: "base"
+        });
+    });
+  const geographicRegions = regions.filter(region => (region.Region_Type || "geographic") === "geographic");
+  const politicalRegions = regions.filter(region => region.Region_Type === "political");
 
   setCodexTitle("Regions");
 
   setCodexContent(`
-    ${renderCodexAuditIndexButton?.({
-      title: "Regions Audit",
-      targetTypes: ["regions"]
-    }) || ""}
-    <div class="codex-region-tile-grid">
-      ${regions.map(renderCodexRegionTile).join("") || `<p>No regions recorded.</p>`}
+    <div class="codex-list-page-shell codex-region-index-shell">
+      <div class="codex-list-control-split-view">
+        <aside class="codex-list-control-rail">
+          <div class="codex-list-controls-shell">
+            <nav class="codex-row-list codex-row-list-rail codex-detail-section-rail" aria-label="Region type">
+              ${renderCodexRegionIndexRailButton("geographic", "Geographic", geographicRegions.length, true)}
+              ${renderCodexRegionIndexRailButton("political", "Political", politicalRegions.length)}
+            </nav>
+          </div>
+        </aside>
+
+        <div class="codex-list-scroll-shell codex-scroll-fade">
+          ${renderCodexAuditIndexButton?.({
+            title: "Regions Audit",
+            targetTypes: ["regions"]
+          }) || ""}
+
+          <section id="codex-region-index-geographic" class="codex-region-index-section active">
+            <h3>Geographic</h3>
+            ${
+              geographicRegions.length
+                ? `<div class="codex-region-tile-grid">${geographicRegions.map(renderCodexRegionTile).join("")}</div>`
+                : `<p>No geographic regions recorded.</p>`
+            }
+          </section>
+
+          <section id="codex-region-index-political" class="codex-region-index-section">
+            <h3>Political</h3>
+            ${
+              politicalRegions.length
+                ? `<div class="codex-region-tile-grid">${politicalRegions.map(renderCodexRegionTile).join("")}</div>`
+                : `<p>No political regions recorded.</p>`
+            }
+          </section>
+        </div>
+      </div>
     </div>
   `, [
     { label: "Codex", clickable: true, onclick: "resetCodexToIndex()" },
     { label: "Regions" }
   ]);
 
-  document.getElementById("codex-content").classList.add("codex-regions-index");
+  document.getElementById("codex-content").classList.add("codex-list-page", "codex-regions-index");
+  registerCodexRegionIndexMobileSectionsUtility();
+}
+
+function renderCodexRegionIndexRailButton(type, label, count, active = false) {
+  return `
+    <button
+      class="codex-row codex-detail-section-rail-row ${active ? "active codex-row-active" : ""}"
+      type="button"
+      data-codex-region-index-type="${escapeHtml(type)}"
+      onclick="setCodexRegionIndexSection('${escapeJsString(type)}')"
+    >
+      <span class="codex-row-icon" aria-hidden="true">${escapeHtml(getCodexIcon("region"))}</span>
+      <span class="codex-row-main">
+        <span class="codex-row-title">${escapeHtml(label)}</span>
+      </span>
+      <span class="codex-row-count">${escapeHtml(String(count))}</span>
+    </button>
+  `;
+}
+
+function setCodexRegionIndexSection(type) {
+  const normalized = type === "political" ? "political" : "geographic";
+  document.querySelectorAll(".codex-region-index-section").forEach(section => {
+    section.classList.toggle("active", section.id === `codex-region-index-${normalized}`);
+  });
+  document.querySelectorAll("[data-codex-region-index-type]").forEach(button => {
+    const active = button.dataset.codexRegionIndexType === normalized;
+    button.classList.toggle("active", active);
+    button.classList.toggle("codex-row-active", active);
+  });
+}
+
+function getCodexRegionIndexSectionItems() {
+  return [...document.querySelectorAll("[data-codex-region-index-type]")].map(button => ({
+    type: button.dataset.codexRegionIndexType,
+    label: button.querySelector(".codex-row-title")?.textContent?.trim() || button.dataset.codexRegionIndexType,
+    count: button.querySelector(".codex-row-count")?.textContent?.trim() || ""
+  })).filter(item => item.type);
+}
+
+function renderCodexRegionIndexMobileSectionsPanel() {
+  const items = getCodexRegionIndexSectionItems();
+
+  return `
+    <nav class="codex-row-list codex-mobile-detail-section-picker" aria-label="Region sections">
+      ${items.map(item => `
+        <button
+          class="codex-row codex-mobile-detail-section-row ${document.getElementById(`codex-region-index-${item.type}`)?.classList.contains("active") ? "active codex-row-active" : ""}"
+          type="button"
+          data-codex-mobile-region-section="${escapeHtml(item.type)}"
+        >
+          <span class="codex-row-icon" aria-hidden="true">${escapeHtml(getCodexIcon("region"))}</span>
+          <span class="codex-row-main">
+            <span class="codex-row-title">${escapeHtml(item.label)}</span>
+          </span>
+          <span class="codex-row-count">${escapeHtml(item.count)}</span>
+        </button>
+      `).join("")}
+    </nav>
+  `;
+}
+
+function bindCodexRegionIndexMobileSectionsPanel(panel) {
+  panel.querySelectorAll("[data-codex-mobile-region-section]").forEach(button => {
+    button.addEventListener("click", function () {
+      setCodexRegionIndexSection(button.dataset.codexMobileRegionSection);
+      closeCodexMobileUtilityPanel?.();
+    });
+  });
+}
+
+function registerCodexRegionIndexMobileSectionsUtility() {
+  if (typeof setCodexMobileUtility !== "function") return;
+
+  setCodexMobileUtility({
+    type: "region-index-sections",
+    label: "Sections",
+    panelTitle: "Regions",
+    renderPanel: renderCodexRegionIndexMobileSectionsPanel,
+    bindPanel: bindCodexRegionIndexMobileSectionsPanel
+  });
 }
 
 window.cacheCodexDetailSection = cacheCodexDetailSection;

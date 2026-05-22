@@ -485,7 +485,7 @@ function setCampaignAuthMode(mode) {
 async function fetchAvailableCampaigns() {
   const { data, error } = await campaignSupabase
     .from("campaigns")
-    .select("id, name, slug, owner_user_id, main_map_asset_id, main_map_width, main_map_height")
+    .select("id, name, slug, owner_user_id, main_map_asset_id, main_map_width, main_map_height, map_mode, generated_map_config")
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -1224,6 +1224,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("campaign-auth-tab-signup")
     ?.addEventListener("click", () => setCampaignAuthMode("signup"));
   document.getElementById("campaign-settings-signout-button")
+    ?.addEventListener("click", handleCampaignSignOut);
+  document.getElementById("campaign-signout-button")
     ?.addEventListener("click", handleCampaignSignOut);
   document.getElementById("campaign-settings-close-button")
     ?.addEventListener("click", closeCampaignSettingsMenu);

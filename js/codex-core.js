@@ -20,6 +20,9 @@ function getCodexTitle() {
 
 function openCodex() {
   getCodexOverlay().classList.add("open");
+  document
+    .getElementById("campaign-settings-shell")
+    ?.classList.add("codex-map-settings-hidden");
 
   if (typeof ensureAppBrowserBackTrap === "function") {
     ensureAppBrowserBackTrap();
@@ -42,6 +45,9 @@ function closeCodex(options = {}) {
 
   closeCodexGlobalSearchModal?.();
   overlay.classList.remove("open");
+  document
+    .getElementById("campaign-settings-shell")
+    ?.classList.remove("codex-map-settings-hidden");
   map.closePopup();
   clearSelectedHex();
 

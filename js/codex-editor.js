@@ -433,6 +433,16 @@ function openEditRegionEditor(regionId) {
   codexEditorState = { mode: "edit-region", recordType: "region", recordId: regionId };
   setEditorMode("edit-region");
   document.getElementById("codex-edit-region-form")?.reset();
+  const typeSelect = document.getElementById("codex-edit-region-type");
+  if (typeSelect) {
+    typeSelect.value = region.Region_ID === "REG-0000" ? "geographic" : region.Region_Type || "geographic";
+    typeSelect.disabled = region.Region_ID === "REG-0000";
+  }
+  const borderColorSelect = document.getElementById("codex-edit-region-border-color");
+  if (borderColorSelect) {
+    borderColorSelect.value = getEditableRegionColorValue(region);
+    borderColorSelect.disabled = region.Region_ID === "REG-0000";
+  }
   document.getElementById("codex-edit-region-lore").value = region.Lore || "";
   openEditorModal();
 }
@@ -734,6 +744,9 @@ async function confirmDeleteRecord() {
     if (error) throw error;
 
     removeRecordFromLocalDb(target);
+    if (target.pageType === "poi") {
+      refreshGeneratedMapPoiLayer();
+    }
     closeCodexDeleteModal();
 
     popCodexHistory?.();
@@ -1454,6 +1467,43 @@ function updateRegionInLocalDb(region, updates) {
   Object.assign(region, updates);
 }
 
+function getEditableRegionColorValue(region) {
+  const namedColors = {
+    red: "#ff2d2d",
+    blue: "#1f7cff",
+    yellow: "#ffe600",
+    green: "#39ff14",
+    orange: "#ff8a00",
+    purple: "#bf4dff",
+    black: "#070707",
+    white: "#ffffff",
+    brown: "#d9782d",
+    gold: "#ffd84d"
+  };
+  const value = String(region?.Border_Color || "#ffd84d").trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(value)) return value;
+  return namedColors[value] || "#ffd84d";
+}
+
+function migrateRegionTypeInLocalDb(regionId, previousType, nextType) {
+  if (!regionId || regionId === "REG-0000" || previousType === nextType) return;
+
+  (db?.raw?.hexes || []).forEach(hex => {
+    if (previousType === "geographic" && nextType === "political" && hex.Region_ID_Ref === regionId) {
+      hex.Political_Region_ID_Ref = regionId;
+      hex.Region_ID_Ref = "REG-0000";
+    } else if (previousType === "political" && nextType === "geographic" && hex.Political_Region_ID_Ref === regionId) {
+      hex.Region_ID_Ref = regionId;
+      hex.Political_Region_ID_Ref = "";
+    }
+
+    if (hex.Hex_ID && db?.hexesById?.[hex.Hex_ID]) {
+      db.hexesById[hex.Hex_ID].Region_ID_Ref = hex.Region_ID_Ref;
+      db.hexesById[hex.Hex_ID].Political_Region_ID_Ref = hex.Political_Region_ID_Ref;
+    }
+  });
+}
+
 function adaptCreatedPoiRow(row) {
   const createdRow = Array.isArray(row) ? row[0] : row;
 
@@ -1490,7 +1540,25 @@ function addCreatedPoiToLocalDb(poi) {
   }
 }
 
+function refreshGeneratedMapPoiLayer() {
+  if (window.generatedMapRenderer?.isActive?.()) {
+    window.generatedMapRenderer.refreshPoiLayerFromDatabase();
+  }
+}
+
+function refreshGeneratedMapRegionLayer() {
+  if (window.generatedMapRenderer?.isActive?.()) {
+    window.generatedMapRenderer.refreshRegionLayerFromDatabase?.();
+  }
+}
+
 function refreshCodexAfterCreatedRecord(kind) {
+  if (kind === "poi") {
+    refreshGeneratedMapPoiLayer();
+  } else if (kind === "region") {
+    refreshGeneratedMapRegionLayer();
+  }
+
   const currentPage = getCurrentCodexPage?.();
   const isDetailPage = ["hex", "region", "poi", "poi-group", "npc"].includes(currentPage?.type);
 
@@ -1895,6 +1963,12 @@ async function handleEditRegionSubmit(event) {
   if (!campaign || !region?.__uuid) return;
 
   const lore = document.getElementById("codex-edit-region-lore")?.value.trim();
+  const regionType = region.Region_ID === "REG-0000"
+    ? "geographic"
+    : document.getElementById("codex-edit-region-type")?.value || "geographic";
+  const borderColor = region.Region_ID === "REG-0000"
+    ? "none"
+    : document.getElementById("codex-edit-region-border-color")?.value || "#ffd84d";
   const imageFile = getEditorImageFile("codex-edit-region-image");
 
   setCodexEditorStatus("Saving region...");
@@ -1905,15 +1979,22 @@ async function handleEditRegionSubmit(event) {
     const { data, error } = await campaignSupabase.rpc("update_region_record", {
       target_campaign_id: campaign.id,
       target_region_id: region.__uuid,
-      region_lore: lore || null
+      region_lore: lore || null,
+      region_border_color: borderColor,
+      new_region_type: regionType
     });
 
     if (error) throw error;
 
     const updated = Array.isArray(data) ? data[0] : data;
+    const previousRegionType = region.Region_Type || "geographic";
+    const updatedRegionType = updated?.region_type || regionType;
     updateRegionInLocalDb(region, {
-      Lore: updated?.lore || ""
+      Lore: updated?.lore || "",
+      Region_Type: updatedRegionType,
+      Border_Color: region.Region_ID === "REG-0000" ? "none" : updated?.border_color || borderColor
     });
+    migrateRegionTypeInLocalDb(region.Region_ID, previousRegionType, updatedRegionType);
 
     if (imageFile) {
       setCodexEditorStatus("Uploading region image...");

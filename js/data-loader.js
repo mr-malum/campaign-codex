@@ -33,6 +33,15 @@ async function fetchAllCampaignRows(tableName, columns, campaignId) {
   return allRows;
 }
 
+async function fetchOptionalCampaignRows(tableName, columns, campaignId) {
+  try {
+    return await fetchAllCampaignRows(tableName, columns, campaignId);
+  } catch (error) {
+    console.warn(`Optional campaign table "${tableName}" could not be loaded:`, error);
+    return [];
+  }
+}
+
 async function fetchCampaignRows(campaignId) {
   const [
     regions,
@@ -41,15 +50,17 @@ async function fetchCampaignRows(campaignId) {
     pois,
     maps,
     npcs,
-    dmJournal
+    dmJournal,
+    generatedMapOverlays
   ] = await Promise.all([
-    fetchAllCampaignRows("regions", "id, ref_code, name, lore, image_asset_id", campaignId),
-    fetchAllCampaignRows("hexes", "id, ref_code, terrain, map_xy, region_id", campaignId),
+    fetchAllCampaignRows("regions", "id, ref_code, name, lore, image_asset_id, region_type, border_color", campaignId),
+    fetchAllCampaignRows("hexes", "id, ref_code, terrain, map_xy, region_id, geographic_region_id, political_region_id, base_terrain, terrain_features, elevation", campaignId),
     fetchAllCampaignRows("poi_groups", "id, slug, name, group_type, population, lore, image_asset_id", campaignId),
     fetchAllCampaignRows("pois", "id, ref_code, poi_group_id, name, hex_id, poi_type, notoriety_tier, population, lore, image_asset_id", campaignId),
     fetchAllCampaignRows("maps", "id, ref_code, name, map_type, sort_order, lore, image_asset_id, region_owner_id, poi_group_owner_id, poi_owner_id, hex_owner_id", campaignId),
     fetchAllCampaignRows("npcs", "id, ref_code, home_poi_id, title, name, organization, race, occupation, lore, image_asset_id", campaignId),
-    fetchAllCampaignRows("dm_journal", "id, ref_code, entry_title, entry_body, entry_type, source_type, source_id, occurred_at, created_by_user_id, session_id, visibility", campaignId)
+    fetchAllCampaignRows("dm_journal", "id, ref_code, entry_title, entry_body, entry_type, source_type, source_id, occurred_at, created_by_user_id, session_id, visibility", campaignId),
+    fetchOptionalCampaignRows("generated_map_overlays", "id, overlay_type, from_hex_id, to_hex_id, hex_id, edge, style", campaignId)
   ]);
 
   const journalAuthorIds = [...new Set(
@@ -77,6 +88,7 @@ async function fetchCampaignRows(campaignId) {
     maps,
     npcs,
     dmJournal,
+    generatedMapOverlays,
     journalProfiles
   };
 }
@@ -148,23 +160,278 @@ function buildLegacyRecordMaps(rows) {
   };
 }
 
+function isGeneratedMapMode() {
+  return getActiveCampaign?.()?.map_mode === "generated";
+}
+
+function isGeneratedHexRow(hex) {
+  return Boolean(hex?.base_terrain);
+}
+
+function getActiveHexRows(rows) {
+  if (!isGeneratedMapMode()) return rows.hexes;
+  return rows.hexes.filter(isGeneratedHexRow);
+}
+
+function getActiveRegionRows(rows, activeHexRows) {
+  if (!isGeneratedMapMode()) return rows.regions;
+
+  const activeRegionIds = new Set();
+
+  activeHexRows.forEach(hex => {
+    [
+      hex.geographic_region_id || hex.region_id,
+      hex.political_region_id
+    ].filter(Boolean).forEach(regionId => activeRegionIds.add(regionId));
+  });
+
+  return rows.regions.filter(region => (
+    ["geographic", "political"].includes(region.region_type) ||
+    activeRegionIds.has(region.id)
+  ));
+}
+
+const codexBaseTerrainLabels = {
+  deep_sea: "Deep Sea",
+  sea: "Sea",
+  coastal_water: "Coastal Water",
+  inland_water: "Inland Water",
+  beach: "Beach",
+  plains: "Plains",
+  grassland: "Grassland",
+  lush_grassland: "Lush Grassland",
+  wetland: "Wetland",
+  jungle_floor: "Jungle Floor",
+  desert: "Desert",
+  deep_desert: "Deep Desert",
+  barrens: "Barrens",
+  bleak_barrens: "Bleak Barrens",
+  snow: "Snow",
+  rock: "Rock",
+  wastes: "Wastes"
+};
+
+const codexFeatureLabels = {
+  woods: "Woods",
+  forest: "Forest",
+  jungle: "Jungle",
+  shrub: "Shrub",
+  cactus_scrub: "Cactus Scrub",
+  marsh: "Marsh",
+  kelp: "Kelp",
+  ridges: "Ridges",
+  mountains: "Mountains",
+  snowcapped_mountains: "Snowcapped Mountains",
+  cliffs: "Cliffs",
+  lone_mountain: "Lone Mountain",
+  volcano: "Volcano",
+  reef: "Reef",
+  shoals: "Shoals",
+  water_rocks: "Water Rocks",
+  rapids: "Rapids",
+  falls: "Falls",
+  whirlpool: "Whirlpool",
+  farmland: "Farmland",
+  sand: "Sand",
+  waves: "Waves",
+  ice: "Ice",
+  mist: "Mist"
+};
+
+const codexValidFeaturesByBase = {
+  deep_sea: ["waves", "mist", "kelp", "water_rocks", "whirlpool", "ice"],
+  sea: ["waves", "mist", "reef", "shoals", "water_rocks", "kelp", "ice"],
+  coastal_water: ["waves", "mist", "kelp", "water_rocks", "whirlpool", "ice"],
+  inland_water: ["waves", "mist", "shoals", "water_rocks", "rapids", "falls", "marsh", "ice"],
+  beach: ["sand", "ridges", "cliffs", "mist", "water_rocks"],
+  plains: ["woods", "shrub", "ridges", "farmland", "lone_mountain", "mist"],
+  grassland: ["woods", "forest", "shrub", "ridges", "farmland", "lone_mountain", "mist"],
+  lush_grassland: ["woods", "forest", "shrub", "ridges", "farmland", "marsh", "mist"],
+  wetland: ["woods", "forest", "marsh", "mist"],
+  jungle_floor: ["jungle", "ridges", "mist"],
+  desert: ["sand", "ridges", "cactus_scrub", "cliffs", "lone_mountain", "mist"],
+  deep_desert: ["sand", "ridges", "cactus_scrub", "cliffs", "lone_mountain", "mist"],
+  barrens: ["shrub", "ridges", "cliffs", "lone_mountain", "mist"],
+  bleak_barrens: ["shrub", "ridges", "cliffs", "lone_mountain", "mist"],
+  snow: ["ridges", "mountains", "snowcapped_mountains", "woods", "forest", "ice", "mist"],
+  rock: ["ridges", "mountains", "woods", "forest", "cliffs", "lone_mountain", "volcano", "mist"],
+  wastes: ["ridges", "cliffs", "lone_mountain", "volcano", "mist"]
+};
+
+const codexExclusiveFeatureGroups = [
+  ["mountains", "snowcapped_mountains", "lone_mountain", "volcano"],
+  ["woods", "forest"]
+];
+
+function getCodexValidTerrainFeatures(baseTerrain, features = []) {
+  const valid = new Set(codexValidFeaturesByBase[baseTerrain] || []);
+  let normalized = [...new Set(features)].filter(feature => valid.has(feature));
+
+  codexExclusiveFeatureGroups.forEach(group => {
+    const selectedGroupFeatures = normalized.filter(feature => group.includes(feature));
+    if (selectedGroupFeatures.length <= 1) return;
+    const keepFeature = selectedGroupFeatures[0];
+    normalized = normalized.filter(feature => !group.includes(feature) || feature === keepFeature);
+  });
+
+  return normalized;
+}
+
+function getCodexGeneratedTerrainName(baseTerrain, featuresInput = []) {
+  const base = codexBaseTerrainLabels[baseTerrain] || baseTerrain || "Unknown";
+  const features = getCodexValidTerrainFeatures(baseTerrain, featuresInput);
+  const has = featureId => features.includes(featureId);
+  const misty = has("mist");
+  const prefix = value => misty && !String(value).startsWith("Misty ") ? `Misty ${value}` : value;
+
+  if (!features.length) return base;
+
+  if (["deep_sea", "sea", "coastal_water", "inland_water"].includes(baseTerrain)) {
+    if (has("whirlpool")) return prefix("Whirlpool");
+    if (has("falls")) return prefix("Falls");
+    if (has("rapids")) return prefix("Rapids");
+    if (has("reef")) return prefix("Reef");
+    if (has("shoals")) return prefix("Shoals");
+    if (has("water_rocks")) return prefix("Rocky Waters");
+    if (has("kelp")) return prefix("Kelp Beds");
+    if (has("ice")) return prefix(baseTerrain === "deep_sea" ? "Frozen Deep Sea" : baseTerrain === "sea" ? "Frozen Sea" : baseTerrain === "coastal_water" ? "Frozen Coastal Water" : "Frozen Inland Water");
+    if (has("waves")) return prefix(baseTerrain === "deep_sea" ? "Rough Deep Sea" : baseTerrain === "sea" ? "Rough Sea" : baseTerrain === "coastal_water" ? "Rough Coastal Water" : "Rough Inland Water");
+    return misty ? prefix(base) : base;
+  }
+
+  if (baseTerrain === "beach") {
+    if (misty) return "Misty Coast";
+    if (has("sand")) return "Sandy Beach";
+    if (has("cliffs")) return "Coastal Cliffs";
+    if (has("ridges")) return "Beach Dunes";
+    if (has("water_rocks")) return "Rocky Coast";
+    return base;
+  }
+
+  if (has("volcano")) return prefix("Volcano");
+  if (has("lone_mountain")) return prefix("Lone Mountain");
+
+  if (baseTerrain === "rock") {
+    if (has("mountains") && has("forest")) return prefix("Forested Mountains");
+    if (has("mountains") && has("woods")) return prefix("Wooded Mountains");
+    if (has("mountains")) return prefix("Mountains");
+    if (has("cliffs")) return prefix("Cliffs");
+    if (has("ridges")) return prefix("Rocky Hills");
+  }
+
+  if (baseTerrain === "snow") {
+    if (has("snowcapped_mountains") || has("mountains")) return prefix("Snowcapped Mountains");
+    if (has("ridges")) return prefix("Snowy Hills");
+    if (has("forest")) return prefix("Snowy Forest");
+    if (has("woods")) return prefix("Snowy Woods");
+    if (has("ice")) return prefix("Ice Fields");
+  }
+
+  if (baseTerrain === "wetland") {
+    if (has("forest")) return prefix("Evergreen Wetlands");
+    if (has("woods")) return prefix("Wet Woods");
+    if (has("marsh")) return prefix("Marsh");
+  }
+
+  if (baseTerrain === "jungle_floor") {
+    if (has("ridges")) return prefix("Jungle Hills");
+    if (has("jungle")) return prefix("Jungle");
+  }
+
+  if (has("farmland")) return prefix("Cultivated Farmland");
+
+  if (baseTerrain === "desert") {
+    if (has("sand")) return prefix("Sandy Desert");
+    if (has("ridges")) return prefix("Dunes");
+    if (has("cactus_scrub")) return prefix("Cactus Scrub");
+    if (has("cliffs")) return prefix("Desert Cliffs");
+  }
+
+  if (baseTerrain === "deep_desert") {
+    if (has("sand")) return prefix("Sandy Deep Desert");
+    if (has("ridges")) return prefix("Rocky Desert");
+    if (has("cactus_scrub")) return prefix("Cactus Scrub");
+    if (has("cliffs")) return prefix("Desert Cliffs");
+  }
+
+  if (baseTerrain === "barrens" || baseTerrain === "bleak_barrens") {
+    if (has("cliffs")) return prefix(baseTerrain === "bleak_barrens" ? "Bleak Cliffs" : "Barren Cliffs");
+    if (has("ridges") && has("shrub")) return prefix(baseTerrain === "bleak_barrens" ? "Bleak Shrubland Hills" : "Shrubland Hills");
+    if (has("ridges")) return prefix(baseTerrain === "bleak_barrens" ? "Bleak Hills" : "Barren Hills");
+    if (has("shrub")) return prefix(baseTerrain === "bleak_barrens" ? "Bleak Shrubland" : "Shrubland");
+  }
+
+  if (baseTerrain === "wastes") {
+    if (has("cliffs")) return prefix("Wasted Cliffs");
+    if (has("ridges")) return prefix("Wasted Hills");
+  }
+
+  if (baseTerrain === "plains") {
+    if (has("ridges") && has("shrub")) return prefix("Shrubland Hills");
+    if (has("ridges")) return prefix("Hills");
+    if (has("shrub")) return prefix("Shrubland");
+    if (has("woods")) return prefix("Woods");
+  }
+
+  if (baseTerrain === "grassland") {
+    if (has("ridges") && has("forest")) return prefix("Forested Hills");
+    if (has("ridges") && has("woods")) return prefix("Wooded Hills");
+    if (has("ridges") && has("shrub")) return prefix("Shrubland Hills");
+    if (has("ridges")) return prefix("Grassy Hills");
+    if (has("forest")) return prefix("Forest");
+    if (has("woods")) return prefix("Woods");
+    if (has("shrub")) return prefix("Brushland");
+  }
+
+  if (baseTerrain === "lush_grassland") {
+    if (has("ridges") && has("forest")) return prefix("Forested Hills");
+    if (has("ridges") && has("woods")) return prefix("Wooded Hills");
+    if (has("ridges") && has("shrub")) return prefix("Thicketed Hills");
+    if (has("ridges")) return prefix("Lush Hills");
+    if (has("forest")) return prefix("Forest");
+    if (has("woods")) return prefix("Woods");
+    if (has("shrub")) return prefix("Thicket");
+    if (has("marsh")) return prefix("Marshy Grassland");
+  }
+
+  const featureNames = features
+    .filter(featureId => featureId !== "mist")
+    .map(featureId => codexFeatureLabels[featureId])
+    .filter(Boolean);
+
+  return prefix(featureNames.length ? `${base} + ${featureNames.join(" + ")}` : base);
+}
+
+function getCodexTerrainLabel(hex) {
+  if (!hex?.base_terrain) return hex?.terrain || "";
+  return getCodexGeneratedTerrainName(hex.base_terrain, Array.isArray(hex.terrain_features) ? hex.terrain_features : []);
+}
+
 function adaptCampaignRows(rows, assetsById) {
   const recordMaps = buildLegacyRecordMaps(rows);
+  const activeHexRows = getActiveHexRows(rows);
+  const activeRegionRows = getActiveRegionRows(rows, activeHexRows);
 
-  const regions = rows.regions.map(region => ({
+  const regions = activeRegionRows.map(region => ({
     __uuid: region.id,
     Region_ID: region.ref_code,
     Region_Name: region.name || "",
+    Region_Type: region.region_type || "geographic",
+    Border_Color: region.ref_code === "REG-0000" ? "none" : region.border_color || "#ffd84d",
     Lore: region.lore || "",
     Image: getAssetValue(assetsById[region.image_asset_id])
   }));
 
-  const hexes = rows.hexes.map(hex => ({
+  const hexes = activeHexRows.map(hex => ({
     __uuid: hex.id,
     Hex_ID: hex.ref_code,
-    Region_ID_Ref: recordMaps.regionsByUuid[hex.region_id] || "",
-    Terrain: hex.terrain || "",
-    Map_XY: hex.map_xy || ""
+    Region_ID_Ref: recordMaps.regionsByUuid[hex.geographic_region_id || hex.region_id] || "",
+    Political_Region_ID_Ref: recordMaps.regionsByUuid[hex.political_region_id] || "",
+    Terrain: getCodexTerrainLabel(hex),
+    Map_XY: hex.map_xy || "",
+    Base_Terrain: hex.base_terrain || "",
+    Terrain_Features: Array.isArray(hex.terrain_features) ? hex.terrain_features : [],
+    Elevation: hex.elevation == null ? "" : String(hex.elevation)
   }));
 
   const poiGroups = rows.poiGroups.map(group => ({
@@ -236,6 +503,16 @@ function adaptCampaignRows(rows, assetsById) {
     Image: getAssetValue(assetsById[npc.image_asset_id])
   }));
 
+  const generatedMapOverlays = (rows.generatedMapOverlays || []).map(overlay => ({
+    __uuid: overlay.id,
+    Overlay_Type: overlay.overlay_type || "",
+    From_Hex_ID_Ref: recordMaps.hexesByUuid[overlay.from_hex_id] || "",
+    To_Hex_ID_Ref: recordMaps.hexesByUuid[overlay.to_hex_id] || "",
+    Hex_ID_Ref: recordMaps.hexesByUuid[overlay.hex_id] || "",
+    Edge: overlay.edge || "",
+    Style: overlay.style || ""
+  }));
+
   const sourceMaps = {
     region: recordMaps.regionsByUuid,
     hex: recordMaps.hexesByUuid,
@@ -273,7 +550,8 @@ function adaptCampaignRows(rows, assetsById) {
     regions,
     poiGroups,
     maps,
-    dmJournal
+    dmJournal,
+    generatedMapOverlays
   };
 }
 
@@ -488,6 +766,7 @@ async function loadDatabase() {
     poiGroupsById: indexById(appData.poiGroups, "POI_Group_ID"),
     mapsById: indexById(appData.maps, "Map_ID"),
     dmJournalById: indexById(appData.dmJournal, "Entry_ID"),
+    generatedMapOverlaysById: indexById(appData.generatedMapOverlays, "__uuid"),
     auditLog: appData.auditLog,
 
     poisByHexId: groupBy(appData.pois, "Hex_ID_Ref"),

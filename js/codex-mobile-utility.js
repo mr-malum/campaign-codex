@@ -148,6 +148,8 @@ function shouldClearCodexMobileButtonState(target) {
     #codex-mobile-debug-toggle,
     #codex-button,
     #map-reset-button,
+    #map-view-button,
+    #map-draw-button,
     .codex-image-modal-close,
     .codex-image-modal-nav
   `));

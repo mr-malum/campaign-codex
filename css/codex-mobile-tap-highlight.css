@@ -158,7 +158,7 @@
       0 3px 10px rgba(45, 25, 8, 0.20) !important;
   }
 
-  .codex-region-tile.codex-tap-active .codex-region-tile-image::after {
+  .codex-region-tile.codex-tap-active .codex-region-tile-hover {
     background: rgba(24, 13, 5, 0.10) !important;
   }
 

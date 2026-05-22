@@ -1,17 +1,19 @@
 function selectHex(hex) {
   if (selectedHex && selectedHex !== hex) {
-    selectedHex.setStyle(defaultStyle);
+    selectedHex.setStyle(selectedHex.__codexBaseStyle || defaultStyle);
   }
 
   selectedHex = hex;
-  hex.setStyle(selectedStyle);
+  hex.setStyle(hex.__codexSelectedStyle || selectedStyle);
 }
 
 function clearSelectedHex() {
   if (selectedHex) {
-    selectedHex.setStyle(defaultStyle);
+    selectedHex.setStyle(selectedHex.__codexBaseStyle || defaultStyle);
     selectedHex = null;
   }
+
+  window.generatedMapRenderer?.clearSelection();
 }
 
 function closePanel(options = {}) {
@@ -53,6 +55,7 @@ function openPanel() {
 function renderHexPreview(hexId) {
   const hex = db?.hexesById?.[hexId];
   const region = hex?.Region_ID_Ref ? db?.regionsById?.[hex.Region_ID_Ref] : null;
+  const politicalRegion = hex?.Political_Region_ID_Ref ? db?.regionsById?.[hex.Political_Region_ID_Ref] : null;
   const counts = getHexCounts(hexId);
 
   openPanel();
@@ -74,6 +77,13 @@ function renderHexPreview(hexId) {
         <span class="hex-preview-label">Region</span>
         <span class="hex-preview-value">${escapeHtml(region?.Region_Name || hex?.Region_ID_Ref || "Unknown")}</span>
       </div>
+
+      ${politicalRegion || hex?.Political_Region_ID_Ref ? `
+        <div class="hex-preview-row">
+          <span class="hex-preview-label">Political</span>
+          <span class="hex-preview-value">${escapeHtml(politicalRegion?.Region_Name || hex?.Political_Region_ID_Ref)}</span>
+        </div>
+      ` : ""}
 
       ${countLine ? `
         <div class="hex-preview-row">
@@ -101,8 +111,12 @@ function openPanelForHex(hexId) {
 }
 
 function panHexIntoInspectorView(hexId) {
-  const [xxx, yyy] = hexId.split(":").map(Number);
-  const center = getHexCenter(xxx, yyy);
+  if (window.generatedMapRenderer?.isActive?.()) {
+    window.generatedMapRenderer.centerHexInView(hexId, true);
+    return;
+  }
+
+  const center = getMapHexCenter(hexId);
   const targetLatLng = L.latLng(center.y, center.x);
 
   const targetPoint = map.latLngToContainerPoint(targetLatLng);
@@ -120,15 +134,26 @@ function panHexIntoInspectorView(hexId) {
 }
 
 function resetMapToAtlasView() {
+  if (window.generatedMapRenderer?.isActive?.()) {
+    clearSelectedHex();
+    selectedHexId = null;
+    window.generatedMapRenderer.fitViewToMap();
+    return;
+  }
+
   map.closePopup();
   clearSelectedHex();
   selectedHexId = null;
-  map.fitBounds(bounds, { animate: true, duration: 0.5 });
+  map.fitBounds(currentMapBounds, { animate: true, duration: 0.5 });
 }
 
 function centerHexInView(hexId) {
-  const [xxx, yyy] = hexId.split(":").map(Number);
-  const center = getHexCenter(xxx, yyy);
+  if (window.generatedMapRenderer?.isActive?.()) {
+    window.generatedMapRenderer.centerHexInView(hexId);
+    return;
+  }
+
+  const center = getMapHexCenter(hexId);
 
   map.panTo(
     L.latLng(center.y, center.x),
@@ -161,6 +186,12 @@ function toggleRetroCodexMode() {
 }
 
 function closeMobileHexPopup() {
+  if (window.generatedMapRenderer?.isActive?.()) {
+    clearSelectedHex();
+    selectedHexId = null;
+    return;
+  }
+
   map.closePopup();
   clearSelectedHex();
 }
@@ -168,6 +199,11 @@ function closeMobileHexPopup() {
 function buildMobilePopupHtml(hexId) {
   const data = db?.hexesById?.[hexId];
   const counts = getHexCounts(hexId);
+  const region = data?.Region_ID_Ref ? db?.regionsById?.[data.Region_ID_Ref] : null;
+  const politicalRegion = data?.Political_Region_ID_Ref ? db?.regionsById?.[data.Political_Region_ID_Ref] : null;
+  const regionName = region?.Region_Name || data?.Region_ID_Ref || "Unknown Region";
+  const politicalRegionName = politicalRegion?.Region_Name || data?.Political_Region_ID_Ref || "No Sovereign Control";
+  const elevation = Number.isFinite(Number(data?.Elevation)) ? Number(data.Elevation) : null;
 
   const info = [];
 
@@ -182,7 +218,14 @@ function buildMobilePopupHtml(hexId) {
   return `
     <div class="mobile-hex-popup-card">
       <div class="mobile-hex-popup-title">Hex ${escapeHtml(hexId)}</div>
+      <div class="mobile-hex-popup-region">${escapeHtml(politicalRegionName)}</div>
+      <div class="mobile-hex-popup-political-region">${escapeHtml(regionName)}</div>
       <div class="mobile-hex-popup-terrain">${escapeHtml(data?.Terrain || "Unknown")}</div>
+      ${
+        elevation !== null
+          ? `<div class="mobile-hex-popup-elevation">Elevation ${escapeHtml(String(elevation))}</div>`
+          : ""
+      }
       ${
         info.length
           ? `<div class="mobile-hex-popup-meta">${escapeHtml(info.join(" • "))}</div>`

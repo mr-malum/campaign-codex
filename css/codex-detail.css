@@ -635,12 +635,59 @@
   gap: 14px;
 }
 
+#codex-content.codex-regions-index .codex-list-scroll-shell {
+  display: block;
+}
+
+#codex-content.codex-regions-index .codex-region-index-section {
+  display: none;
+}
+
+#codex-content.codex-regions-index .codex-region-index-section.active {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+}
+
+#codex-content.codex-regions-index .codex-region-index-section h3 {
+  margin: 0 0 12px;
+  padding: 0 0 8px;
+
+  font-family: 'Marcellus SC', Georgia, serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+#codex-content.codex-regions-index .codex-region-index-section h3::after {
+  content: "";
+  display: block;
+  width: min(72%, 360px);
+  height: 1px;
+  margin: 7px auto 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(72, 43, 18, 0.65),
+    transparent
+  );
+}
+
+#codex-content.codex-regions-index .codex-region-tile-grid {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 4px 18px;
+}
+
 #codex-content.codex-regions-index .codex-region-tile {
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
-#codex-content.codex-regions-index .codex-region-tile-image::after {
+#codex-content.codex-regions-index .codex-region-tile-hover {
   content: "";
   position: absolute;
   inset: 0;
@@ -651,18 +698,87 @@
   background: rgba(24, 13, 5, 0);
 
   transition: background 0.14s ease;
+
+  -webkit-mask-image:
+    linear-gradient(
+      to right,
+      transparent 0%,
+      black 10%,
+      black 90%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      black 0%,
+      black 50%,
+      rgba(0, 0, 0, 0.24) 66%,
+      transparent 78%,
+      transparent 100%
+    );
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(
+      to right,
+      transparent 0%,
+      black 10%,
+      black 90%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      black 0%,
+      black 50%,
+      rgba(0, 0, 0, 0.24) 66%,
+      transparent 78%,
+      transparent 100%
+    );
+  mask-composite: intersect;
+}
+
+#codex-content.codex-regions-index .codex-region-tile-stroke {
+  content: "";
+  position: absolute;
+  inset: 9px 9px auto;
+  z-index: 2;
+  height: calc(100% - 18px);
+  border: 3px solid var(--codex-region-color, transparent);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  box-shadow:
+    0 -1px 0 rgba(47, 29, 16, 0.16),
+    -1px 0 0 rgba(47, 29, 16, 0.12),
+    1px 0 0 rgba(47, 29, 16, 0.12);
+  opacity: 0.88;
+  pointer-events: none;
+
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black 56%,
+    rgba(0, 0, 0, 0.58) 72%,
+    transparent 90%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black 56%,
+    rgba(0, 0, 0, 0.58) 72%,
+    transparent 90%,
+    transparent 100%
+  );
 }
 
 #codex-content.codex-regions-index .codex-region-tile:hover {
   transform: none;
 }
 
-#codex-content.codex-regions-index .codex-region-tile:hover .codex-region-tile-image::after,
-#codex-content.codex-regions-index .codex-region-tile:focus-visible .codex-region-tile-image::after {
+#codex-content.codex-regions-index .codex-region-tile:hover .codex-region-tile-hover,
+#codex-content.codex-regions-index .codex-region-tile:focus-visible .codex-region-tile-hover {
   background: rgba(24, 13, 5, 0.10);
 }
 
-#codex-content.codex-regions-index .codex-region-tile:active .codex-region-tile-image::after {
+#codex-content.codex-regions-index .codex-region-tile:active .codex-region-tile-hover {
   background: rgba(24, 13, 5, 0.18);
 }
 
@@ -723,7 +839,7 @@
 }
 
 #codex-content.codex-regions-index .codex-region-tile-info {
-  z-index: 2;
+  z-index: 3;
   min-height: 33.333%;
   padding: 12px 14px 14px;
 
@@ -784,6 +900,23 @@
 /* Slightly reduce metadata size */
 #codex-content strong {
   font-size: 0.96em;
+}
+
+.codex-region-color-swatch {
+  display: inline-block;
+  width: 1.35em;
+  height: 0.82em;
+  border: 1px solid rgba(47, 29, 16, 0.42);
+  border-radius: 999px;
+  background: var(--codex-region-color);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 245, 210, 0.38),
+    0 1px 2px rgba(47, 29, 16, 0.24);
+  vertical-align: -0.08em;
+}
+
+.codex-region-color-none {
+  opacity: 0.72;
 }
 
 @media (max-width: 700px) {
