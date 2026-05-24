@@ -196,7 +196,7 @@ function closeMobileHexPopup() {
   clearSelectedHex();
 }
 
-function buildMobilePopupHtml(hexId) {
+function buildMobilePopupHtml(hexId, options = {}) {
   const data = db?.hexesById?.[hexId];
   const counts = getHexCounts(hexId);
   const region = data?.Region_ID_Ref ? db?.regionsById?.[data.Region_ID_Ref] : null;
@@ -204,6 +204,7 @@ function buildMobilePopupHtml(hexId) {
   const regionName = region?.Region_Name || data?.Region_ID_Ref || "Unknown Region";
   const politicalRegionName = politicalRegion?.Region_Name || data?.Political_Region_ID_Ref || "No Sovereign Control";
   const elevation = Number.isFinite(Number(data?.Elevation)) ? Number(data.Elevation) : null;
+  const terrainName = getPopupTerrainName(data);
 
   const info = [];
 
@@ -220,7 +221,7 @@ function buildMobilePopupHtml(hexId) {
       <div class="mobile-hex-popup-title">Hex ${escapeHtml(hexId)}</div>
       <div class="mobile-hex-popup-region">${escapeHtml(politicalRegionName)}</div>
       <div class="mobile-hex-popup-political-region">${escapeHtml(regionName)}</div>
-      <div class="mobile-hex-popup-terrain">${escapeHtml(data?.Terrain || "Unknown")}</div>
+      <div class="mobile-hex-popup-terrain">${escapeHtml(terrainName)}</div>
       ${
         elevation !== null
           ? `<div class="mobile-hex-popup-elevation">Elevation ${escapeHtml(String(elevation))}</div>`
@@ -232,14 +233,18 @@ function buildMobilePopupHtml(hexId) {
           : ""
       }
 
-      <div class="popup-action-row">
-        <button
-          class="popup-open-details"
-          type="button"
-          onclick="openCodexPage('hex', '${escapeJsString(hexId)}')"
-        >
-          Details
-        </button>
+      <div class="popup-action-row${options.detailsDisabled ? " popup-action-row-editor-preview" : ""}">
+        ${
+          options.detailsDisabled
+            ? ""
+            : `<button
+                class="popup-open-details"
+                type="button"
+                onclick="openCodexPage('hex', '${escapeJsString(hexId)}')"
+              >
+                Details
+              </button>`
+        }
 
         <button
           class="popup-close-details"
@@ -252,6 +257,25 @@ function buildMobilePopupHtml(hexId) {
       </div>
     </div>
   `;
+}
+
+function getPopupTerrainName(data) {
+  const baseTerrain = data?.Base_Terrain || data?.base_terrain;
+  const features = Array.isArray(data?.Terrain_Features)
+    ? data.Terrain_Features
+    : Array.isArray(data?.terrain_features)
+    ? data.terrain_features
+    : [];
+
+  if (baseTerrain && window.CampaignTerrainRules?.getTerrainDisplayName) {
+    return window.CampaignTerrainRules.getTerrainDisplayName(baseTerrain, features);
+  }
+
+  if (baseTerrain && typeof getCodexGeneratedTerrainName === "function") {
+    return getCodexGeneratedTerrainName(baseTerrain, features);
+  }
+
+  return data?.Terrain || "Unknown";
 }
 
 window.openPanelForHex = openPanelForHex;

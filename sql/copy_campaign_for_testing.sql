@@ -127,6 +127,7 @@ begin
       name,
       lore,
       region_type,
+      border_color,
       created_by
     )
     values (
@@ -135,6 +136,34 @@ begin
       source_region.name,
       source_region.lore,
       coalesce(source_region.region_type, 'geographic'),
+      case
+        when source_region.ref_code = 'REG-0000'
+          and coalesce(source_region.region_type, 'geographic') = 'geographic'
+          then 'none'
+        when source_region.border_color = 'none'
+          then 'none'
+        when source_region.border_color ~ '^#[0-9a-fA-F]{6}$'
+          then lower(source_region.border_color)
+        when lower(coalesce(source_region.border_color, '')) = 'red'
+          then '#ff2d2d'
+        when lower(coalesce(source_region.border_color, '')) = 'blue'
+          then '#1f7cff'
+        when lower(coalesce(source_region.border_color, '')) = 'yellow'
+          then '#ffe600'
+        when lower(coalesce(source_region.border_color, '')) = 'green'
+          then '#39ff14'
+        when lower(coalesce(source_region.border_color, '')) = 'orange'
+          then '#ff8a00'
+        when lower(coalesce(source_region.border_color, '')) = 'purple'
+          then '#bf4dff'
+        when lower(coalesce(source_region.border_color, '')) = 'black'
+          then '#070707'
+        when lower(coalesce(source_region.border_color, '')) = 'white'
+          then '#ffffff'
+        when lower(coalesce(source_region.border_color, '')) = 'brown'
+          then '#d9782d'
+        else '#ffd84d'
+      end,
       actor_user_id
     )
     returning id into new_id;

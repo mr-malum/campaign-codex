@@ -91,13 +91,24 @@
       <h3>Members</h3>
       <div id="campaign-settings-member-list" class="campaign-settings-member-list"></div>
       <button id="campaign-save-member-roles-button" type="button" hidden>Save Member Changes</button>
-      <button id="campaign-open-add-member-button" type="button">Add Member</button>
+      <div class="campaign-member-actions">
+        <button id="campaign-open-add-member-button" type="button">Add Member</button>
+        <span class="campaign-role-help-wrap">
+          <button id="campaign-role-help-button" class="campaign-role-help-button" type="button" aria-describedby="campaign-role-help">?</button>
+          <span id="campaign-role-help" class="campaign-role-help" role="tooltip" aria-label="Role capabilities">
+            <span><strong>Keeper of the Codex (Owner)</strong> - Can do anything and everything.</span>
+            <span><strong>Archivist (Superuser)</strong> - Can manage campaign content, maps, audit tools, generated map editing, share codes, and Scribes/Initiates, but cannot rename the campaign or manage the Keeper/other Archivists.</span>
+            <span><strong>Scribe (Editor)</strong> - Can edit shared campaign content and generated maps, but cannot manage campaign settings, members, share codes, audit tools, or delete entries they did not create.</span>
+            <span><strong>Initiate (Viewer)</strong> - Can view the campaign, but cannot edit content or manage settings.</span>
+          </span>
+        </span>
+      </div>
       <section id="campaign-share-code-section" class="campaign-settings-section" aria-label="Campaign share code" hidden>
         <label class="campaign-share-code-role-label">
           <span>Share Code Role</span>
           <select id="campaign-share-code-role">
-            <option value="editor">Editor</option>
-            <option value="viewer">Viewer</option>
+            <option value="editor">Scribe</option>
+            <option value="viewer">Initiate</option>
           </select>
         </label>
         <button id="campaign-generate-share-code-button" type="button">Generate Share Code</button>
@@ -210,9 +221,9 @@
       <label>
         <span>Role</span>
         <select id="campaign-add-member-role">
-          <option value="superuser">Superuser</option>
-          <option value="editor">Editor</option>
-          <option value="viewer">Viewer</option>
+          <option value="superuser">Archivist</option>
+          <option value="editor">Scribe</option>
+          <option value="viewer">Initiate</option>
         </select>
       </label>
 
@@ -322,8 +333,10 @@
   <div class="map-draw-layer-toggles" aria-label="Map layer visibility">
     <label><input type="checkbox" data-map-overlay-toggle="road" checked> Roads</label>
     <label><input type="checkbox" data-map-overlay-toggle="river" checked> Rivers</label>
+    <label><input type="checkbox" data-map-overlay-toggle="sea_route" checked> Sea Routes</label>
     <label><input type="checkbox" data-map-overlay-toggle="path" checked> Paths</label>
     <label><input type="checkbox" data-map-overlay-toggle="wall" checked> Walls</label>
+    <label><input type="checkbox" data-map-overlay-toggle="mist" checked> Mist</label>
     <label><input type="checkbox" data-map-overlay-toggle="geographic"> Geo Regions</label>
     <label><input type="checkbox" data-map-overlay-toggle="political" checked> Pol Regions</label>
     <label><input type="checkbox" data-map-overlay-toggle="politicalLabels" checked> Pol Labels</label>
@@ -335,120 +348,359 @@
 <button id="map-draw-button" type="button" aria-label="Edit map overlays" hidden>Edit</button>
 <div id="map-draw-panel" class="map-control-panel map-draw-panel" hidden>
   <nav class="map-edit-section-menu" aria-label="Map edit sections">
-    <button id="map-edit-close-button" type="button">Close</button>
-    <button type="button" data-map-edit-section-button="view">View</button>
-    <button type="button" data-map-edit-section-button="terrain">Terrain</button>
-    <button type="button" data-map-edit-section-button="overlay" class="active">Overlay</button>
-    <button type="button" data-map-edit-section-button="regions">Regions</button>
-    <button type="button" data-map-edit-section-button="generation">Generation</button>
+    <button id="map-edit-close-button" type="button" class="map-edit-mode-button map-edit-mode-button-close">
+      <span class="map-edit-mode-icon" aria-hidden="true">✕</span>
+      <span class="map-edit-mode-label">Close</span>
+    </button>
+    <button type="button" data-map-edit-section-button="view" class="map-edit-mode-button">
+      <span class="map-edit-mode-icon" aria-hidden="true">◌</span>
+      <span class="map-edit-mode-label">View</span>
+    </button>
+    <button type="button" data-map-edit-section-button="terrain" class="map-edit-mode-button">
+      <span class="map-edit-mode-icon" aria-hidden="true">△</span>
+      <span class="map-edit-mode-label">Terrain</span>
+    </button>
+    <button type="button" data-map-edit-section-button="features" class="map-edit-mode-button">
+      <span class="map-edit-mode-icon" aria-hidden="true">✥</span>
+      <span class="map-edit-mode-label">Features</span>
+    </button>
+    <button type="button" data-map-edit-section-button="overlay" class="map-edit-mode-button active">
+      <span class="map-edit-mode-icon" aria-hidden="true">≈</span>
+      <span class="map-edit-mode-label">Overlay</span>
+    </button>
+    <button type="button" data-map-edit-section-button="regions" class="map-edit-mode-button">
+      <span class="map-edit-mode-icon map-edit-region-icon" aria-hidden="true">⬡</span>
+      <span class="map-edit-mode-label">Regions</span>
+    </button>
+    <button type="button" data-map-edit-section-button="generation" class="map-edit-mode-button">
+      <span class="map-edit-mode-icon" aria-hidden="true">✦</span>
+      <span class="map-edit-mode-label">Generation</span>
+    </button>
+    <button type="button" data-map-edit-section-button="nuke" class="map-edit-mode-button">
+      <span class="map-edit-mode-icon" aria-hidden="true">⚙</span>
+      <span class="map-edit-mode-label">Utilities</span>
+    </button>
   </nav>
 
   <div class="map-edit-pane">
-  <button id="map-edit-collapse-button" class="map-edit-collapse-button" type="button" aria-expanded="true">Collapse</button>
-  <div class="map-draw-panel-title">Map Edit</div>
-
-  <section class="map-draw-panel-section" data-map-edit-section="view">
-    <div class="map-draw-section-title">View</div>
-    <div class="map-draw-layer-toggles" aria-label="Map layer visibility">
-      <label><input type="checkbox" data-map-overlay-toggle="road" checked> Roads</label>
-      <label><input type="checkbox" data-map-overlay-toggle="river" checked> Rivers</label>
-      <label><input type="checkbox" data-map-overlay-toggle="path" checked> Paths</label>
-      <label><input type="checkbox" data-map-overlay-toggle="wall" checked> Walls</label>
-      <label><input type="checkbox" data-map-overlay-toggle="geographic"> Geo Regions</label>
-      <label><input type="checkbox" data-map-overlay-toggle="political" checked> Pol Regions</label>
-      <label><input type="checkbox" data-map-overlay-toggle="politicalLabels" checked> Pol Labels</label>
-      <label><input type="checkbox" data-map-overlay-toggle="geographicLabels" checked> Geo Labels</label>
-      <label><input type="checkbox" data-map-overlay-toggle="features" checked> Features</label>
-      <label><input type="checkbox" data-map-overlay-toggle="pois" checked> POIs</label>
+    <div class="map-edit-pane-header">
+      <div class="map-edit-pane-kicker">Hex Mapper</div>
+      <div id="map-edit-section-heading" class="map-draw-panel-title">Overlay</div>
+      <p id="map-edit-section-copy" class="map-edit-section-copy">Draw roads, rivers, paths, walls, and mist on the generated map.</p>
     </div>
-  </section>
 
-  <section class="map-draw-panel-section" data-map-edit-section="terrain">
-    <div class="map-draw-section-title">Terrain</div>
-    <div id="map-terrain-base-options" class="map-terrain-base-options" role="group" aria-label="Base terrain"></div>
-    <div class="map-draw-section-title">Features</div>
-    <div id="map-terrain-feature-options" class="map-terrain-feature-options" aria-label="Terrain features"></div>
-    <label class="map-terrain-elevation-row">
-      <span>Elevation</span>
-      <select id="map-terrain-elevation">
-        <option value="auto">Auto</option>
-        <option value="-5">-5</option>
-        <option value="-4">-4</option>
-        <option value="-3">-3</option>
-        <option value="-2">-2</option>
-        <option value="-1">-1</option>
-        <option value="0">0</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8</option>
-        <option value="9">9</option>
-        <option value="10">10</option>
-        <option value="11">11</option>
-        <option value="12">12</option>
-      </select>
-    </label>
-    <div class="map-draw-tool-row map-draw-tool-row-single" role="group" aria-label="Terrain paint tool">
-      <button type="button" data-map-draw-tool="terrain">Paint Terrain</button>
-      <button type="button" data-map-draw-tool="terrain-eyedropper">Eyedropper</button>
+    <div class="map-edit-pane-body">
+      <section class="map-draw-panel-section" data-map-edit-section="view">
+        <div class="map-draw-section-title">Visible Layers</div>
+        <div class="map-draw-layer-toggles" aria-label="Map layer visibility">
+          <label><input type="checkbox" data-map-overlay-toggle="road" checked> Roads</label>
+          <label><input type="checkbox" data-map-overlay-toggle="river" checked> Rivers</label>
+          <label><input type="checkbox" data-map-overlay-toggle="sea_route" checked> Sea Routes</label>
+          <label><input type="checkbox" data-map-overlay-toggle="path" checked> Paths</label>
+          <label><input type="checkbox" data-map-overlay-toggle="wall" checked> Walls</label>
+          <label><input type="checkbox" data-map-overlay-toggle="mist" checked> Mist</label>
+          <label><input type="checkbox" data-map-overlay-toggle="geographic"> Geo Regions</label>
+          <label><input type="checkbox" data-map-overlay-toggle="political" checked> Pol Regions</label>
+          <label><input type="checkbox" data-map-overlay-toggle="politicalLabels" checked> Pol Labels</label>
+          <label><input type="checkbox" data-map-overlay-toggle="geographicLabels" checked> Geo Labels</label>
+          <label><input type="checkbox" data-map-overlay-toggle="features" checked> Features</label>
+          <label><input type="checkbox" data-map-overlay-toggle="pois" checked> POIs</label>
+        </div>
+      </section>
+
+      <section class="map-draw-panel-section" data-map-edit-section="terrain">
+        <div class="map-terrain-mobile-tabs" role="tablist" aria-label="Terrain editor sections">
+          <button type="button" data-terrain-mobile-tab="tools" class="active">Tools</button>
+          <button type="button" data-terrain-mobile-tab="base">Base</button>
+          <button type="button" data-terrain-mobile-tab="elevation">Elev.</button>
+        </div>
+        <div class="map-draw-section-title" data-terrain-mobile-group="tools">Tools</div>
+        <div class="map-draw-tool-row map-draw-tool-row-single" data-terrain-mobile-group="tools" role="group" aria-label="Terrain paint tool">
+          <button type="button" data-map-draw-tool="terrain">Paint</button>
+          <button type="button" data-map-draw-tool="terrain-eyedropper">Eyedropper</button>
+        </div>
+        <div class="map-draw-section-title" data-terrain-mobile-group="base">Base Terrain</div>
+        <div id="map-terrain-base-options" class="map-terrain-base-options" data-terrain-mobile-group="base" role="group" aria-label="Base terrain"></div>
+        <label class="map-draw-range-row" data-terrain-mobile-group="tools">
+          <span>Brush Size <strong id="map-terrain-brush-size-value">1</strong></span>
+          <input id="map-terrain-brush-size" type="range" min="1" max="6" step="1" value="1">
+        </label>
+        <label class="map-draw-range-row" data-terrain-mobile-group="tools">
+          <span>Noise <strong id="map-terrain-noise-value">0%</strong></span>
+          <input id="map-terrain-noise" type="range" min="0" max="95" step="5" value="0">
+        </label>
+        <label class="map-draw-range-row" data-terrain-mobile-group="tools">
+          <span>Max Features <strong id="map-terrain-max-features-value">1</strong></span>
+          <input id="map-terrain-max-features" type="range" min="0" max="2" step="1" value="1">
+        </label>
+        <label class="map-draw-range-row" data-terrain-mobile-group="tools">
+          <span>Feature Density <strong id="map-terrain-feature-density-value">50%</strong></span>
+          <input id="map-terrain-feature-density" type="range" min="5" max="105" step="5" value="50">
+        </label>
+        <label class="map-terrain-elevation-row" data-terrain-mobile-group="elevation">
+          <span>Elevation <strong id="map-terrain-elevation-value">Auto</strong></span>
+          <input id="map-terrain-elevation" type="range" min="-3" max="6" step="1" value="-3">
+        </label>
+        <label class="map-draw-option-row map-chaos-toggle-row" data-terrain-mobile-group="tools">
+          <input id="map-terrain-chaos-toggle" type="checkbox">
+          <span>Chaos</span>
+        </label>
+      </section>
+
+      <section class="map-draw-panel-section" data-map-edit-section="features">
+        <div class="map-draw-section-title">Tools</div>
+        <div class="map-draw-tool-row" role="group" aria-label="Feature paint tool">
+          <button type="button" data-map-draw-tool="feature">Paint</button>
+          <button type="button" data-map-draw-tool="feature-erase">Erase</button>
+          <button type="button" data-map-draw-tool="feature-eyedropper">Eyedropper</button>
+        </div>
+        <div class="map-draw-section-title">Brush</div>
+        <div id="map-feature-brush-options" class="map-terrain-feature-options map-feature-brush-options" role="group" aria-label="Feature brush"></div>
+        <p id="map-feature-brush-note" class="map-feature-brush-note" hidden></p>
+        <label class="map-draw-range-row">
+          <span>Brush Size <strong id="map-feature-brush-size-value">1</strong></span>
+          <input id="map-feature-brush-size" type="range" min="1" max="6" step="1" value="1">
+        </label>
+        <label class="map-draw-range-row">
+          <span>Noise <strong id="map-feature-noise-value">0%</strong></span>
+          <input id="map-feature-noise" type="range" min="0" max="95" step="5" value="0">
+        </label>
+        <label class="map-draw-range-row">
+          <span>Density <strong id="map-feature-density-value">50%</strong></span>
+          <input id="map-feature-density" type="range" min="5" max="105" step="5" value="50">
+        </label>
+        <label class="map-draw-range-row">
+          <span>Max Features <strong id="map-feature-max-features-value">1</strong></span>
+          <input id="map-feature-max-features" type="range" min="0" max="2" step="1" value="1">
+        </label>
+        <label class="map-draw-option-row map-chaos-toggle-row">
+          <input id="map-feature-chaos-toggle" type="checkbox">
+          <span>Chaos</span>
+        </label>
+      </section>
+
+      <section class="map-draw-panel-section active" data-map-edit-section="overlay">
+        <div class="map-draw-section-title">Travel</div>
+        <div class="map-draw-tool-row map-draw-tool-row-compact" role="group" aria-label="Travel overlay tools">
+          <button type="button" data-map-draw-tool="road">Road</button>
+          <button type="button" data-map-draw-tool="path">Path</button>
+          <button type="button" data-map-draw-tool="river">River</button>
+          <button type="button" data-map-draw-tool="sea_route">Sea Route</button>
+        </div>
+        <button id="map-named-routes-button" class="map-draw-secondary-button" type="button">Named Routes</button>
+        <label class="map-draw-style-row">
+          <span id="map-draw-style-label">Road Style</span>
+          <select id="map-draw-road-style">
+            <option value="dark_brown">Dark Brown</option>
+            <option value="tan">Tan</option>
+          </select>
+        </label>
+        <label class="map-draw-option-row" id="map-road-water-override-row" hidden>
+          <input id="map-road-water-override" type="checkbox">
+          <span>Water Crossing Override</span>
+        </label>
+        <label class="map-draw-option-row" id="map-road-auto-pass-row" hidden>
+          <input id="map-road-auto-pass" type="checkbox" checked>
+          <span>Auto Pass Style</span>
+        </label>
+        <label class="map-draw-option-row" id="map-river-auto-falls-row" hidden>
+          <input id="map-river-auto-falls" type="checkbox" checked>
+          <span>Auto Falls</span>
+        </label>
+        <label class="map-draw-option-row" id="map-route-major-row" hidden>
+          <input id="map-route-major" type="checkbox">
+          <span>Major Trade Route</span>
+        </label>
+        <label class="map-draw-route-name-row" id="map-route-name-row" hidden>
+          <span>Route Name</span>
+          <input id="map-route-name" type="text" maxlength="80" placeholder="Old Imperial Road">
+        </label>
+        <div class="map-draw-section-title map-draw-subsection-title">Other</div>
+        <div class="map-draw-tool-row map-draw-tool-row-compact" role="group" aria-label="Other overlay tools">
+          <button type="button" data-map-draw-tool="wall">Wall</button>
+          <button type="button" data-map-draw-tool="mist">Mist</button>
+          <button type="button" data-map-draw-tool="erase">Erase Overlay</button>
+        </div>
+        <label class="map-draw-range-row" id="map-mist-brush-size-row" hidden>
+          <span>Brush Size <strong id="map-mist-brush-size-value">1</strong></span>
+          <input id="map-mist-brush-size" type="range" min="1" max="5" step="1" value="1">
+        </label>
+        <label class="map-draw-range-row" id="map-mist-noise-row" hidden>
+          <span>Noise <strong id="map-mist-noise-value">0%</strong></span>
+          <input id="map-mist-noise" type="range" min="0" max="90" step="5" value="0">
+        </label>
+      </section>
+
+      <section class="map-draw-panel-section" data-map-edit-section="regions">
+        <div class="map-draw-section-title">Region Tools</div>
+        <div class="map-draw-tool-row map-draw-tool-row-paired" role="group" aria-label="Geographic region tools">
+          <button type="button" data-map-draw-tool="region">Paint Geo</button>
+          <button type="button" data-map-draw-tool="unregion">Clear Geo</button>
+        </div>
+        <div class="map-draw-tool-row map-draw-tool-row-paired" role="group" aria-label="Political region tools">
+          <button type="button" data-map-draw-tool="political-region">Paint Pol.</button>
+          <button type="button" data-map-draw-tool="clear-political-region">Clear Pol.</button>
+        </div>
+        <label class="map-draw-region-row">
+          <span>Geographic</span>
+          <span class="map-region-select-plus">
+            <select id="map-draw-region-select"></select>
+            <span class="color-picker-control map-region-color-control">
+              <input id="map-geo-region-color" data-color-picker-value type="hidden" value="#ffd84d">
+              <button class="map-region-color-input" data-color-picker-trigger type="button" aria-label="Selected geographic region color">
+                <span class="color-picker-trigger-swatch" aria-hidden="true"></span>
+              </button>
+            </span>
+            <button id="map-add-geo-region-button" class="map-add-region-button" type="button" aria-label="Add geographic region">＋</button>
+          </span>
+        </label>
+        <label class="map-draw-political-region-row">
+          <span>Political</span>
+          <span class="map-region-select-plus">
+            <select id="map-draw-political-region-select"></select>
+            <span class="color-picker-control map-region-color-control">
+              <input id="map-pol-region-color" data-color-picker-value type="hidden" value="#ffd84d">
+              <button class="map-region-color-input" data-color-picker-trigger type="button" aria-label="Selected political region color">
+                <span class="color-picker-trigger-swatch" aria-hidden="true"></span>
+              </button>
+            </span>
+            <button id="map-add-pol-region-button" class="map-add-region-button" type="button" aria-label="Add political region">＋</button>
+          </span>
+        </label>
+      </section>
+
+      <section class="map-draw-panel-section" data-map-edit-section="nuke">
+        <div class="map-draw-section-title">Utilities</div>
+        <p class="map-edit-empty-note">These actions affect the whole generated map. Each requires confirmation and can be undone from this session.</p>
+        <div class="map-nuke-action-list" aria-label="Map utility actions">
+          <button id="map-draw-clear" class="map-draw-clear" type="button">Clear All Drawn Overlays</button>
+          <button id="map-clear-features" class="map-draw-clear" type="button">Clear All Features</button>
+          <p class="map-edit-empty-note map-nuke-region-note">Cleared regions must be manually deleted from the Codex.</p>
+          <button id="map-clear-geo-regions" class="map-draw-clear" type="button">Clear All Geo Regions</button>
+          <button id="map-clear-pol-regions" class="map-draw-clear" type="button">Clear All Pol Regions</button>
+        </div>
+      </section>
+
+      <section class="map-draw-panel-section" data-map-edit-section="generation">
+        <div class="map-generation-scroll">
+          <div class="map-draw-section-title map-draw-section-title-with-help">
+            <span>Feature Pass</span>
+            <span class="map-editor-help-wrap">
+              <button class="map-editor-help-button" type="button" aria-describedby="map-generation-feature-help">?</button>
+              <span id="map-generation-feature-help" class="map-editor-help-tooltip" role="tooltip">Populate compatible terrain features from the shared rules brain. Base terrain and elevation stay as-is.</span>
+            </span>
+          </div>
+          <label class="map-draw-route-name-row">
+            <span>Seed</span>
+            <input id="map-generation-seed" type="text" maxlength="80" placeholder="Campaign seed">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Feature Density <strong id="map-generation-density-value">100%</strong></span>
+            <input id="map-generation-density" type="range" min="50" max="165" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Max Features <strong id="map-generation-max-features-value">2</strong></span>
+            <input id="map-generation-max-features" type="range" min="0" max="2" step="1" value="2">
+          </label>
+          <label class="map-draw-option-row">
+            <input id="map-generation-refresh-existing" type="checkbox">
+            <span>Refresh Existing Features</span>
+          </label>
+          <div class="map-draw-section-title map-draw-section-title-with-help">
+            <span>Terrain Preview</span>
+            <span class="map-editor-help-wrap">
+              <button class="map-editor-help-button" type="button" aria-describedby="map-generation-terrain-help">?</button>
+              <span id="map-generation-terrain-help" class="map-editor-help-tooltip" role="tooltip">
+                <span>Preview a full terrain draft locally before saving.</span>
+                <span>Region Style gives the generator a broad map archetype. Sliders still let you push the result away from that archetype.</span>
+                <span>Water Coverage controls how much water appears overall. Coastal Edge controls whether one side or corner of the map opens onto a larger sea.</span>
+                <span>Island Amount makes the generator start with more ocean, then carve land back into it as islands and broken coastlines.</span>
+                <span>Biome Continuity controls how strongly nearby hexes smooth into larger regions.</span>
+                <span>World Scale Compression controls how tightly mountains, deserts, wetlands, forests, and coasts can fit together in a playable fantasy map.</span>
+              </span>
+            </span>
+          </div>
+          <label class="map-draw-style-row">
+            <span>Region Style</span>
+            <select id="map-generation-region-style">
+              <option value="balanced">Balanced Wilds</option>
+              <option value="coastal_realm">Coastal Realm</option>
+              <option value="island_chain">Island Chain</option>
+              <option value="mountain_frontier">Mountain Frontier</option>
+              <option value="wetlands_lakes">Wetlands &amp; Lakes</option>
+              <option value="dry_expanse">Dry Expanse</option>
+              <option value="frozen_north">Frozen North</option>
+              <option value="tropical_basin">Tropical Basin</option>
+              <option value="volcanic_arc">Volcanic Arc</option>
+            </select>
+          </label>
+          <label class="map-draw-range-row">
+            <span>Water Coverage <strong id="map-generation-water-value">100%</strong></span>
+            <input id="map-generation-water" type="range" min="0" max="200" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Coastal Edge <strong id="map-generation-coastal-edge-value">0%</strong></span>
+            <input id="map-generation-coastal-edge" type="range" min="0" max="200" step="5" value="0">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Island Amount <strong id="map-generation-islands-value">0%</strong></span>
+            <input id="map-generation-islands" type="range" min="0" max="200" step="5" value="0">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Wetness <strong id="map-generation-wetness-value">100%</strong></span>
+            <input id="map-generation-wetness" type="range" min="0" max="200" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Heat <strong id="map-generation-heat-value">100%</strong></span>
+            <input id="map-generation-heat" type="range" min="0" max="200" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Forest Density <strong id="map-generation-forest-value">100%</strong></span>
+            <input id="map-generation-forest" type="range" min="0" max="200" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Desert Amount <strong id="map-generation-desert-value">100%</strong></span>
+            <input id="map-generation-desert" type="range" min="0" max="200" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Mountain Ranges <strong id="map-generation-mountains-value">100%</strong></span>
+            <input id="map-generation-mountains" type="range" min="0" max="200" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>World Scale Compression <strong id="map-generation-compression-value">100%</strong></span>
+            <input id="map-generation-compression" type="range" min="0" max="200" step="5" value="100">
+          </label>
+          <label class="map-draw-range-row">
+            <span>Biome Continuity <strong id="map-generation-continuity-value">100%</strong></span>
+            <input id="map-generation-continuity" type="range" min="0" max="200" step="5" value="100">
+          </label>
+        </div>
+        <div class="map-draw-tool-row map-generation-actions" role="group" aria-label="Generation actions">
+          <button id="map-generation-preview-terrain" type="button">Preview Terrain</button>
+          <button id="map-generation-discard-preview" type="button" disabled>Discard</button>
+          <button id="map-generation-apply-preview" type="button" disabled>Apply Preview</button>
+          <button id="map-generation-random-seed" type="button">Random Seed</button>
+          <button id="map-generation-reset-sliders" type="button">Reset Sliders</button>
+          <button id="map-generation-run-features" class="map-draw-secondary-button" type="button">Run Feature Pass</button>
+        </div>
+      </section>
     </div>
-  </section>
 
-  <section class="map-draw-panel-section active" data-map-edit-section="overlay">
-    <div class="map-draw-section-title">Overlay</div>
-    <div class="map-draw-tool-row map-draw-tool-row-compact" role="group" aria-label="Drawing tools">
-      <button type="button" data-map-draw-tool="road">Road</button>
-      <button type="button" data-map-draw-tool="river">River</button>
-      <button type="button" data-map-draw-tool="path">Path</button>
-      <button type="button" data-map-draw-tool="wall">Wall</button>
-      <button type="button" data-map-draw-tool="erase">Erase Overlay</button>
-    </div>
-    <label class="map-draw-style-row">
-      <span>Color</span>
-      <select id="map-draw-road-style">
-        <option value="dark_brown">Dark Brown</option>
-        <option value="tan">Tan</option>
-      </select>
-    </label>
-    <button id="map-draw-clear" class="map-draw-clear" type="button">Clear All Drawn Overlays</button>
-  </section>
-
-  <section class="map-draw-panel-section" data-map-edit-section="regions">
-    <div class="map-draw-section-title">Regions</div>
-    <div class="map-draw-tool-row map-draw-tool-row-paired" role="group" aria-label="Geographic region tools">
-      <button type="button" data-map-draw-tool="region">Paint Geo</button>
-      <button type="button" data-map-draw-tool="unregion">Clear Geo</button>
-    </div>
-    <label class="map-draw-region-row">
-      <span>Geographic</span>
-      <select id="map-draw-region-select"></select>
-    </label>
-    <div class="map-draw-tool-row map-draw-tool-row-paired" role="group" aria-label="Political region tools">
-      <button type="button" data-map-draw-tool="political-region">Paint Pol.</button>
-      <button type="button" data-map-draw-tool="clear-political-region">Clear Pol.</button>
-    </div>
-    <label class="map-draw-political-region-row">
-      <span>Political</span>
-      <select id="map-draw-political-region-select"></select>
-    </label>
-  </section>
-
-  <section class="map-draw-panel-section" data-map-edit-section="generation">
-    <div class="map-draw-section-title">Generation</div>
-    <p class="map-edit-empty-note">Generation tools will live here.</p>
-  </section>
-
-  </div>
-
-  <div class="map-edit-utility-pane">
-    <p id="map-draw-hint">Right-drag or middle-drag pans. Ctrl+Z undoes, Ctrl+Y redoes.</p>
-    <div class="map-edit-history-row" aria-label="Map edit history controls">
-      <button id="map-draw-undo" class="map-draw-undo" type="button" disabled>Undo</button>
-      <button id="map-draw-redo" class="map-draw-redo" type="button" disabled>Redo</button>
+    <div class="map-edit-utility-pane">
+      <button id="map-edit-collapse-button" class="map-edit-collapse-button" type="button" aria-expanded="true">Collapse</button>
+      <div class="map-edit-history-row" aria-label="Map edit history controls">
+        <button id="map-draw-no-tool" class="map-draw-no-tool" type="button">No Tool</button>
+        <button id="map-draw-undo" class="map-draw-undo" type="button" disabled>Undo</button>
+        <button id="map-draw-redo" class="map-draw-redo" type="button" disabled>Redo</button>
+        <span class="map-editor-help-wrap map-edit-history-help">
+          <button class="map-editor-help-button" type="button" aria-describedby="map-editor-hotkeys-help">?</button>
+          <span id="map-editor-hotkeys-help" class="map-editor-help-tooltip" role="tooltip">
+            <span>Ctrl+Z undoes the last map edit. Ctrl+Y redoes it.</span>
+            <span>Esc closes the Named Routes menu first, then closes an open hex tooltip, then clears the active tool back to No Tool.</span>
+            <span>No Tool lets you pan and inspect hexes without painting.</span>
+          </span>
+        </span>
+      </div>
     </div>
   </div>
 </div>
@@ -462,6 +714,25 @@
       Rotate your device to continue using the Codex.
     </p>
   </div>
+</div>
+
+<div id="map-named-routes-menu" class="map-named-routes-menu hidden" role="dialog" aria-modal="true" aria-labelledby="map-named-routes-title">
+  <h2 id="map-named-routes-title">Named Routes</h2>
+  <p class="map-named-routes-copy">Manage named roads, rivers, and sea routes drawn on this map.</p>
+  <div id="map-named-routes-list" class="map-named-routes-list"></div>
+  <form id="map-named-route-edit-form" class="map-named-route-edit-form" hidden>
+    <input id="map-named-route-original-type" type="hidden">
+    <input id="map-named-route-original-name" type="hidden">
+    <label>
+      <span>Name</span>
+      <input id="map-named-route-name" type="text" maxlength="80" required>
+    </label>
+    <div class="map-named-routes-actions">
+      <button id="map-named-route-save" type="submit">Save</button>
+      <button id="map-named-route-cancel" type="button">Cancel</button>
+    </div>
+  </form>
+  <button id="map-named-routes-close" type="button">Close</button>
 </div>
 
 <div id="codex-overlay" class="closed">
@@ -702,6 +973,11 @@
 
     <form id="codex-edit-region-form" class="codex-editor-form" hidden>
       <div class="codex-editor-fields">
+        <label id="codex-edit-region-name-row" hidden>
+          <span>Name *</span>
+          <input id="codex-edit-region-name" type="text">
+        </label>
+
         <label>
           <span>Type</span>
           <select id="codex-edit-region-type">
@@ -712,15 +988,21 @@
 
         <label>
           <span>Color</span>
-          <input id="codex-edit-region-border-color" type="color" value="#ffd84d">
+          <span class="codex-color-control color-picker-control">
+            <input id="codex-edit-region-border-color" data-color-picker-value type="hidden" value="#ffd84d">
+            <button class="codex-color-input" data-color-picker-trigger type="button" aria-label="Region color">
+              <span class="color-picker-trigger-swatch" aria-hidden="true"></span>
+              <span class="color-picker-trigger-value">#FFD84D</span>
+            </button>
+          </span>
         </label>
 
-        <label>
+        <label id="codex-edit-region-lore-row">
           <span>Lore</span>
           <textarea id="codex-edit-region-lore" rows="7"></textarea>
         </label>
 
-        <label>
+        <label id="codex-edit-region-image-row">
           <span>Add/Replace Image</span>
           <input id="codex-edit-region-image" type="file" accept="image/png,image/jpeg,image/webp">
           <small>Optional replacement image. PNG, JPG, or WebP. Max 5 MB.</small>
@@ -841,9 +1123,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/campaign-auth.js"></script>
+<script src="js/terrain-rules.js"></script>
+<script src="js/generated-map-generator.js"></script>
 <script src="js/data-loader.js"></script>
 <script src="js/app-core.js"></script>
 <script src="js/map-ui.js"></script>
+<script src="js/color-picker.js"></script>
 <script src="js/generated-map-renderer.js"></script>
 <script src="js/codex-icons.js"></script>
 <script src="js/codex-core.js"></script>

@@ -392,6 +392,15 @@
     0 3px 10px rgba(45, 25, 8, 0.20);
 }
 
+.popup-open-details:disabled,
+.popup-open-details[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.48;
+  filter: grayscale(0.35);
+  transform: none;
+  box-shadow: inset 0 1px 3px rgba(255, 241, 202, 0.18);
+}
+
 .codex-section-button:active,
 .popup-open-details:active {
   transform: scale(0.985);

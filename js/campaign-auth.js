@@ -115,10 +115,11 @@ function getAssignableMemberRoles() {
 }
 
 function formatCampaignRole(role) {
-  if (role === "owner") return "Owner";
-  if (role === "superuser") return "Superuser";
-  if (role === "editor") return "Editor";
-  if (role === "viewer") return "Viewer";
+  if (role === "owner") return "Keeper of the Codex";
+  if (role === "superuser") return "Archivist";
+  if (role === "editor") return "Scribe";
+  if (role === "viewer") return "Initiate";
+  if (role === "player") return "Pawn";
   return role || "";
 }
 
@@ -371,7 +372,9 @@ function openCampaignMembersMenu() {
   document.getElementById("campaign-add-member-menu")?.classList.add("hidden");
   document.getElementById("campaign-user-settings-menu")?.classList.add("hidden");
   setCampaignMemberStatus("");
-  document.getElementById("campaign-open-add-member-button")?.toggleAttribute("hidden", !canManageCampaignMembers());
+  const canManageMembers = canManageCampaignMembers();
+  document.getElementById("campaign-open-add-member-button")?.toggleAttribute("hidden", !canManageMembers);
+  document.getElementById("campaign-role-help-button")?.toggleAttribute("hidden", !canManageMembers);
   document.getElementById("campaign-save-member-roles-button")?.setAttribute("hidden", "");
   syncCampaignShareCodeSettings();
   refreshCampaignMembers();
@@ -618,10 +621,10 @@ function renderCampaignPicker(profile, campaigns) {
       >
         <span class="campaign-picker-item-main">
           <strong>${escapeCampaignHtml(campaign.name)}</strong>
-          <span>${escapeCampaignHtml(campaign.currentUserRole || "")}</span>
+          <span>${escapeCampaignHtml(formatCampaignRole(campaign.currentUserRole))}</span>
         </span>
         <span class="campaign-picker-owner">
-          Owner: ${escapeCampaignHtml(campaign.ownerUsername || "Unknown")}
+          Keeper of the Codex: ${escapeCampaignHtml(campaign.ownerUsername || "Unknown")}
         </span>
       </button>
       <button
@@ -955,7 +958,7 @@ async function handleChangeCampaignName(event) {
   if (!currentPassword) return;
 
   if (activeCampaign.currentUserRole !== "owner") {
-    setCampaignRenameStatus("Only campaign owners can rename campaigns.");
+    setCampaignRenameStatus("Only the Keeper of the Codex can rename campaigns.");
     return;
   }
 
@@ -1002,7 +1005,7 @@ async function handleGenerateCampaignShareCode() {
   if (!activeCampaign) return;
 
   if (!canManageCampaignMembers()) {
-    setCampaignShareCodeStatus("Only campaign owners and superusers can generate share codes.");
+    setCampaignShareCodeStatus("Only the Keeper of the Codex and Archivists can generate share codes.");
     return;
   }
 
@@ -1156,13 +1159,13 @@ async function handleSaveCampaignMemberRoles() {
 async function leaveCampaign(campaignId, campaignName = "this campaign") {
   const role = await fetchCurrentCampaignRole(campaignId);
   if (role === "owner") {
-    const message = "You can not leave owned campaign.";
+    const message = "The Keeper of the Codex can not leave their own campaign.";
     setCampaignMemberStatus(message);
     window.alert(message);
     return;
   }
 
-  const confirmed = window.confirm(`ARE YOU SURE?\n\nLeave ${campaignName}? You will lose access unless an owner adds you back.`);
+  const confirmed = window.confirm(`ARE YOU SURE?\n\nLeave ${campaignName}? You will lose access unless the Keeper of the Codex adds you back.`);
   if (!confirmed) return;
 
   try {

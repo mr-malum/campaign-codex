@@ -52,7 +52,7 @@ begin
     select coalesce(jsonb_agg(distinct lower(trim(value)) order by lower(trim(value))), '[]'::jsonb)
     from jsonb_array_elements_text(normalized_features)
     where nullif(trim(value), '') is not null
-      and lower(trim(value)) <> 'snowcap'
+      and lower(trim(value)) not in ('snowcap', 'mist')
   );
 
   if jsonb_array_length(normalized_features) > 3 then
@@ -85,8 +85,7 @@ begin
       'farmland',
       'sand',
       'waves',
-      'ice',
-      'mist'
+      'ice'
     )
   ) then
     raise exception 'unsupported terrain feature';

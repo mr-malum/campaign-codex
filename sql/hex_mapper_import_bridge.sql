@@ -154,7 +154,6 @@ begin
       when 'waves' then 'Waves'
       when 'ice' then 'Ice'
       when 'snowcap' then 'Snowcap'
-      when 'mist' then 'Mist'
       else initcap(replace(feature_id, '_', ' '))
     end;
   end loop;
@@ -366,7 +365,12 @@ begin
     y_coord := nullif(hex_record->>'y', '')::integer;
     ref := x_coord::text || ':' || y_coord::text;
     base := nullif(hex_record->>'baseTerrain', '');
-    features := coalesce(hex_record->'features', '[]'::jsonb);
+    features := (
+      select coalesce(jsonb_agg(feature.value order by feature.ordinality), '[]'::jsonb)
+      from jsonb_array_elements_text(coalesce(hex_record->'features', '[]'::jsonb))
+        with ordinality as feature(value, ordinality)
+      where feature.value <> 'mist'
+    );
     terrain_label := public.format_hex_mapper_terrain(base, features);
     geo_ref := coalesce(nullif(hex_record->>'geographicRegionId', ''), 'REG-0000');
     political_ref := nullif(hex_record->>'politicalRegionId', '');

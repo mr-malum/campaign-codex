@@ -64,6 +64,79 @@ drop function if exists public.update_region_record(
   text
 );
 
+create or replace function public.create_region_with_next_ref_code(
+  target_campaign_id uuid,
+  region_name text,
+  region_type_input text default 'geographic',
+  region_border_color text default '#ffd84d',
+  region_lore text default null
+)
+returns public.regions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_region_type text := coalesce(nullif(lower(trim(region_type_input)), ''), 'geographic');
+  normalized_border_color text := coalesce(nullif(lower(trim(region_border_color)), ''), '#ffd84d');
+  next_number integer;
+  next_ref_code text;
+  created_record public.regions;
+begin
+  if auth.uid() is null then
+    raise exception 'not authorized';
+  end if;
+
+  if not public.can_edit_campaign(target_campaign_id) then
+    raise exception 'not authorized';
+  end if;
+
+  if nullif(trim(region_name), '') is null then
+    raise exception 'Region name is required.';
+  end if;
+
+  if normalized_region_type not in ('geographic', 'political') then
+    raise exception 'Invalid region type.';
+  end if;
+
+  if normalized_border_color <> 'none' and normalized_border_color !~ '^#[0-9a-f]{6}$' then
+    raise exception 'Invalid border color.';
+  end if;
+
+  select coalesce(max(substring(ref_code from '^REG-([0-9]+)$')::integer), 0) + 1
+    into next_number
+  from public.regions
+  where campaign_id = target_campaign_id
+    and ref_code ~ '^REG-[0-9]+$';
+
+  next_ref_code := 'REG-' || lpad(next_number::text, 4, '0');
+
+  insert into public.regions (
+    campaign_id,
+    ref_code,
+    name,
+    lore,
+    visibility,
+    region_type,
+    border_color,
+    created_by
+  )
+  values (
+    target_campaign_id,
+    next_ref_code,
+    trim(region_name),
+    nullif(trim(region_lore), ''),
+    'shared',
+    normalized_region_type,
+    case when normalized_region_type = 'geographic' and next_ref_code = 'REG-0000' then 'none' else normalized_border_color end,
+    auth.uid()
+  )
+  returning * into created_record;
+
+  return created_record;
+end;
+$$;
+
 create or replace function public.update_region_record(
   target_campaign_id uuid,
   target_region_id uuid,
@@ -169,6 +242,14 @@ $$;
 grant execute on function public.update_region_record(
   uuid,
   uuid,
+  text,
+  text,
+  text
+) to authenticated;
+
+grant execute on function public.create_region_with_next_ref_code(
+  uuid,
+  text,
   text,
   text,
   text

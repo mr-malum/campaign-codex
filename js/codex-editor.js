@@ -10,7 +10,9 @@ let codexEditorState = {
   recordType: "",
   recordId: "",
   originalChildIds: [],
-  workingChildIds: []
+  workingChildIds: [],
+  quickRegion: false,
+  onCreated: null
 };
 
 function populateNpcHomeOptions(options = {}) {
@@ -219,6 +221,8 @@ function setEditorMode(mode) {
 
   if (title) {
     if (mode === "poi") title.textContent = "Add POI";
+    else if (mode === "region") title.textContent = "Add Region";
+    else if (mode === "quick-region") title.textContent = "Name Region";
     else if (mode === "edit-npc") title.textContent = "Edit NPC";
     else if (mode === "edit-poi") title.textContent = "Edit POI";
     else if (mode === "edit-poi-group") title.textContent = "Edit Grouped POI";
@@ -232,7 +236,7 @@ function setEditorMode(mode) {
   if (npcForm) npcForm.hidden = !["npc", "edit-npc"].includes(mode);
   if (poiForm) poiForm.hidden = !["poi", "edit-poi"].includes(mode);
   if (poiGroupForm) poiGroupForm.hidden = mode !== "edit-poi-group";
-  if (regionForm) regionForm.hidden = mode !== "edit-region";
+  if (regionForm) regionForm.hidden = !["region", "quick-region", "edit-region"].includes(mode);
   if (mapManagerForm) mapManagerForm.hidden = !["add-map", "manage-maps"].includes(mode);
   if (journalForm) journalForm.hidden = mode !== "add-journal";
   if (npcSubmit) npcSubmit.textContent = mode === "edit-npc" ? "Save NPC" : "Create NPC";
@@ -426,6 +430,32 @@ function openEditPoiGroupEditor(groupId) {
   openEditorModal();
 }
 
+function openAddRegionEditor(options = {}) {
+  const regionType = options.regionType === "political" ? "political" : "geographic";
+  codexEditorState = {
+    mode: options.quick === true ? "quick-region" : "region",
+    recordType: "region",
+    recordId: "",
+    originalChildIds: [],
+    workingChildIds: [],
+    quickRegion: options.quick === true,
+    onCreated: typeof options.onCreated === "function" ? options.onCreated : null
+  };
+  setEditorMode(codexEditorState.mode);
+  if (options.quick === true) {
+    const title = document.getElementById("codex-editor-title");
+    if (title) title.textContent = regionType === "political" ? "Name Pol Region" : "Name Geo Region";
+  }
+  document.getElementById("codex-edit-region-form")?.reset();
+  syncRegionEditorMode({
+    regionType,
+    lockType: options.lockType === true || options.quick === true,
+    borderColor: options.borderColor || "#ffd84d"
+  });
+  openEditorModal();
+  document.getElementById("codex-edit-region-name")?.focus();
+}
+
 function openEditRegionEditor(regionId) {
   const region = db?.regionsById?.[regionId];
   if (!region) return;
@@ -433,6 +463,7 @@ function openEditRegionEditor(regionId) {
   codexEditorState = { mode: "edit-region", recordType: "region", recordId: regionId };
   setEditorMode("edit-region");
   document.getElementById("codex-edit-region-form")?.reset();
+  syncRegionEditorMode({ regionType: region.Region_ID === "REG-0000" ? "geographic" : region.Region_Type || "geographic" });
   const typeSelect = document.getElementById("codex-edit-region-type");
   if (typeSelect) {
     typeSelect.value = region.Region_ID === "REG-0000" ? "geographic" : region.Region_Type || "geographic";
@@ -442,6 +473,7 @@ function openEditRegionEditor(regionId) {
   if (borderColorSelect) {
     borderColorSelect.value = getEditableRegionColorValue(region);
     borderColorSelect.disabled = region.Region_ID === "REG-0000";
+    window.syncColorPickerControl?.(borderColorSelect);
   }
   document.getElementById("codex-edit-region-lore").value = region.Lore || "";
   openEditorModal();
@@ -581,7 +613,9 @@ function closeCodexEditor() {
     recordType: "",
     recordId: "",
     originalChildIds: [],
-    workingChildIds: []
+    workingChildIds: [],
+    quickRegion: false,
+    onCreated: null
   };
 
   document.getElementById("codex-editor-modal")?.classList.add("hidden");
@@ -644,6 +678,7 @@ function getCurrentDetailDeleteTarget() {
   const page = getCurrentCodexPage?.();
   const config = page ? CODEX_DETAIL_RECORDS[page.type] : null;
   if (!page || !config || !page.id) return null;
+  if (!canDeleteCurrentDetailPage(page)) return null;
 
   const record = db?.[config.byId]?.[page.id];
   if (!record) return null;
@@ -711,7 +746,8 @@ function removeRecordFromLocalDb(target) {
 
   if (target.pageType === "region") {
     Object.values(db.hexesById || {}).forEach(hex => {
-      if (hex.Region_ID_Ref === legacyId) hex.Region_ID_Ref = "";
+      if (hex.Region_ID_Ref === legacyId) hex.Region_ID_Ref = target.record?.Region_Type === "political" ? "" : "REG-0000";
+      if (hex.Political_Region_ID_Ref === legacyId) hex.Political_Region_ID_Ref = "";
     });
   }
 
@@ -746,6 +782,8 @@ async function confirmDeleteRecord() {
     removeRecordFromLocalDb(target);
     if (target.pageType === "poi") {
       refreshGeneratedMapPoiLayer();
+    } else if (target.pageType === "region") {
+      refreshGeneratedMapRegionLayer();
     }
     closeCodexDeleteModal();
 
@@ -1467,6 +1505,27 @@ function updateRegionInLocalDb(region, updates) {
   Object.assign(region, updates);
 }
 
+function adaptCreatedRegionRow(row) {
+  const createdRow = Array.isArray(row) ? row[0] : row;
+  return {
+    __uuid: createdRow.id,
+    Region_ID: createdRow.ref_code,
+    Region_Name: createdRow.name || "",
+    Region_Type: createdRow.region_type || "geographic",
+    Border_Color: createdRow.ref_code === "REG-0000" ? "none" : createdRow.border_color || "#ffd84d",
+    Lore: createdRow.lore || "",
+    Image: ""
+  };
+}
+
+function addCreatedRegionToLocalDb(region) {
+  if (!region?.Region_ID) return;
+  if (!db.raw.regions.some(existing => existing.Region_ID === region.Region_ID)) {
+    db.raw.regions.push(region);
+  }
+  db.regionsById[region.Region_ID] = region;
+}
+
 function getEditableRegionColorValue(region) {
   const namedColors = {
     red: "#ff2d2d",
@@ -1564,6 +1623,13 @@ function refreshCodexAfterCreatedRecord(kind) {
 
   if (isDetailPage) {
     renderCodexPage?.(currentPage.type, currentPage.id);
+    fitCodexHeaderText?.();
+    updateCodexBackButton?.();
+    return;
+  }
+
+  if (currentPage?.type === "regions") {
+    renderCodexPage?.("regions", null);
     fitCodexHeaderText?.();
     updateCodexBackButton?.();
     return;
@@ -1959,22 +2025,61 @@ async function handleEditRegionSubmit(event) {
   event.preventDefault();
 
   const campaign = getActiveCampaign?.();
-  const region = db?.regionsById?.[codexEditorState.recordId];
-  if (!campaign || !region?.__uuid) return;
+  const isCreate = ["region", "quick-region"].includes(codexEditorState.mode);
+  const region = isCreate ? null : db?.regionsById?.[codexEditorState.recordId];
+  if (!campaign || (!isCreate && !region?.__uuid)) return;
 
+  const name = document.getElementById("codex-edit-region-name")?.value.trim();
   const lore = document.getElementById("codex-edit-region-lore")?.value.trim();
-  const regionType = region.Region_ID === "REG-0000"
+  const regionType = region?.Region_ID === "REG-0000"
     ? "geographic"
     : document.getElementById("codex-edit-region-type")?.value || "geographic";
-  const borderColor = region.Region_ID === "REG-0000"
+  const borderColor = region?.Region_ID === "REG-0000"
     ? "none"
     : document.getElementById("codex-edit-region-border-color")?.value || "#ffd84d";
   const imageFile = getEditorImageFile("codex-edit-region-image");
 
-  setCodexEditorStatus("Saving region...");
+  if (isCreate && !name) {
+    setCodexEditorStatus("Region name is required.");
+    return;
+  }
+
+  setCodexEditorStatus(isCreate ? "Creating region..." : "Saving region...");
 
   try {
     validateCodexImageUpload(imageFile);
+
+    if (isCreate) {
+      const { data, error } = await campaignSupabase.rpc("create_region_with_next_ref_code", {
+        target_campaign_id: campaign.id,
+        region_name: name,
+        region_type_input: regionType,
+        region_border_color: borderColor,
+        region_lore: codexEditorState.quickRegion ? null : lore || null
+      });
+
+      if (error) throw error;
+
+      const createdRegion = adaptCreatedRegionRow(data);
+      addCreatedRegionToLocalDb(createdRegion);
+
+      if (imageFile && !codexEditorState.quickRegion) {
+        setCodexEditorStatus("Uploading region image...");
+        createdRegion.Image = await uploadAndAttachRecordImage({
+          campaign,
+          recordType: "region",
+          recordUuid: createdRegion.__uuid,
+          legacyId: createdRegion.Region_ID,
+          file: imageFile
+        });
+      }
+
+      const onCreated = codexEditorState.onCreated;
+      closeCodexEditor();
+      refreshCodexAfterCreatedRecord("region");
+      onCreated?.(createdRegion);
+      return;
+    }
 
     const { data, error } = await campaignSupabase.rpc("update_region_record", {
       target_campaign_id: campaign.id,
@@ -2098,35 +2203,38 @@ function updateCodexContextAction(type) {
 
   const isNpcIndex = type === "npcs";
   const isPoiIndex = type === "pois";
+  const isRegionIndex = type === "regions";
   const isDetailPage = ["hex", "region", "poi", "poi-group", "npc"].includes(type);
-  const isDeletableDetailPage = ["poi", "poi-group", "npc"].includes(type);
+  const currentPage = getCurrentCodexPage?.();
+  const isDeletableDetailPage = canDeleteCurrentDetailPage(currentPage || { type });
   const isEditableDetailPage = ["region", "poi", "poi-group", "npc"].includes(type);
   mobileActionPocket?.classList.toggle("has-reveal", isDetailPage && isEditableDetailPage && isDeletableDetailPage);
   hideButton(mobileEditButton);
 
-  if (isNpcIndex || isPoiIndex) {
+  if (isNpcIndex || isPoiIndex || isRegionIndex) {
     if (desktopShell) desktopShell.hidden = false;
     setMobileActionPocketVisible(true);
     deleteButtons.forEach(hideButton);
+    const addAction = isRegionIndex ? openAddRegionEditor : (isPoiIndex ? openAddPoiEditor : openAddNpcEditor);
     if (mobileButton) {
       mobileButton.hidden = false;
       mobileButton.disabled = false;
       mobileButton.textContent = "＋";
       mobileButton.setAttribute("aria-label", "Add");
-      mobileButton.onclick = isPoiIndex ? openAddPoiEditor : openAddNpcEditor;
+      mobileButton.onclick = addAction;
     }
     if (desktopButton) {
       desktopButton.hidden = false;
       desktopButton.disabled = false;
       desktopButton.textContent = "Add";
-      desktopButton.onclick = isPoiIndex ? openAddPoiEditor : openAddNpcEditor;
+      desktopButton.onclick = addAction;
     }
     buttons.forEach((button) => {
       if (button === mobileButton || button === desktopButton) return;
       button.hidden = false;
       button.disabled = false;
       button.textContent = "Add";
-      button.onclick = isPoiIndex ? openAddPoiEditor : openAddNpcEditor;
+      button.onclick = addAction;
     });
     return;
   }
@@ -2238,6 +2346,44 @@ function updateCodexContextAction(type) {
   buttons.forEach(hideButton);
 }
 
+function syncRegionEditorMode(options = {}) {
+  const isCreate = ["region", "quick-region"].includes(codexEditorState.mode);
+  const isQuick = codexEditorState.mode === "quick-region";
+  const nameRow = document.getElementById("codex-edit-region-name-row");
+  const nameInput = document.getElementById("codex-edit-region-name");
+  const typeSelect = document.getElementById("codex-edit-region-type");
+  const colorSelect = document.getElementById("codex-edit-region-border-color");
+  const loreRow = document.getElementById("codex-edit-region-lore-row");
+  const imageRow = document.getElementById("codex-edit-region-image-row");
+  const submitButton = document.getElementById("codex-region-editor-submit");
+
+  if (nameRow) nameRow.hidden = !isCreate;
+  if (nameInput) {
+    nameInput.required = isCreate;
+    nameInput.value = options.name || "";
+  }
+  if (typeSelect) {
+    typeSelect.value = options.regionType || "geographic";
+    typeSelect.disabled = isQuick || options.lockType === true;
+  }
+  if (colorSelect) {
+    colorSelect.value = options.borderColor || "#ffd84d";
+    colorSelect.disabled = false;
+    window.syncColorPickerControl?.(colorSelect);
+  }
+  if (loreRow) loreRow.hidden = isQuick;
+  if (imageRow) imageRow.hidden = isQuick;
+  if (submitButton) submitButton.textContent = isCreate ? "Create Region" : "Save Region";
+}
+
+function canDeleteCurrentDetailPage(page = getCurrentCodexPage?.()) {
+  if (!page?.type) return false;
+  if (["poi", "poi-group", "npc"].includes(page.type)) return true;
+  if (!page.id) return false;
+  if (page.type !== "region" || page.id === "REG-0000") return false;
+  return ["owner", "superuser"].includes(getActiveCampaign?.()?.currentUserRole || "");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("codex-add-npc-form")
     ?.addEventListener("submit", handleAddNpcSubmit);
@@ -2287,6 +2433,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.openAddNpcEditor = openAddNpcEditor;
+window.openAddRegionEditor = openAddRegionEditor;
 window.openEditNpcEditor = openEditNpcEditor;
 window.openEditRegionEditor = openEditRegionEditor;
 window.openAddMapEditor = openAddMapEditor;

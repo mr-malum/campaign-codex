@@ -60,7 +60,7 @@ async function fetchCampaignRows(campaignId) {
     fetchAllCampaignRows("maps", "id, ref_code, name, map_type, sort_order, lore, image_asset_id, region_owner_id, poi_group_owner_id, poi_owner_id, hex_owner_id", campaignId),
     fetchAllCampaignRows("npcs", "id, ref_code, home_poi_id, title, name, organization, race, occupation, lore, image_asset_id", campaignId),
     fetchAllCampaignRows("dm_journal", "id, ref_code, entry_title, entry_body, entry_type, source_type, source_id, occurred_at, created_by_user_id, session_id, visibility", campaignId),
-    fetchOptionalCampaignRows("generated_map_overlays", "id, overlay_type, from_hex_id, to_hex_id, hex_id, edge, style", campaignId)
+    fetchOptionalCampaignRows("generated_map_overlays", "id, overlay_type, from_hex_id, to_hex_id, hex_id, edge, style, is_major_route, route_name", campaignId)
   ]);
 
   const journalAuthorIds = [...new Set(
@@ -278,6 +278,10 @@ function getCodexValidTerrainFeatures(baseTerrain, features = []) {
 }
 
 function getCodexGeneratedTerrainName(baseTerrain, featuresInput = []) {
+  if (window.CampaignTerrainRules?.getTerrainDisplayName) {
+    return window.CampaignTerrainRules.getTerrainDisplayName(baseTerrain, featuresInput);
+  }
+
   const base = codexBaseTerrainLabels[baseTerrain] || baseTerrain || "Unknown";
   const features = getCodexValidTerrainFeatures(baseTerrain, featuresInput);
   const has = featureId => features.includes(featureId);
@@ -510,7 +514,9 @@ function adaptCampaignRows(rows, assetsById) {
     To_Hex_ID_Ref: recordMaps.hexesByUuid[overlay.to_hex_id] || "",
     Hex_ID_Ref: recordMaps.hexesByUuid[overlay.hex_id] || "",
     Edge: overlay.edge || "",
-    Style: overlay.style || ""
+    Style: overlay.style || "",
+    Is_Major_Route: Boolean(overlay.is_major_route),
+    Route_Name: overlay.route_name || ""
   }));
 
   const sourceMaps = {

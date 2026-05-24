@@ -430,13 +430,62 @@
 }
 
 #campaign-settings-button {
-  width: 42px;
-  min-width: 42px;
-  height: 42px;
-  border: 1px solid rgba(70, 47, 24, 0.88);
-  background: rgba(74, 48, 25, 0.94);
-  color: #f7ead1;
+  position: relative;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border: 1px solid var(--map-editor-brass-border-soft, rgba(214, 168, 94, 0.36));
+  border-radius: 7px;
+  background: var(
+    --map-editor-brass-bg,
+    linear-gradient(180deg, rgba(75, 49, 24, 0.94), rgba(33, 22, 13, 0.98))
+  );
+  color: var(--map-editor-brass-text, #f2d37b);
+  font-family: "Marcellus SC", serif;
   font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow:
+    0 12px 20px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 234, 186, 0.08),
+    inset 0 0 0 1px rgba(252, 221, 154, 0.05);
+  transition:
+    transform 140ms ease,
+    filter 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+#campaign-settings-button::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(247, 208, 132, 0.16);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+#campaign-settings-button:hover,
+#campaign-settings-button:focus-visible,
+#campaign-settings-button[aria-expanded="true"] {
+  border-color: rgba(242, 211, 123, 0.72);
+  background: var(
+    --map-editor-brass-bg-hot,
+    linear-gradient(180deg, rgba(129, 88, 34, 0.94), rgba(66, 43, 16, 0.98))
+  );
+  color: var(--map-editor-brass-text-hot, #fff2c8);
+  filter: brightness(1.07);
+  box-shadow:
+    0 14px 24px rgba(0, 0, 0, 0.38),
+    inset 0 0 18px var(--map-editor-brass-glow, rgba(242, 211, 123, 0.18));
+}
+
+#campaign-settings-button:active {
+  transform: scale(0.98);
+  box-shadow:
+    0 8px 14px rgba(0, 0, 0, 0.38),
+    inset 0 2px 8px rgba(0, 0, 0, 0.28),
+    inset 0 0 14px rgba(242, 211, 123, 0.12);
 }
 
 .campaign-settings-menu {
@@ -652,6 +701,59 @@
 #campaign-add-member-back-button,
 #campaign-user-settings-back-button {
   min-height: 42px;
+}
+
+.campaign-member-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+}
+
+.campaign-role-help-button {
+  min-width: 42px;
+  padding: 0;
+  font-family: "Marcellus SC", serif;
+  font-weight: 700;
+}
+
+.campaign-role-help-wrap {
+  position: relative;
+  display: block;
+}
+
+.campaign-role-help {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 4;
+  width: min(360px, calc(100vw - 48px));
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(70, 47, 24, 0.38);
+  background:
+    linear-gradient(180deg, rgba(255, 244, 210, 0.98), rgba(229, 185, 111, 0.96));
+  color: #2b1a0d;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  pointer-events: none;
+  box-shadow: 0 12px 24px rgba(45, 28, 12, 0.24);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 140ms ease;
+}
+
+.campaign-role-help-wrap:hover .campaign-role-help,
+.campaign-role-help-wrap:focus-within .campaign-role-help {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .campaign-settings-menu button {

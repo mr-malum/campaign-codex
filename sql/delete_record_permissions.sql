@@ -147,7 +147,11 @@ set search_path = public
 as $$
 declare
   is_owner boolean;
+  is_region_admin boolean;
   is_creator boolean := false;
+  deleted_region_type text;
+  deleted_region_ref text;
+  default_geographic_region_id uuid;
 begin
   if auth.uid() is null then
     raise exception 'not authorized';
@@ -162,15 +166,23 @@ begin
   )
   into is_owner;
 
+  select exists (
+    select 1
+    from public.campaign_members cm
+    where cm.campaign_id = target_campaign_id
+      and cm.user_id = auth.uid()
+      and cm.role::text in ('owner', 'superuser')
+  )
+  into is_region_admin;
+
+  if target_record_type = 'region' and not is_region_admin then
+    raise exception 'You do not have permission to delete this record.';
+  end if;
+
   if not is_owner then
     case target_record_type
       when 'region' then
-        select exists (
-          select 1 from public.regions
-          where campaign_id = target_campaign_id
-            and id = target_record_id
-            and created_by = auth.uid()
-        ) into is_creator;
+        is_creator := is_region_admin;
 
       when 'hex' then
         select exists (
@@ -215,6 +227,42 @@ begin
 
   case target_record_type
     when 'region' then
+      select region_type, ref_code
+        into deleted_region_type, deleted_region_ref
+      from public.regions
+      where campaign_id = target_campaign_id
+        and id = target_record_id;
+
+      if deleted_region_ref = 'REG-0000' then
+        raise exception 'The default region cannot be deleted.';
+      end if;
+
+      if deleted_region_type = 'geographic' then
+        select id into default_geographic_region_id
+        from public.regions
+        where campaign_id = target_campaign_id
+          and region_type = 'geographic'
+          and ref_code = 'REG-0000'
+        limit 1;
+
+        if default_geographic_region_id is null then
+          raise exception 'Default geographic region REG-0000 not found.';
+        end if;
+
+        update public.hexes
+        set region_id = default_geographic_region_id,
+            geographic_region_id = default_geographic_region_id,
+            updated_at = now()
+        where campaign_id = target_campaign_id
+          and (region_id = target_record_id or geographic_region_id = target_record_id);
+      elsif deleted_region_type = 'political' then
+        update public.hexes
+        set political_region_id = null,
+            updated_at = now()
+        where campaign_id = target_campaign_id
+          and political_region_id = target_record_id;
+      end if;
+
       delete from public.regions
       where campaign_id = target_campaign_id
         and id = target_record_id;
