@@ -1132,7 +1132,11 @@ async function deleteOpenJournalEntry() {
   const entry = db?.dmJournalById?.[entryId];
 
   if (!campaign || !entry?.__uuid) return;
-  if (!window.confirm("Delete this journal entry? This cannot be undone.")) return;
+  if (!await showCodexEditorConfirm("Delete this journal entry? This cannot be undone.", {
+    title: "Delete Journal Entry?",
+    confirmLabel: "Delete",
+    tone: "danger"
+  })) return;
 
   setJournalEntryStatus("Deleting...");
   button.disabled = true;
@@ -1293,7 +1297,11 @@ async function removeManagedMap(map) {
   const campaign = getActiveCampaign?.();
   if (!campaign || !map?.__uuid) return;
 
-  const confirmed = window.confirm(`Remove map "${map.Map_Name || map.Map_ID}"? This cannot be undone.`);
+  const confirmed = await showCodexEditorConfirm(`Remove map "${map.Map_Name || map.Map_ID}"? This cannot be undone.`, {
+    title: "Remove Map?",
+    confirmLabel: "Remove",
+    tone: "danger"
+  });
   if (!confirmed) return;
 
   const { error } = await campaignSupabase.rpc("delete_campaign_map", {
@@ -1351,6 +1359,12 @@ async function handleMapManagerClick(event) {
   } finally {
     button.disabled = false;
   }
+}
+
+function showCodexEditorConfirm(message, options = {}) {
+  return window.codexConfirm
+    ? window.codexConfirm(message, options)
+    : Promise.resolve(window.confirm?.(message) === true);
 }
 
 function adaptCreatedNpcRow(row) {

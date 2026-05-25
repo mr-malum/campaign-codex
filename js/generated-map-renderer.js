@@ -138,13 +138,13 @@
   const RIVER_FALLS_ELEVATION_DELTA = 2;
   const RIVER_FALLS_CHANCE = 58;
   const COASTAL_RIVER_FALLS_CHANCE = 18;
-  const ROAD_WATER_PATH_COST = 8;
-  const MAJOR_ROAD_WATER_PATH_COST = 10;
+  const ROAD_WATER_PATH_COST = 5;
+  const MAJOR_ROAD_WATER_PATH_COST = 7;
   const ROAD_IMPASSABLE_WATER_TERRAINS = new Set(["sea", "deep_sea"]);
   const ROUGH_PATH_BASE_TERRAINS = new Set(["rock", "barrens", "bleak_barrens", "wastes", "desert", "deep_desert"]);
   const ROUGH_PATH_FEATURES = new Set(["mountains", "snowcapped_mountains", "lone_mountain", "volcano", "ridges", "cliffs"]);
   const ROAD_PASS_FEATURES = new Set(["mountains", "snowcapped_mountains", "lone_mountain", "volcano", "cliffs"]);
-  const ROAD_PASS_RIDGE_BASE_TERRAINS = new Set(["rock", "snow", "barrens", "bleak_barrens", "wastes"]);
+  const MAJOR_RIVER_CULVERT_FEATURES = new Set(["mountains", "snowcapped_mountains", "lone_mountain", "volcano", "cliffs"]);
   const FEATURE_ASSET_PATH = "hex-mapper/assets/features/";
   const ROUTE_ICON_ASSET_PATH = "hex-mapper/assets/other/";
   const ROUTE_ICON_FILES = {
@@ -457,7 +457,7 @@
     drawing: {
       enabled: false,
       toolsMode: "chooser",
-      surveyorSection: "regions",
+      surveyorSection: "overlay",
       surveyorOverlaySubview: "paint",
       cartographerSection: "terrain",
       cartographerSubviews: {
@@ -473,6 +473,12 @@
       roadRouteName: "",
       riverRouteMajor: false,
       riverRouteName: "",
+      riverWaterPull: 100,
+      riverWildness: 100,
+      riverTerrainRespect: 100,
+      riverStraightness: 0,
+      riverTributaries: true,
+      riverWetlandVanish: false,
       seaRouteName: "",
       mistBrushSize: 1,
       mistNoise: 0,
@@ -783,6 +789,12 @@
     const roadWaterOverride = document.getElementById("map-road-water-override");
     const roadAutoPass = document.getElementById("map-road-auto-pass");
     const riverAutoFalls = document.getElementById("map-river-auto-falls");
+    const riverWaterPull = document.getElementById("map-river-water-pull");
+    const riverWildness = document.getElementById("map-river-wildness");
+    const riverTerrainRespect = document.getElementById("map-river-terrain-respect");
+    const riverStraightness = document.getElementById("map-river-straightness");
+    const riverTributaries = document.getElementById("map-river-tributaries");
+    const riverWetlandVanish = document.getElementById("map-river-wetland-vanish");
     const routeMajor = document.getElementById("map-route-major");
     const routeName = document.getElementById("map-route-name");
     const namedRoutesButton = document.getElementById("map-named-routes-button");
@@ -890,15 +902,15 @@
       toggleMapEditPaneCollapsed();
     });
 
-    closeEditButton?.addEventListener("click", event => {
+    closeEditButton?.addEventListener("click", async event => {
       event.preventDefault();
       event.stopPropagation();
-      if ((renderer.drawing.toolsMode || "chooser") === "chooser") requestCloseMapEditMode();
-      else requestReturnToToolsChooser();
+      if ((renderer.drawing.toolsMode || "chooser") === "chooser") await requestCloseMapEditMode();
+      else await requestReturnToToolsChooser();
       render();
     });
 
-    button.addEventListener("click", event => {
+    button.addEventListener("click", async event => {
       event.preventDefault();
       event.stopPropagation();
       const isOpening = panel.hidden;
@@ -910,11 +922,12 @@
         if (viewPanel) viewPanel.hidden = true;
         viewButton?.classList.remove("active");
         modeViewButton?.classList.remove("active");
+        randomizeGenerationSeed();
         setMapToolsMode("chooser");
         enterMapEditMode();
       }
       if (!isOpening) {
-        if (!requestCloseMapEditMode()) {
+        if (!await requestCloseMapEditMode()) {
           panel.hidden = false;
           button.classList.add("active");
           renderer.drawing.enabled = true;
@@ -1034,7 +1047,42 @@
     });
 
     riverAutoFalls?.addEventListener("change", () => {
+      if (getCurrentRouteMajor("river")) {
+        renderer.drawing.autoFalls = false;
+        updateDrawStyleControls();
+        return;
+      }
       renderer.drawing.autoFalls = riverAutoFalls.checked !== false;
+    });
+
+    riverWaterPull?.addEventListener("input", () => {
+      renderer.drawing.riverWaterPull = clampNumber(Number(riverWaterPull.value), 0, 200, 100);
+      updateDrawStyleControls();
+    });
+
+    riverWildness?.addEventListener("input", () => {
+      renderer.drawing.riverWildness = clampNumber(Number(riverWildness.value), 0, 200, 100);
+      updateDrawStyleControls();
+    });
+
+    riverTerrainRespect?.addEventListener("input", () => {
+      renderer.drawing.riverTerrainRespect = clampNumber(Number(riverTerrainRespect.value), 0, 200, 100);
+      updateDrawStyleControls();
+    });
+
+    riverStraightness?.addEventListener("input", () => {
+      renderer.drawing.riverStraightness = clampNumber(Number(riverStraightness.value), 0, 100, 0);
+      updateDrawStyleControls();
+    });
+
+    riverTributaries?.addEventListener("change", () => {
+      renderer.drawing.riverTributaries = riverTributaries.checked !== false;
+      updateDrawStyleControls();
+    });
+
+    riverWetlandVanish?.addEventListener("change", () => {
+      renderer.drawing.riverWetlandVanish = riverWetlandVanish.checked !== false;
+      updateDrawStyleControls();
     });
 
     routeMajor?.addEventListener("change", () => {
@@ -1334,11 +1382,14 @@
         }
         return;
       }
-      if (!event.ctrlKey || event.altKey || event.metaKey) return;
-      if (["INPUT", "SELECT", "TEXTAREA"].includes(event.target?.tagName)) return;
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      if (isTextEditingTarget(event.target)) return;
 
       const key = event.key.toLowerCase();
-      if (key === "z") {
+      if (key === "z" && event.shiftKey) {
+        event.preventDefault();
+        redoLastDrawAction();
+      } else if (key === "z") {
         event.preventDefault();
         undoLastDrawAction();
       } else if (key === "y") {
@@ -1423,12 +1474,12 @@
     updateMapEditSurface();
   }
 
-  function requestReturnToToolsChooser() {
+  async function requestReturnToToolsChooser() {
     if ((renderer.drawing.toolsMode || "chooser") !== "cartographer") {
       setMapToolsMode("chooser");
       return true;
     }
-    const confirmed = confirmDiscardUnappliedEdits("Leave Cartographer and discard unapplied preview changes? Regions save immediately and will stay saved.");
+    const confirmed = await confirmDiscardUnappliedEdits("Leave Cartographer and discard unapplied preview changes? Regions save immediately and will stay saved.");
     if (!confirmed) return false;
     discardGeneratedTerrainPreview({ silent: true });
     setMapToolsMode("chooser");
@@ -1436,9 +1487,9 @@
     return true;
   }
 
-  function requestCloseMapEditMode() {
+  async function requestCloseMapEditMode() {
     if ((renderer.drawing.toolsMode || "chooser") === "cartographer") {
-      const confirmed = confirmDiscardUnappliedEdits("Leave Map Tools and discard unapplied preview changes? Regions save immediately and will stay saved.");
+      const confirmed = await confirmDiscardUnappliedEdits("Leave Map Tools and discard unapplied preview changes? Regions save immediately and will stay saved.");
       if (!confirmed) return false;
     }
     closeMapEditMode();
@@ -1618,6 +1669,9 @@
     document.querySelectorAll("[data-overlay-subview-group]").forEach(element => {
       const group = element.dataset.overlaySubviewGroup || "drawing";
       element.hidden = isOverlayVisible && group !== (subview === "purge" ? "purge" : "drawing");
+      if (element.classList.contains("map-draw-tool-setting")) {
+        element.hidden = true;
+      }
     });
     if (isOverlayVisible && subview === "purge" && renderer.drawing.tool) {
       clearDrawTool();
@@ -1892,6 +1946,12 @@
     renderer.drawing.roadRouteName = "";
     renderer.drawing.riverRouteMajor = false;
     renderer.drawing.riverRouteName = "";
+    renderer.drawing.riverWaterPull = 100;
+    renderer.drawing.riverWildness = 100;
+    renderer.drawing.riverTerrainRespect = 100;
+    renderer.drawing.riverStraightness = 0;
+    renderer.drawing.riverTributaries = true;
+    renderer.drawing.riverWetlandVanish = false;
     renderer.drawing.seaRouteName = "";
     renderer.drawing.mistBrushSize = 1;
     renderer.drawing.mistNoise = 0;
@@ -1913,7 +1973,7 @@
     renderer.drawing.featureMaxFeatures = 1;
     renderer.drawing.featureChaosEnabled = false;
     renderer.drawing.toolsMode = "chooser";
-    renderer.drawing.surveyorSection = "regions";
+    renderer.drawing.surveyorSection = "overlay";
     renderer.drawing.surveyorOverlaySubview = "paint";
     renderer.drawing.cartographerSection = "terrain";
     renderer.drawing.cartographerSubviews = {
@@ -2318,6 +2378,22 @@
     const autoPassInput = document.getElementById("map-road-auto-pass");
     const autoFallsRow = document.getElementById("map-river-auto-falls-row");
     const autoFallsInput = document.getElementById("map-river-auto-falls");
+    const riverWaterPullRow = document.getElementById("map-river-water-pull-row");
+    const riverWaterPullInput = document.getElementById("map-river-water-pull");
+    const riverWaterPullValue = document.getElementById("map-river-water-pull-value");
+    const riverWildnessRow = document.getElementById("map-river-wildness-row");
+    const riverWildnessInput = document.getElementById("map-river-wildness");
+    const riverWildnessValue = document.getElementById("map-river-wildness-value");
+    const riverTerrainRespectRow = document.getElementById("map-river-terrain-respect-row");
+    const riverTerrainRespectInput = document.getElementById("map-river-terrain-respect");
+    const riverTerrainRespectValue = document.getElementById("map-river-terrain-respect-value");
+    const riverStraightnessRow = document.getElementById("map-river-straightness-row");
+    const riverStraightnessInput = document.getElementById("map-river-straightness");
+    const riverStraightnessValue = document.getElementById("map-river-straightness-value");
+    const riverTributariesRow = document.getElementById("map-river-tributaries-row");
+    const riverTributariesInput = document.getElementById("map-river-tributaries");
+    const riverWetlandVanishRow = document.getElementById("map-river-wetland-vanish-row");
+    const riverWetlandVanishInput = document.getElementById("map-river-wetland-vanish");
     const routeMajorRow = document.getElementById("map-route-major-row");
     const routeMajorInput = document.getElementById("map-route-major");
     const routeNameRow = document.getElementById("map-route-name-row");
@@ -2328,17 +2404,42 @@
     const mistNoiseRow = document.getElementById("map-mist-noise-row");
     const mistNoiseInput = document.getElementById("map-mist-noise");
     const mistNoiseValue = document.getElementById("map-mist-noise-value");
+    const currentRouteMajor = getCurrentRouteMajor();
     if (styleRow) styleRow.hidden = !["road", "path"].includes(renderer.drawing.tool);
     if (styleLabel) styleLabel.textContent = renderer.drawing.tool === "path" ? "Path Style" : "Road Style";
     if (roadOverrideRow) roadOverrideRow.hidden = renderer.drawing.tool !== "road";
     if (roadOverrideInput) roadOverrideInput.checked = Boolean(renderer.drawing.roadWaterOverride);
     if (autoPassRow) autoPassRow.hidden = renderer.drawing.tool !== "road";
     if (autoPassInput) autoPassInput.checked = renderer.drawing.autoPass !== false;
-    if (autoFallsRow) autoFallsRow.hidden = renderer.drawing.tool !== "river";
-    if (autoFallsInput) autoFallsInput.checked = renderer.drawing.autoFalls !== false;
+    const isRiverTool = renderer.drawing.tool === "river";
+    const riverMajorTrade = isRiverTool && currentRouteMajor;
+    if (autoFallsRow) autoFallsRow.hidden = !isRiverTool;
+    if (autoFallsInput) {
+      autoFallsInput.disabled = riverMajorTrade;
+      autoFallsInput.checked = riverMajorTrade ? false : renderer.drawing.autoFalls !== false;
+    }
+    if (riverWaterPullRow) riverWaterPullRow.hidden = !isRiverTool;
+    if (riverWaterPullInput) riverWaterPullInput.value = String(renderer.drawing.riverWaterPull ?? 100);
+    if (riverWaterPullValue) riverWaterPullValue.textContent = `${renderer.drawing.riverWaterPull ?? 100}%`;
+    if (riverWildnessRow) riverWildnessRow.hidden = !isRiverTool;
+    if (riverWildnessInput) riverWildnessInput.value = String(renderer.drawing.riverWildness ?? 100);
+    if (riverWildnessValue) riverWildnessValue.textContent = `${renderer.drawing.riverWildness ?? 100}%`;
+    if (riverTerrainRespectRow) riverTerrainRespectRow.hidden = !isRiverTool;
+    if (riverTerrainRespectInput) riverTerrainRespectInput.value = String(renderer.drawing.riverTerrainRespect ?? 100);
+    if (riverTerrainRespectValue) riverTerrainRespectValue.textContent = `${renderer.drawing.riverTerrainRespect ?? 100}%`;
+    if (riverStraightnessRow) riverStraightnessRow.hidden = !isRiverTool;
+    if (riverStraightnessInput) riverStraightnessInput.value = String(renderer.drawing.riverStraightness ?? 0);
+    if (riverStraightnessValue) riverStraightnessValue.textContent = `${renderer.drawing.riverStraightness ?? 0}%`;
+    if (riverTributariesRow) riverTributariesRow.hidden = !isRiverTool;
+    if (riverTributariesInput) riverTributariesInput.checked = renderer.drawing.riverTributaries !== false;
+    if (riverWetlandVanishRow) riverWetlandVanishRow.hidden = !isRiverTool;
+    if (riverWetlandVanishInput) {
+      const disableWetlandVanish = riverMajorTrade;
+      riverWetlandVanishInput.disabled = disableWetlandVanish;
+      riverWetlandVanishInput.checked = disableWetlandVanish ? false : renderer.drawing.riverWetlandVanish !== false;
+    }
     const isNamedRouteTool = ["road", "river", "sea_route"].includes(renderer.drawing.tool);
     const hasMajorToggle = ["road", "river"].includes(renderer.drawing.tool);
-    const currentRouteMajor = getCurrentRouteMajor();
     const currentRouteName = getCurrentRouteName();
     if (routeMajorRow) routeMajorRow.hidden = !hasMajorToggle;
     if (routeMajorInput) routeMajorInput.checked = Boolean(currentRouteMajor);
@@ -3060,13 +3161,20 @@
     return renderer.drawing.enabled && hasStagedMapEdits();
   }
 
-  function confirmDiscardUnappliedEdits(message) {
+  async function confirmDiscardUnappliedEdits(message) {
     if (!hasPendingEditorExitWarning()) return true;
-    if (typeof window.confirm !== "function") {
-      window.alert?.("Confirmation is unavailable, so the editor stayed open.");
-      return false;
-    }
-    return window.confirm(message) === true;
+    return window.codexConfirm
+      ? window.codexConfirm(message, { title: "Discard Preview?", confirmLabel: "Discard", tone: "danger" })
+      : window.confirm?.(message) === true;
+  }
+
+  function isTextEditingTarget(target) {
+    const tagName = String(target?.tagName || "").toUpperCase();
+    if (tagName === "TEXTAREA" || tagName === "SELECT") return true;
+    if (target?.isContentEditable) return true;
+    if (tagName !== "INPUT") return false;
+    const inputType = String(target.type || "text").toLowerCase();
+    return ["", "email", "number", "password", "search", "tel", "text", "url"].includes(inputType);
   }
 
   function handleMapEditorBeforeUnload(event) {
@@ -3544,6 +3652,7 @@
           }
         });
         renderMajorRiverWaterContinuations(ctx, continuationSegments);
+        renderMajorRiverMountainCulverts(ctx, regularSegments);
       };
       const riverSegments = overlays.filter(overlay => overlay.Overlay_Type === "river");
       drawRiverPaths(riverSegments.filter(segment => !segment.Is_Major_Route));
@@ -5082,11 +5191,21 @@
   }
 
   function isRiverTradeContinuationWaterHex(hex) {
-    return ["inland_water", "coastal_water"].includes(hex?.baseTerrain);
+    return ["inland_water", "coastal_water", "wetland"].includes(hex?.baseTerrain);
   }
 
   function canRoadCrossWaterHex(hex) {
     return ["inland_water", "coastal_water"].includes(hex?.baseTerrain);
+  }
+
+  function canRoadUseOneHexWaterCrossing(fromHex, waterHex, goalHex) {
+    if (!fromHex || !waterHex || isWaterHex(fromHex) || !canRoadCrossWaterHex(waterHex)) return false;
+    return EDGE_NAMES.some(edgeName => {
+      const exitHex = getNeighborHex(waterHex, edgeName);
+      if (!exitHex || exitHex.id === fromHex.id || isWaterHex(exitHex)) return false;
+      if (getElevationDelta(fromHex, exitHex) > ROAD_WATER_CROSSING_MAX_ELEVATION_DELTA) return false;
+      return exitHex.id === goalHex?.id || !ROAD_IMPASSABLE_WATER_TERRAINS.has(exitHex.baseTerrain);
+    });
   }
 
   function canSeaRouteUseHex(hex) {
@@ -5109,7 +5228,7 @@
     if (route.length < 2) return { sequence: [], exitEdge: "" };
 
     const middleHexes = route.slice(1, -1).map(hexForPathPoint);
-    if (!middleHexes.every(isWaterHex)) return { sequence: [], exitEdge: "" };
+    if (!middleHexes.every(hex => isWaterHex(hex) || isSeaRouteIslandAnchor(hex))) return { sequence: [], exitEdge: "" };
     if (route.length === 2 && !isWaterHex(firstHex) && !isWaterHex(lastHex)) return { sequence: [], exitEdge: "" };
     return { sequence: route, exitEdge: "" };
   }
@@ -5375,7 +5494,8 @@
   function getCurrentDrawOverlayStyle(tool) {
     if (tool === "sea_route") return "sea_route";
     if (tool === "river") {
-      return composeOverlayStyle("river", renderer.drawing.autoFalls === false
+      const autoFallsDisabled = getCurrentRouteMajor("river") || renderer.drawing.autoFalls === false;
+      return composeOverlayStyle("river", autoFallsDisabled
         ? [OVERLAY_STYLE_FLAGS.riverNoAutoFalls]
         : []);
     }
@@ -5413,10 +5533,15 @@
     if (tool === "sea_route") {
       return {
         isMajorRoute: true,
-        routeName: routeMetadata.routeName || String(renderer.drawing.roadRouteName || "").trim()
+        routeName: routeMetadata.routeName || ""
       };
     }
     return routeMetadata;
+  }
+
+  function getRouteMetadataForOverlayRoute(route, tool, fallbackRouteMetadata = {}) {
+    if (route && !Array.isArray(route) && route.routeMetadata) return route.routeMetadata;
+    return fallbackRouteMetadata || getCurrentRouteMetadata(tool);
   }
 
   function seededPathFloat(seed) {
@@ -5571,30 +5696,65 @@
 
   function renderMajorRoadRiverBridges(ctx, overlays) {
     if (!renderer.drawing.visibleOverlays.river) return;
+    const majorRoadOverlays = overlays.filter(overlay => overlay.Overlay_Type === "road" && overlay.Is_Major_Route && !isAutoPassRoadSegment(overlay));
+    const riverOverlays = overlays.filter(overlay => overlay.Overlay_Type === "river");
     const majorRoadPaths = connectedPathStrings(
-      overlays.filter(overlay => overlay.Overlay_Type === "road" && overlay.Is_Major_Route && !isAutoPassRoadSegment(overlay)),
+      majorRoadOverlays,
       "road"
     );
-    const riverPaths = getCanvasRiverPathStrings(overlays.filter(overlay => overlay.Overlay_Type === "river"));
+    const riverPaths = getCanvasRiverPathStrings(riverOverlays);
     if (!majorRoadPaths.length || !riverPaths.length) return;
 
     const roadSegments = majorRoadPaths.flatMap(pathData => pathToLineSegments(pathData.d));
     const riverSegments = riverPaths.flatMap(pathData => pathToLineSegments(pathData.d));
     const radius = getGeneratedMapDimensions().radius;
     const bridgeHalfLength = radius * 0.34;
+    const bridgeMergeDistance = radius * 0.9;
     const drawn = new Set();
 
     roadSegments.forEach(roadSegment => {
+      const dx = roadSegment.b.x - roadSegment.a.x;
+      const dy = roadSegment.b.y - roadSegment.a.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const intersections = [];
+
       riverSegments.forEach(riverSegment => {
-        const point = lineIntersectionPoint(roadSegment.a, roadSegment.b, riverSegment.a, riverSegment.b);
+        const point = bridgeIntersectionPoint(roadSegment, riverSegment, radius);
         if (!point) return;
-        const key = `${Math.round(point.x / 4)}:${Math.round(point.y / 4)}`;
+        const distanceAlongRoad = ((point.x - roadSegment.a.x) * dx + (point.y - roadSegment.a.y) * dy) / length;
+        intersections.push({ point, distanceAlongRoad });
+      });
+      if (!intersections.length) {
+        getHexBridgeCandidatesForRoadSegment(roadSegment, majorRoadOverlays, riverOverlays, radius).forEach(candidate => {
+          const distanceAlongRoad = ((candidate.point.x - roadSegment.a.x) * dx + (candidate.point.y - roadSegment.a.y) * dy) / length;
+          intersections.push({ point: candidate.point, distanceAlongRoad });
+        });
+      }
+
+      intersections
+        .sort((a, b) => a.distanceAlongRoad - b.distanceAlongRoad)
+        .reduce((clusters, intersection) => {
+          const cluster = clusters[clusters.length - 1];
+          if (cluster && intersection.distanceAlongRoad - cluster.lastDistance <= bridgeMergeDistance) {
+            cluster.points.push(intersection.point);
+            cluster.lastDistance = intersection.distanceAlongRoad;
+            return clusters;
+          }
+          clusters.push({ points: [intersection.point], lastDistance: intersection.distanceAlongRoad });
+          return clusters;
+        }, [])
+        .forEach(cluster => {
+          const point = cluster.points.reduce((total, clusterPoint) => ({
+            x: total.x + clusterPoint.x,
+            y: total.y + clusterPoint.y
+          }), { x: 0, y: 0 });
+          point.x /= cluster.points.length;
+          point.y /= cluster.points.length;
+
+        const key = `${Math.round(point.x / Math.max(1, radius * 0.9))}:${Math.round(point.y / Math.max(1, radius * 0.9))}`;
         if (drawn.has(key)) return;
         drawn.add(key);
 
-        const dx = roadSegment.b.x - roadSegment.a.x;
-        const dy = roadSegment.b.y - roadSegment.a.y;
-        const length = Math.hypot(dx, dy) || 1;
         const from = {
           x: point.x - dx / length * bridgeHalfLength,
           y: point.y - dy / length * bridgeHalfLength
@@ -5620,6 +5780,91 @@
     });
   }
 
+  function getHexBridgeCandidatesForRoadSegment(roadSegment, majorRoadOverlays, riverOverlays, radius) {
+    const riverHexIds = getOverlayTouchedHexIds(riverOverlays);
+    if (!riverHexIds.size) return [];
+
+    return majorRoadOverlays.flatMap(roadOverlay => {
+      const sharedHexIds = [roadOverlay.From_Hex_ID_Ref, roadOverlay.To_Hex_ID_Ref]
+        .filter(hexId => hexId && riverHexIds.has(hexId));
+      if (!sharedHexIds.length) return [];
+
+      const fromPoint = pathPointForHexId(roadOverlay.From_Hex_ID_Ref);
+      const toPoint = pathPointForHexId(roadOverlay.To_Hex_ID_Ref);
+      if (!fromPoint || !toPoint) return [];
+      if (!segmentsAreNearSameRoadPiece(roadSegment, { a: fromPoint, b: toPoint }, radius)) return [];
+
+      return sharedHexIds
+        .map(hexId => pathPointForHexId(hexId))
+        .filter(Boolean)
+        .map(hexPoint => {
+          const projection = projectPointToSegment(hexPoint, roadSegment.a, roadSegment.b);
+          const distance = Math.hypot(hexPoint.x - projection.point.x, hexPoint.y - projection.point.y);
+          return distance <= radius * 0.72 ? { point: projection.point } : null;
+        })
+        .filter(Boolean);
+    });
+  }
+
+  function getOverlayTouchedHexIds(overlays) {
+    const ids = new Set();
+    overlays.forEach(overlay => {
+      [overlay.From_Hex_ID_Ref, overlay.To_Hex_ID_Ref, overlay.Hex_ID_Ref].forEach(hexId => {
+        if (hexId) ids.add(hexId);
+      });
+    });
+    return ids;
+  }
+
+  function segmentsAreNearSameRoadPiece(renderedSegment, overlaySegment, radius) {
+    return (
+      pointDistanceToSegment(overlaySegment.a, renderedSegment.a, renderedSegment.b) <= radius * 0.9 ||
+      pointDistanceToSegment(overlaySegment.b, renderedSegment.a, renderedSegment.b) <= radius * 0.9 ||
+      pointDistanceToSegment(renderedSegment.a, overlaySegment.a, overlaySegment.b) <= radius * 0.9 ||
+      pointDistanceToSegment(renderedSegment.b, overlaySegment.a, overlaySegment.b) <= radius * 0.9
+    );
+  }
+
+  function pointDistanceToSegment(point, a, b) {
+    const projection = projectPointToSegment(point, a, b);
+    return Math.hypot(point.x - projection.point.x, point.y - projection.point.y);
+  }
+
+  function bridgeIntersectionPoint(roadSegment, riverSegment, radius) {
+    return lineSegmentIntersectionPoint(roadSegment.a, roadSegment.b, riverSegment.a, riverSegment.b, {
+      roadPadding: 0.02,
+      riverPadding: 0.12
+    });
+  }
+
+  function lineSegmentIntersectionPoint(a, b, c, d, options = {}) {
+    const denominator = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x);
+    if (Math.abs(denominator) < 0.001) return null;
+    const t = ((a.x - c.x) * (c.y - d.y) - (a.y - c.y) * (c.x - d.x)) / denominator;
+    const u = -((a.x - b.x) * (a.y - c.y) - (a.y - b.y) * (a.x - c.x)) / denominator;
+    const roadPadding = options.roadPadding ?? 0.02;
+    const riverPadding = options.riverPadding ?? 0.02;
+    if (t < roadPadding || t > 1 - roadPadding || u < -riverPadding || u > 1 + riverPadding) return null;
+    return {
+      x: a.x + t * (b.x - a.x),
+      y: a.y + t * (b.y - a.y)
+    };
+  }
+
+  function projectPointToSegment(point, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lengthSquared = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
+    return {
+      t,
+      point: {
+        x: a.x + t * dx,
+        y: a.y + t * dy
+      }
+    };
+  }
+
   function renderMajorRiverWaterContinuations(ctx, segments) {
     const continuationSegments = segments
       .filter(segment => segment.Is_Major_Route && segmentTouchesRiverTradeContinuationWater(segment));
@@ -5637,6 +5882,122 @@
         stroke: "rgba(218, 247, 255, 0.72)",
         width: 2.5,
         dash: [12, 8],
+        lineCap: "round"
+      });
+    });
+  }
+
+  function renderMajorRiverMountainCulverts(ctx, segments) {
+    const radius = getGeneratedMapDimensions().radius;
+    const targetHexes = new Map();
+    const majorSegments = segments.filter(segment => segment.Is_Major_Route && segment.To_Hex_ID_Ref);
+    majorSegments.forEach(segment => {
+      [segment.From_Hex_ID_Ref, segment.To_Hex_ID_Ref].forEach(hexId => {
+        const hex = hexForPathPoint(hexId);
+        if (isMajorRiverCulvertHex(hex)) targetHexes.set(hex.id, hex);
+      });
+    });
+    if (!targetHexes.size) return;
+
+    const pathSegments = connectedPathStrings(majorSegments, "river")
+      .flatMap(pathData => flattenSvgPathToLineSegments(pathData.d, 10));
+    if (!pathSegments.length) return;
+
+    targetHexes.forEach(hex => {
+      const projection = getClosestPathProjection(hex.center, pathSegments);
+      if (!projection || projection.distance > radius * 1.08) return;
+      drawMajorRiverCulvertMarker(ctx, projection.point, projection.segment.a, projection.segment.b, radius);
+    });
+  }
+
+  function isMajorRiverCulvertHex(hex) {
+    return Boolean(hex && (hex.features || []).some(feature => MAJOR_RIVER_CULVERT_FEATURES.has(feature)));
+  }
+
+  function getClosestPathProjection(point, pathSegments) {
+    return pathSegments.reduce((best, segment) => {
+      const projection = projectPointToSegment(point, segment.a, segment.b);
+      const distance = Math.hypot(point.x - projection.point.x, point.y - projection.point.y);
+      return !best || distance < best.distance
+        ? { ...projection, distance, segment }
+        : best;
+    }, null);
+  }
+
+  function flattenSvgPathToLineSegments(pathData, curveSteps = 8) {
+    const commands = parseSvgPathCommands(pathData);
+    const segments = [];
+    let current = null;
+
+    commands.forEach(command => {
+      if (command.type === "M") {
+        current = { x: command.x, y: command.y };
+        return;
+      }
+
+      if (command.type === "L" && current) {
+        const next = { x: command.x, y: command.y };
+        segments.push({ a: current, b: next });
+        current = next;
+        return;
+      }
+
+      if (command.type === "Q" && current) {
+        let previous = current;
+        for (let step = 1; step <= curveSteps; step += 1) {
+          const t = step / curveSteps;
+          const next = quadraticPoint(current, { x: command.cx, y: command.cy }, { x: command.x, y: command.y }, t);
+          segments.push({ a: previous, b: next });
+          previous = next;
+        }
+        current = { x: command.x, y: command.y };
+      }
+    });
+
+    return segments;
+  }
+
+  function quadraticPoint(start, control, end, t) {
+    const inverse = 1 - t;
+    return {
+      x: inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x,
+      y: inverse * inverse * start.y + 2 * inverse * t * control.y + t * t * end.y
+    };
+  }
+
+  function drawMajorRiverCulvertMarker(ctx, centerPoint, fromPoint, toPoint, radius) {
+    const dx = toPoint.x - fromPoint.x;
+    const dy = toPoint.y - fromPoint.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const along = { x: dx / length, y: dy / length };
+    const normal = { x: -along.y, y: along.x };
+    const ribOffsets = [-0.26, 0, 0.26];
+    const ribHalfLength = radius * 0.24;
+
+    ribOffsets.forEach(offset => {
+      const center = {
+        x: centerPoint.x + along.x * radius * offset,
+        y: centerPoint.y + along.y * radius * offset
+      };
+      const from = {
+        x: center.x - normal.x * ribHalfLength,
+        y: center.y - normal.y * ribHalfLength
+      };
+      const to = {
+        x: center.x + normal.x * ribHalfLength,
+        y: center.y + normal.y * ribHalfLength
+      };
+      const path = `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+      drawCanvasOverlayPath(ctx, path, {
+        stroke: "rgba(48, 34, 24, 0.9)",
+        width: 4.5,
+        dash: [],
+        lineCap: "round"
+      });
+      drawCanvasOverlayPath(ctx, path, {
+        stroke: "rgba(226, 184, 94, 0.88)",
+        width: 2,
+        dash: [],
         lineCap: "round"
       });
     });
@@ -5715,18 +6076,7 @@
   function isRoadPassHex(hex) {
     if (!hex) return false;
     const features = hex.features || [];
-    if (features.some(feature => ROAD_PASS_FEATURES.has(feature))) return true;
-    if (!features.includes("ridges")) return false;
-    return ROAD_PASS_RIDGE_BASE_TERRAINS.has(hex.baseTerrain)
-      || Number(hex.elevation || 0) >= 2
-      || hasCoreRoadPassNeighbor(hex);
-  }
-
-  function hasCoreRoadPassNeighbor(hex) {
-    return EDGE_NAMES.some(edgeName => {
-      const neighbor = getNeighborHex(hex, edgeName);
-      return Boolean(neighbor && (neighbor.features || []).some(feature => ROAD_PASS_FEATURES.has(feature)));
-    });
+    return features.some(feature => ROAD_PASS_FEATURES.has(feature));
   }
 
   function hasRoadPassNeighbor(hex, excludedHexId = "") {
@@ -6305,8 +6655,6 @@
     const startedAt = performance.now();
 
     renderer.view.animatingZoom = true;
-    renderer.view.routeLabelsHiddenUntil = startedAt + duration + 160;
-    scheduleRouteLabelRestore();
 
     function step(now) {
       const progress = Math.min(1, (now - startedAt) / duration);
@@ -6346,7 +6694,7 @@
   }
 
   function shouldRenderRouteLabels() {
-    return !renderer.view.animatingZoom && performance.now() >= renderer.view.routeLabelsHiddenUntil;
+    return performance.now() >= renderer.view.routeLabelsHiddenUntil;
   }
 
   function scheduleRouteLabelRestore() {
@@ -7289,8 +7637,11 @@
     discardStagedMapEditSection("features", { silent: true });
 
     const refreshExisting = Boolean(renderer.drawing.generationRefreshExisting);
-    if (refreshExisting && typeof window.confirm === "function") {
-      const confirmed = window.confirm("Preview refreshed terrain features across the generated map? Existing terrain features will be staged locally until you apply the preview.");
+    if (refreshExisting) {
+      const confirmed = await showMapConfirm("Preview refreshed terrain features across the generated map? Existing terrain features will be staged locally until you apply the preview.", {
+        title: "Refresh Features?",
+        confirmLabel: "Preview"
+      });
       if (!confirmed) return;
     }
 
@@ -7347,7 +7698,7 @@
   async function runGenerationRoadPass() {
     const campaign = getActiveCampaign?.();
     if (!campaign || renderer.drawing.saving) return;
-    if (!confirmOverlayGeneration("road", "roads")) return;
+    if (!await confirmOverlayGeneration("road", "roads")) return;
     const routes = buildGeneratedRoadRoutes(campaign.id);
     if (!routes.length) {
       window.alert?.("No road routes could be generated from the current POI layout.");
@@ -7367,7 +7718,7 @@
   async function runGenerationRiverPass() {
     const campaign = getActiveCampaign?.();
     if (!campaign || renderer.drawing.saving) return;
-    if (!confirmOverlayGeneration("river", "rivers")) return;
+    if (!await confirmOverlayGeneration("river", "rivers")) return;
     const routes = buildGeneratedRiverRoutes(campaign.id);
     if (!routes.length) {
       window.alert?.("No river routes could be generated from the current terrain.");
@@ -7384,12 +7735,15 @@
     });
   }
 
-  function confirmOverlayGeneration(type, label) {
+  async function confirmOverlayGeneration(type, label) {
     const existing = (renderer.mapOverlays || [])
       .filter(overlay => !overlay.__preview && overlay.Overlay_Type === type && overlay.To_Hex_ID_Ref)
       .length;
-    if (!existing || typeof window.confirm !== "function") return true;
-    return window.confirm(`Generate ${label} on top of ${existing} existing saved ${label} segment${existing === 1 ? "" : "s"}? This saves new overlays to the live map immediately.`);
+    if (!existing) return true;
+    return showMapConfirm(`Generate ${label} on top of ${existing} existing saved ${label} segment${existing === 1 ? "" : "s"}? This saves new overlays to the live map immediately.`, {
+      title: "Generate Overlays?",
+      confirmLabel: "Generate"
+    });
   }
 
   function previewGeneratedOverlayRoutes({ campaignId, routes, tool, style, routeMetadata, emptyMessage }) {
@@ -7438,6 +7792,7 @@
 
     routes.forEach(route => {
       const sequence = Array.isArray(route) ? route : route?.sequence || [];
+      const segmentRouteMetadata = getRouteMetadataForOverlayRoute(route, tool, routeMetadata);
       if (route?.startEdge && sequence.length) {
         const fromHexId = sequence[0];
         const key = `${tool}:${fromHexId}:edge:${route.startEdge}`;
@@ -7449,7 +7804,7 @@
             toHexId: null,
             edge: route.startEdge,
             style,
-            routeMetadata
+            routeMetadata: segmentRouteMetadata
           });
         }
       }
@@ -7464,7 +7819,7 @@
           fromHexId,
           toHexId,
           style: segmentTool === "sea_route" ? "sea_route" : style,
-          routeMetadata: getSegmentRouteMetadata(segmentTool, routeMetadata)
+          routeMetadata: getSegmentRouteMetadata(segmentTool, segmentRouteMetadata)
         });
       });
       if (route?.exitEdge && sequence.length) {
@@ -7478,7 +7833,7 @@
             toHexId: null,
             edge: route.exitEdge,
             style,
-            routeMetadata
+            routeMetadata: segmentRouteMetadata
           });
         }
       }
@@ -7860,11 +8215,10 @@
     const campaign = getActiveCampaign?.();
     const actions = getStagedUndoStack();
     if (!campaign || renderer.drawing.saving || !actions.length) return;
-    if (typeof window.confirm !== "function") {
-      window.alert?.("Confirmation is unavailable, so the terrain preview was not applied.");
-      return;
-    }
-    const confirmed = window.confirm("Apply these staged map edits to the saved map? Terrain and feature preview changes will be saved together.");
+    const confirmed = await showMapConfirm("Apply these staged map edits to the saved map? Terrain and feature preview changes will be saved together.", {
+      title: "Apply Preview?",
+      confirmLabel: "Apply"
+    });
     if (!confirmed) return;
 
     const historyAction = actions.length === 1 ? cloneMapEditAction(actions[0]) : { type: "batch", actions: actions.map(cloneMapEditAction).filter(Boolean) };
@@ -8171,6 +8525,9 @@
   async function persistPathOverlaySequence(tool, fromHexId, toHexId, exitEdge = "") {
     const campaign = getActiveCampaign?.();
     if (!campaign) return;
+    if (tool === "river") {
+      renderer.drawing.manualRiverPathSalt = createManualRiverPathSalt(fromHexId, toHexId);
+    }
     let sequence = getPathOverlaySequence(tool, fromHexId, toHexId, exitEdge);
     let targetExitEdge = exitEdge;
     if (tool === "sea_route") {
@@ -8185,8 +8542,14 @@
     const reveal = beginPathRevealAnimation(tool, sequence, style);
 
     try {
+      const routes = tool === "river"
+        ? getManualRiverVisibleRoutes(sequence, renderer.drawing.manualRiverPathSalt, routeMetadata)
+        : [{ sequence, exitEdge: targetExitEdge }];
+      if (tool === "river") {
+        routes.push(...getManualRiverTributaryRoutes(sequence, renderer.drawing.manualRiverPathSalt));
+      }
       const segments = getGeneratedOverlaySegments({
-        routes: [{ sequence, exitEdge: targetExitEdge }],
+        routes,
         tool,
         style,
         routeMetadata,
@@ -8730,7 +9093,7 @@
     if (!campaign || !normalizedType) return;
 
     const label = OVERLAY_TYPE_LABELS[normalizedType];
-    if (!confirmNukeAction(`Purge all saved live-map ${label} immediately? This does not affect staged preview edits.`)) return;
+    if (!await confirmNukeAction(`Purge all saved live-map ${label} immediately? This does not affect staged preview edits.`)) return;
 
     renderer.drawing.saving = true;
     let showBulkLoading = false;
@@ -8918,7 +9281,11 @@
   async function deleteNamedRoute(route) {
     const campaign = getActiveCampaign?.();
     if (!campaign || !route?.overlays?.length) return;
-    if (!window.confirm?.(`Delete ${routeTypeLabel(route.type)} "${route.name}" from the map?`)) return;
+    if (!await showMapConfirm(`Delete ${routeTypeLabel(route.type)} "${route.name}" from the map?`, {
+      title: "Delete Named Route?",
+      confirmLabel: "Delete",
+      tone: "danger"
+    })) return;
 
     renderer.drawing.saving = true;
     try {
@@ -8947,7 +9314,7 @@
     const normalizedType = regionType === "political" ? "political" : "geographic";
     const label = normalizedType === "political" ? "political" : "geographic";
     if (!campaign) return;
-    if (!confirmNukeAction(`Purge all ${label} region paint from the live generated map immediately? Region Codex entries will not be deleted.`)) return;
+    if (!await confirmNukeAction(`Purge all ${label} region paint from the live generated map immediately? Region Codex entries will not be deleted.`)) return;
 
     const actions = renderer.hexes
       .map(hex => {
@@ -8988,9 +9355,9 @@
     });
   }
 
-  function stageAllGeneratedFeaturePurge() {
+  async function stageAllGeneratedFeaturePurge() {
     if (!isActive()) return;
-    if (!confirmNukeAction("Purge all terrain features in the Cartographer preview? Base terrain and elevation will be preserved. This stays local until Apply Preview.")) return;
+    if (!await confirmNukeAction("Purge all terrain features in the Cartographer preview? Base terrain and elevation will be preserved. This stays local until Apply Preview.")) return;
 
     const actions = renderer.hexes
       .map(hex => {
@@ -9045,11 +9412,17 @@
   }
 
   function confirmNukeAction(message) {
-    if (typeof window.confirm !== "function") {
-      window.alert?.("Confirmation is unavailable, so nothing was changed.");
-      return false;
-    }
-    return window.confirm(message) === true;
+    return showMapConfirm(message, {
+      title: "Are You Sure?",
+      confirmLabel: "Purge",
+      tone: "danger"
+    });
+  }
+
+  function showMapConfirm(message, options = {}) {
+    return window.codexConfirm
+      ? window.codexConfirm(message, options)
+      : Promise.resolve(window.confirm?.(message) === true);
   }
 
   async function fetchCurrentPersistedOverlays(campaignId) {
@@ -9266,7 +9639,15 @@
 
   function getPathOverlaySequence(tool, fromHexId, toHexId, exitEdge = "") {
     if (tool === "road" && !exitEdge && fromHexId !== toHexId && !renderer.drawing.roadWaterOverride) {
-      return getRoadPathSequence(fromHexId, toHexId) || getHexLineSequence(fromHexId, toHexId);
+      return getRoadPathSequence(fromHexId, toHexId) || [];
+    }
+    if (tool === "river" && !exitEdge && fromHexId !== toHexId) {
+      const riverSequence = getManualRiverPathSequence(fromHexId, toHexId);
+      if (riverSequence?.length) return riverSequence;
+      const directSequence = getHexLineSequence(fromHexId, toHexId);
+      return getCurrentRouteMajor("river") && sequenceCrossesMajorRiverOpenWater(directSequence)
+        ? []
+        : directSequence;
     }
     if (tool === "sea_route" && !exitEdge && fromHexId !== toHexId) {
       return getSeaRoutePathSequence(fromHexId, toHexId) || getHexLineSequence(fromHexId, toHexId);
@@ -9275,11 +9656,315 @@
   }
 
   function getRoadPathSequence(fromHexId, toHexId) {
+    const fromHex = renderer.hexes.find(hex => hex.id === fromHexId);
+    const toHex = renderer.hexes.find(hex => hex.id === toHexId);
+    if (ROAD_IMPASSABLE_WATER_TERRAINS.has(fromHex?.baseTerrain) || ROAD_IMPASSABLE_WATER_TERRAINS.has(toHex?.baseTerrain)) return null;
     return getWeightedHexPathSequence(fromHexId, toHexId, getRoadPathStepCost, roadPathHeuristic);
   }
 
   function getSeaRoutePathSequence(fromHexId, toHexId) {
-    return getWeightedHexPathSequence(fromHexId, toHexId, getSeaRouteStepCost, roadPathHeuristic);
+    const directRoute = getWeightedHexPathSequence(fromHexId, toHexId, getSeaRouteStepCost, roadPathHeuristic);
+    if (!directRoute?.length) return directRoute;
+
+    const anchor = chooseSeaRouteIslandAnchor(fromHexId, toHexId, directRoute);
+    if (!anchor) return directRoute;
+
+    const firstLeg = getWeightedHexPathSequence(fromHexId, anchor.id, getSeaRouteStepCost, roadPathHeuristic);
+    const secondLeg = getWeightedHexPathSequence(anchor.id, toHexId, getSeaRouteStepCost, roadPathHeuristic);
+    if (!firstLeg?.length || !secondLeg?.length) return directRoute;
+
+    const anchoredRoute = firstLeg.concat(secondLeg.slice(1));
+    const maxExtraSteps = Math.max(4, Math.round(directRoute.length * 0.22));
+    return anchoredRoute.length <= directRoute.length + maxExtraSteps
+      ? anchoredRoute
+      : directRoute;
+  }
+
+  function chooseSeaRouteIslandAnchor(fromHexId, toHexId, directRoute) {
+    const fromHex = hexForPathPoint(fromHexId);
+    const toHex = hexForPathPoint(toHexId);
+    if (!fromHex || !toHex || directRoute.length < 5) return null;
+
+    const dimensions = getGeneratedMapDimensions();
+    return renderer.hexes
+      .filter(hex => hex.id !== fromHexId && hex.id !== toHexId && isSeaRouteIslandAnchor(hex))
+      .map(hex => {
+        const projection = projectPointToSegment(hex.center, fromHex.center, toHex.center);
+        const distance = Math.hypot(hex.center.x - projection.point.x, hex.center.y - projection.point.y);
+        const roll = seededPathFloat(`sea-route-island-anchor:${fromHexId}:${toHexId}:${hex.id}`);
+        return { hex, distance, t: projection.t, roll };
+      })
+      .filter(candidate => (
+        candidate.t > 0.18 &&
+        candidate.t < 0.82 &&
+        candidate.distance <= dimensions.radius * 2.1 &&
+        candidate.roll < 0.42
+      ))
+      .sort((a, b) => (
+        a.distance - b.distance ||
+        Math.abs(a.t - 0.5) - Math.abs(b.t - 0.5) ||
+        a.roll - b.roll
+      ))[0]?.hex || null;
+  }
+
+  function isSeaRouteIslandAnchor(hex) {
+    if (!hex || isWaterHex(hex) || !canSeaRouteUseHex(hex)) return false;
+    const waterNeighbors = EDGE_NAMES
+      .map(edgeName => getNeighborHex(hex, edgeName))
+      .filter(isWaterHex)
+      .length;
+    return waterNeighbors >= 4;
+  }
+
+  function getManualRiverPathSequence(fromHexId, toHexId) {
+    renderer.drawing.manualRiverPathStartHexId = fromHexId;
+    renderer.drawing.manualRiverPathGoalHexId = toHexId;
+    const directSequence = getHexLineSequence(fromHexId, toHexId);
+    if (getCurrentRouteMajor("river")) {
+      return sequenceCrossesMajorRiverOpenWater(directSequence)
+        ? getMajorTradeRiverPathSequence(fromHexId, toHexId) || getStatefulManualRiverPathSequence(fromHexId, toHexId)
+        : directSequence;
+    }
+    if (getRiverStraightnessScale() >= 0.98) return directSequence;
+    return getStatefulManualRiverPathSequence(fromHexId, toHexId);
+  }
+
+  function sequenceCrossesMajorRiverOpenWater(sequence) {
+    return (sequence || []).slice(1, -1).some(hexId => isMajorRiverOpenWaterHex(hexForPathPoint(hexId)));
+  }
+
+  function isMajorRiverOpenWaterHex(hex) {
+    return ["sea", "deep_sea"].includes(hex?.baseTerrain);
+  }
+
+  function getMajorTradeRiverPathSequence(fromHexId, toHexId) {
+    return getWeightedHexPathSequence(fromHexId, toHexId, getMajorTradeRiverStepCost, roadPathHeuristic);
+  }
+
+  function getMajorTradeRiverStepCost(fromHex, toHex, goalHex) {
+    if (!fromHex || !toHex) return Infinity;
+    if (isMajorRiverOpenWaterHex(toHex) && toHex.id !== goalHex.id) return Infinity;
+
+    const coastBias = isCoastRouteHex(toHex) ? -0.65 : 0;
+    const waterCost = isRiverTradeContinuationWaterHex(toHex) ? 0.85 : 0;
+    const terrainCost = getManualRiverTerrainCost(toHex);
+    const slopeCost = Math.max(0, Number(toHex.elevation || 0) - Number(fromHex.elevation || 0)) * 3.5;
+    const straightnessCost = getManualRiverStraightnessCost(fromHex, toHex, goalHex) * 0.65;
+
+    return Math.max(0.25, terrainCost + waterCost + slopeCost + coastBias + straightnessCost);
+  }
+
+  function isCoastRouteHex(hex) {
+    if (!hex) return false;
+    if (hex.baseTerrain === "coastal_water" || hex.baseTerrain === "beach") return true;
+    if (isWaterHex(hex)) return false;
+    return EDGE_NAMES.some(edgeName => {
+      const neighbor = getNeighborHex(hex, edgeName);
+      return neighbor && ["coastal_water", "sea", "deep_sea"].includes(neighbor.baseTerrain);
+    });
+  }
+
+  function createManualRiverPathSalt(fromHexId, toHexId) {
+    return `${fromHexId}:${toHexId}:${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function getStatefulManualRiverPathSequence(fromHexId, toHexId) {
+    const start = renderer.hexes.find(hex => hex.id === fromHexId);
+    const goal = renderer.hexes.find(hex => hex.id === toHexId);
+    if (!start || !goal) return null;
+
+    const maxIterations = getManualRiverPathSearchLimit(start, goal);
+    let iterations = 0;
+    const startState = createManualRiverPathState(start, 0, 0);
+    const startKey = manualRiverStateKey(startState);
+    const open = new Set([startKey]);
+    const states = new Map([[startKey, startState]]);
+    const cameFrom = new Map();
+    const bestCost = new Map([[startKey, 0]]);
+    const estimatedTotal = new Map([[startKey, riverPathHeuristic(start, goal)]]);
+
+    while (open.size && iterations < maxIterations) {
+      iterations += 1;
+      const currentKey = [...open].reduce((bestKey, candidateKey) => (
+        (estimatedTotal.get(candidateKey) ?? Infinity) < (estimatedTotal.get(bestKey) ?? Infinity)
+          ? candidateKey
+          : bestKey
+      ));
+      const currentState = states.get(currentKey);
+      const currentHex = currentState?.hex;
+      if (!currentHex) {
+        open.delete(currentKey);
+        continue;
+      }
+      if (currentHex.id === goal.id) return reconstructManualRiverPath(cameFrom, states, currentKey);
+
+      open.delete(currentKey);
+      EDGE_NAMES.forEach(edgeName => {
+        const neighbor = getNeighborHex(currentHex, edgeName);
+        if (!neighbor) return;
+        const transition = getManualRiverPathTransition(currentState, neighbor, goal);
+        if (!transition || !Number.isFinite(transition.cost)) return;
+
+        const nextState = transition.state;
+        const nextKey = manualRiverStateKey(nextState);
+        const nextCost = (bestCost.get(currentKey) ?? Infinity) + transition.cost;
+        if (nextCost >= (bestCost.get(nextKey) ?? Infinity)) return;
+
+        states.set(nextKey, nextState);
+        cameFrom.set(nextKey, currentKey);
+        bestCost.set(nextKey, nextCost);
+        estimatedTotal.set(nextKey, nextCost + riverPathHeuristic(neighbor, goal));
+        open.add(nextKey);
+      });
+    }
+
+    return null;
+  }
+
+  function getManualRiverPathSearchLimit(start, goal) {
+    const hexDistance = Math.max(1, getHexLineSequence(start.id, goal.id).length);
+    const mapScale = Math.max(600, renderer.hexes.length);
+    return Math.min(2400, Math.max(mapScale, hexDistance * 45));
+  }
+
+  function createManualRiverPathState(hex, waterRun = 0, avoidWater = 0, climbAway = 0, waterEntryHexId = "") {
+    return {
+      hex,
+      waterRun: Math.max(0, Math.min(5, Math.round(waterRun || 0))),
+      avoidWater: Math.max(0, Math.min(8, Math.round(avoidWater || 0))),
+      climbAway: Math.max(0, Math.min(6, Math.round(climbAway || 0))),
+      waterEntryHexId: waterEntryHexId || ""
+    };
+  }
+
+  function manualRiverStateKey(state) {
+    return `${state.hex.id}:${state.waterRun}:${state.avoidWater}:${state.climbAway}:${state.waterEntryHexId}`;
+  }
+
+  function reconstructManualRiverPath(cameFrom, states, currentKey) {
+    const sequence = [];
+    while (currentKey) {
+      const state = states.get(currentKey);
+      if (state?.hex?.id && sequence[0] !== state.hex.id) sequence.unshift(state.hex.id);
+      currentKey = cameFrom.get(currentKey);
+    }
+    return sequence;
+  }
+
+  function getManualRiverPathTransition(state, toHex, goalHex) {
+    const fromHex = state.hex;
+    const fromWater = isRiverTradeContinuationWaterHex(fromHex);
+    const toWater = isRiverTradeContinuationWaterHex(toHex);
+    const goalIsWater = isWaterHex(goalHex);
+    if (isWaterHex(toHex) && !toWater && toHex.id !== goalHex.id) return null;
+
+    if (toWater) {
+      const enteringWater = !fromWater;
+      const waterRun = enteringWater ? 1 : state.waterRun + 1;
+      const targetRun = getManualRiverWaterRunTarget(fromHex, toHex, goalHex);
+      const avoidCost = enteringWater ? state.avoidWater * 1.25 / getRiverWaterPullScale() : 0;
+      const continuingCost = !enteringWater && state.waterRun >= targetRun ? 2.6 + (state.waterRun - targetRun) * 1.4 : 0;
+      const bounceCost = enteringWater ? getManualRiverShoreBounceCost(fromHex, toHex, goalHex) : 0;
+      const goalBonus = goalIsWater ? -1.2 : 0;
+      const straightnessCost = getManualRiverStraightnessCost(fromHex, toHex, goalHex);
+      return {
+        state: createManualRiverPathState(toHex, waterRun, 0, 0, enteringWater ? fromHex.id : state.waterEntryHexId),
+        cost: Math.max(0.25, 0.85 + avoidCost + bounceCost + continuingCost + goalBonus + straightnessCost)
+      };
+    }
+
+    const exitingWater = fromWater;
+    if (exitingWater && !canManualRiverExitWaterHere(state, toHex, goalHex)) return null;
+    if (exitingWater && state.waterRun < getManualRiverWaterRunTarget(fromHex, toHex, goalHex)) {
+      return {
+        state: createManualRiverPathState(toHex, 0, getManualRiverBounceAvoidance(fromHex, toHex, goalHex), getManualRiverClimbAwaySteps(fromHex, toHex, goalHex)),
+        cost: getManualRiverLandStepCost(fromHex, toHex, goalHex, { preferUphill: true }) + 4.5
+      };
+    }
+
+    return {
+      state: createManualRiverPathState(
+        toHex,
+        0,
+        exitingWater ? getManualRiverBounceAvoidance(fromHex, toHex, goalHex) : Math.max(0, state.avoidWater - 1),
+        exitingWater ? getManualRiverClimbAwaySteps(fromHex, toHex, goalHex) : Math.max(0, state.climbAway - 1)
+      ),
+      cost: getManualRiverLandStepCost(fromHex, toHex, goalHex, {
+        preferUphill: state.climbAway > 0 || exitingWater,
+        shoreBounce: !fromWater && isNearRiverTradeContinuationWater(fromHex) && !isWaterHex(toHex)
+      })
+    };
+  }
+
+  function getManualRiverShoreBounceCost(fromHex, waterHex, goalHex) {
+    if (isWaterHex(goalHex)) return 0;
+    const roll = seededUnit(`manual-river-shore-bounce:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex?.id || ""}:${waterHex?.id || ""}:${goalHex?.id || ""}`);
+    const bounceChance = Math.min(0.82, 0.58 * getRiverWildnessScale() / Math.max(0.6, getRiverWaterPullScale()));
+    return roll < bounceChance ? 16 * getRiverWildnessScale() : 0;
+  }
+
+  function canManualRiverExitWaterHere(state, exitHex, goalHex) {
+    if (isWaterHex(goalHex) && exitHex?.id === goalHex.id) return true;
+    if (!state.waterEntryHexId) return true;
+    const entryHex = hexForPathPoint(state.waterEntryHexId);
+    const exitDistance = entryHex && exitHex ? getHexLineSequence(entryHex.id, exitHex.id).length - 1 : 0;
+    return exitDistance >= 5 || state.waterRun >= 7;
+  }
+
+  function isNearRiverTradeContinuationWater(hex) {
+    return EDGE_NAMES.some(edgeName => isRiverTradeContinuationWaterHex(getNeighborHex(hex, edgeName)));
+  }
+
+  function getManualRiverWaterRunTarget(fromHex, toHex, goalHex) {
+    const roll = seededUnit(`manual-river-water-run:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex?.id || ""}:${toHex?.id || ""}:${goalHex?.id || ""}`);
+    return 2 + Math.floor(roll * 3);
+  }
+
+  function getManualRiverBounceAvoidance(fromHex, toHex, goalHex) {
+    const roll = seededUnit(`manual-river-bounce-away:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex?.id || ""}:${toHex?.id || ""}:${goalHex?.id || ""}`);
+    return 5 + Math.floor(roll * 4);
+  }
+
+  function getManualRiverClimbAwaySteps(fromHex, toHex, goalHex) {
+    const roll = seededUnit(`manual-river-climb-away:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex?.id || ""}:${toHex?.id || ""}:${goalHex?.id || ""}`);
+    return 3 + Math.floor(roll * 3);
+  }
+
+  function getRiverControlScale(key, fallback = 100, min = 0.25, max = 2) {
+    const value = clampNumber(Number(renderer.drawing[key] ?? fallback), 0, 200, fallback);
+    if (value < 100) return min * (value / 100);
+    return Math.max(min, Math.min(max, ((value - 100) / 100) * max));
+  }
+
+  function getRiverWaterPullScale() {
+    return getRiverControlScale("riverWaterPull", 100, 0.1, 2);
+  }
+
+  function getRiverWildnessScale() {
+    return getRiverControlScale("riverWildness", 100, 0.1, 2);
+  }
+
+  function getRiverTerrainRespectScale() {
+    return getRiverControlScale("riverTerrainRespect", 100, 0.1, 2);
+  }
+
+  function getRiverStraightnessScale() {
+    return clampNumber(Number(renderer.drawing.riverStraightness ?? 0), 0, 100, 0) / 100;
+  }
+
+  function getManualRiverStraightnessCost(fromHex, toHex, goalHex) {
+    const straightness = getRiverStraightnessScale();
+    if (!straightness || !fromHex || !toHex || !goalHex) return 0;
+    const startHex = hexForPathPoint(renderer.drawing.manualRiverPathStartHexId || "");
+    const fromDistance = roadPathHeuristic(fromHex, goalHex);
+    const toDistance = roadPathHeuristic(toHex, goalHex);
+    const progress = fromDistance - toDistance;
+    const progressBias = -progress * 22 * straightness;
+    const noProgressPenalty = toDistance >= fromDistance ? 24 * straightness : 0;
+    const lineCost = startHex
+      ? pointDistanceToSegment(toHex.center, startHex.center, goalHex.center) / Math.max(1, getGeneratedMapDimensions().radius) * 18 * straightness
+      : 0;
+    return progressBias + noProgressPenalty + lineCost;
   }
 
   function getWeightedHexPathSequence(fromHexId, toHexId, getStepCost, getHeuristic) {
@@ -9338,12 +10023,17 @@
     return Math.hypot(goal.center.x - hex.center.x, goal.center.y - hex.center.y) / Math.max(1, dimensions.radius);
   }
 
+  function riverPathHeuristic(hex, goal) {
+    return roadPathHeuristic(hex, goal) * 0.72;
+  }
+
   function getRoadPathStepCost(fromHex, toHex, goalHex) {
     if (ROAD_IMPASSABLE_WATER_TERRAINS.has(toHex.baseTerrain) && toHex.id !== goalHex.id) return Infinity;
     if (canRoadCrossWaterHex(fromHex) && canRoadCrossWaterHex(toHex) && toHex.id !== goalHex.id) return Infinity;
 
     let cost = ROAD_BASE_TERRAIN_COSTS[toHex.baseTerrain] ?? 3;
     if (canRoadCrossWaterHex(toHex)) {
+      if (!canRoadUseOneHexWaterCrossing(fromHex, toHex, goalHex)) return Infinity;
       cost += renderer.drawing.roadRouteMajor ? MAJOR_ROAD_WATER_PATH_COST : ROAD_WATER_PATH_COST;
     }
 
@@ -9353,11 +10043,172 @@
     return Math.max(0.2, cost);
   }
 
+  function getManualRiverLandStepCost(fromHex, toHex, goalHex, options = {}) {
+    if (!fromHex || !toHex) return Infinity;
+    const goalIsWater = isWaterHex(goalHex);
+
+    const fromElevation = Number(fromHex.elevation || 0);
+    const toElevation = Number(toHex.elevation || 0);
+    const climb = Math.max(0, toElevation - fromElevation);
+    const descent = Math.max(0, fromElevation - toElevation);
+    const steepness = Math.abs(toElevation - fromElevation);
+    const slopeCost = options.preferUphill
+      ? climb * -1.15 + descent * 5.4 + steepness * 0.45
+      : climb * 7.5 + Math.max(0, climb - 1) * 13 + steepness * 0.65 - Math.min(1.8, descent * 0.9);
+    const terrainCost = getManualRiverTerrainCost(toHex);
+    const waterDistance = getNearestWaterDistance(toHex, 5);
+    const waterPull = goalIsWater
+      ? waterDistance * -0.28
+      : Math.max(0, waterDistance - 2) * 0.18 * getRiverWaterPullScale();
+    const routeVariation = seededUnit(`manual-river-path:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex.id}:${toHex.id}`) * 1.15 * getRiverWildnessScale();
+    const shoreBounceBonus = options.shoreBounce
+      ? seededUnit(`manual-river-shore-land:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex.id}:${toHex.id}:${goalHex?.id || ""}`) * -2.6 * getRiverWildnessScale()
+      : 0;
+    const straightnessCost = getManualRiverStraightnessCost(fromHex, toHex, goalHex);
+
+    return Math.max(0.35,
+      terrainCost
+      + slopeCost * getRiverTerrainRespectScale()
+      + waterPull
+      + routeVariation
+      + shoreBounceBonus
+      + straightnessCost
+    );
+  }
+
+  function getManualRiverTributaryRoutes(sequence, salt = "") {
+    if (renderer.drawing.riverTributaries === false) return [];
+    const sequenceSet = new Set(sequence || []);
+    const usedWaterHexIds = new Set();
+    const tributaries = [];
+    let branchChance = 0.025;
+    let lastBranchIndex = -99;
+
+    (sequence || []).slice(1, -1).forEach((hexId, index) => {
+      const hex = hexForPathPoint(hexId);
+      if (!hex || isWaterHex(hex)) return;
+      if (index - lastBranchIndex < 7) {
+        branchChance = Math.min(0.1, branchChance + 0.006);
+        return;
+      }
+
+      const candidates = nearbyHexesWithin(hex, 3)
+        .filter(candidate => (
+          !usedWaterHexIds.has(candidate.id) &&
+          !nearbyHexesWithin(candidate, 2).some(nearby => usedWaterHexIds.has(nearby.id)) &&
+          !sequenceSet.has(candidate.id) &&
+          isRiverTradeContinuationWaterHex(candidate)
+        ))
+        .map(candidate => {
+          const tributarySequence = getHexLineSequence(hex.id, candidate.id);
+          return {
+            waterHex: candidate,
+            sequence: tributarySequence,
+            roll: seededUnit(`manual-river-tributary:${salt}:${hex.id}:${candidate.id}:${index}`) + getTributaryUphillPenalty(tributarySequence)
+          };
+        })
+        .filter(candidate => (
+          candidate.sequence.length >= 3 &&
+          candidate.sequence.length <= 4 &&
+          candidate.sequence.slice(1).every(candidateHexId => !sequenceSet.has(candidateHexId))
+        ))
+        .sort((a, b) => (
+          a.sequence.length - b.sequence.length ||
+          a.roll - b.roll
+        ));
+
+      const tributary = candidates.find(candidate => candidate.roll < branchChance);
+      if (tributary) {
+        tributaries.push({
+          sequence: tributary.sequence,
+          routeMetadata: { isMajorRoute: false, routeName: "" }
+        });
+        usedWaterHexIds.add(tributary.waterHex.id);
+        branchChance = 0.008;
+        lastBranchIndex = index;
+        return;
+      }
+
+      branchChance = Math.min(0.11, branchChance + 0.009);
+    });
+
+    return tributaries;
+  }
+
+  function getManualRiverVisibleRoutes(sequence, salt = "", routeMetadata = {}) {
+    if (routeMetadata.isMajorRoute || renderer.drawing.riverWetlandVanish === false) {
+      return [{ sequence, routeMetadata }];
+    }
+    const routes = [];
+    let current = [];
+    let hidingWetland = false;
+
+    (sequence || []).forEach((hexId, index) => {
+      const hex = hexForPathPoint(hexId);
+      const isIntermediateWetland = hex?.baseTerrain === "wetland" && index > 0 && index < sequence.length - 1;
+
+      if (isIntermediateWetland && !hidingWetland) {
+        const roll = seededUnit(`manual-river-wetland-disappear:${salt}:${hex.id}:${index}`);
+        const remainingVisibleHexes = sequence.slice(index + 1).filter(candidateHexId => hexForPathPoint(candidateHexId)?.baseTerrain !== "wetland").length;
+        if (roll < 0.36 && current.length >= 3 && remainingVisibleHexes >= 3) {
+          routes.push({ sequence: current, routeMetadata });
+          current = [];
+          hidingWetland = true;
+          return;
+        }
+      }
+
+      if (hidingWetland) {
+        if (isIntermediateWetland) return;
+        hidingWetland = false;
+      }
+
+      current.push(hexId);
+    });
+
+    if (current.length >= 2) routes.push({ sequence: current, routeMetadata });
+    return routes.length ? routes : [{ sequence, routeMetadata }];
+  }
+
+  function getTributaryUphillPenalty(sequence) {
+    let penalty = 0;
+    for (let index = 0; index < sequence.length - 1; index += 1) {
+      const fromHex = hexForPathPoint(sequence[index]);
+      const toHex = hexForPathPoint(sequence[index + 1]);
+      const climb = Number(toHex?.elevation || 0) - Number(fromHex?.elevation || 0);
+      if (climb > 0) penalty += climb * 0.18;
+    }
+    return penalty;
+  }
+
+  function getManualRiverTerrainCost(hex) {
+    if (!hex) return 4;
+    if (isWaterHex(hex)) return 0.75;
+    let cost = 1.25;
+    if (["wetland", "jungle_floor", "lush_grassland", "grassland"].includes(hex.baseTerrain)) cost -= 0.35;
+    if (["plains", "beach"].includes(hex.baseTerrain)) cost -= 0.15;
+    if (["rock", "snow", "barrens", "bleak_barrens", "wastes", "desert", "deep_desert"].includes(hex.baseTerrain)) cost += 0.75;
+    (hex.features || []).forEach(feature => {
+      if (["marsh", "woods", "forest", "jungle"].includes(feature)) cost -= 0.18;
+      if (feature === "ridges") cost += 0.8;
+      if (["mountains", "snowcapped_mountains", "lone_mountain", "volcano", "cliffs"].includes(feature)) cost += 8;
+    });
+    return Math.max(0.45, cost);
+  }
+
   function getSeaRouteStepCost(fromHex, toHex, goalHex, startHex) {
-    if (isWaterHex(toHex)) return 1;
+    if (isWaterHex(toHex)) return getSeaRouteWaterStepCost(toHex);
     if (toHex.id === goalHex.id && canSeaRouteUseHex(toHex)) return 1.25;
-    if (fromHex.id === startHex.id && isWaterHex(toHex)) return 1;
+    if (fromHex.id === startHex.id && isWaterHex(toHex)) return getSeaRouteWaterStepCost(toHex);
     return Infinity;
+  }
+
+  function getSeaRouteWaterStepCost(hex) {
+    if (hex?.baseTerrain === "coastal_water") return 0.82;
+    if (hex?.baseTerrain === "sea") return 1;
+    if (hex?.baseTerrain === "inland_water") return 1.12;
+    if (hex?.baseTerrain === "deep_sea") return 1.75;
+    return 1.25;
   }
 
   const ROAD_BASE_TERRAIN_COSTS = {

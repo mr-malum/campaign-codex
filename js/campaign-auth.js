@@ -1085,7 +1085,11 @@ async function handleRemoveCampaignMember(event) {
   if (!button || !activeCampaign) return;
 
   const username = button.dataset.username || "this member";
-  const confirmed = window.confirm(`Remove ${username} from this campaign?`);
+  const confirmed = await showCampaignConfirm(`Remove ${username} from this campaign?`, {
+    title: "Remove Member?",
+    confirmLabel: "Remove",
+    tone: "danger"
+  });
   if (!confirmed) return;
 
   button.disabled = true;
@@ -1161,11 +1165,15 @@ async function leaveCampaign(campaignId, campaignName = "this campaign") {
   if (role === "owner") {
     const message = "The Keeper of the Codex can not leave their own campaign.";
     setCampaignMemberStatus(message);
-    window.alert(message);
+    window.codexAlert?.(message, { title: "Keeper Required" }) || window.alert(message);
     return;
   }
 
-  const confirmed = window.confirm(`ARE YOU SURE?\n\nLeave ${campaignName}? You will lose access unless the Keeper of the Codex adds you back.`);
+  const confirmed = await showCampaignConfirm(`Leave ${campaignName}? You will lose access unless the Keeper of the Codex adds you back.`, {
+    title: "Leave Campaign?",
+    confirmLabel: "Leave",
+    tone: "danger"
+  });
   if (!confirmed) return;
 
   try {
@@ -1189,6 +1197,12 @@ async function leaveCampaign(campaignId, campaignName = "this campaign") {
 async function handleLeaveActiveCampaign() {
   if (!activeCampaign) return;
   await leaveCampaign(activeCampaign.id, activeCampaign.name);
+}
+
+function showCampaignConfirm(message, options = {}) {
+  return window.codexConfirm
+    ? window.codexConfirm(message, options)
+    : Promise.resolve(window.confirm?.(message) === true);
 }
 
 function handleCampaignPickerClick(event) {

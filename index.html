@@ -374,13 +374,13 @@
       </button>
     </div>
     <div class="map-edit-rail-main" data-map-tool-mode-panel="surveyor" hidden>
-      <button id="map-surveyor-regions-button" type="button" class="map-edit-mode-button">
-        <span class="map-edit-mode-icon map-edit-region-icon" aria-hidden="true">⬡</span>
-        <span class="map-edit-mode-label">Regions</span>
-      </button>
       <button id="map-surveyor-overlay-button" type="button" class="map-edit-mode-button">
         <span class="map-edit-mode-icon" aria-hidden="true">≈</span>
         <span class="map-edit-mode-label">Overlay</span>
+      </button>
+      <button id="map-surveyor-regions-button" type="button" class="map-edit-mode-button">
+        <span class="map-edit-mode-icon map-edit-region-icon" aria-hidden="true">⬡</span>
+        <span class="map-edit-mode-label">Regions</span>
       </button>
       <button id="map-surveyor-utilities-button" type="button" class="map-edit-mode-button">
         <span class="map-edit-mode-icon" aria-hidden="true">▣</span>
@@ -525,9 +525,33 @@
           <input id="map-road-auto-pass" type="checkbox" checked>
           <span>Auto Pass Style</span>
         </label>
-        <label class="map-draw-option-row" id="map-river-auto-falls-row" data-overlay-subview-group="drawing" hidden>
+        <label class="map-draw-range-row map-draw-tool-setting" id="map-river-water-pull-row" data-overlay-subview-group="drawing" hidden>
+          <span>Water Pull <strong id="map-river-water-pull-value">100%</strong></span>
+          <input id="map-river-water-pull" type="range" min="0" max="200" step="5" value="100">
+        </label>
+        <label class="map-draw-range-row map-draw-tool-setting" id="map-river-wildness-row" data-overlay-subview-group="drawing" hidden>
+          <span>Wildness <strong id="map-river-wildness-value">100%</strong></span>
+          <input id="map-river-wildness" type="range" min="0" max="200" step="5" value="100">
+        </label>
+        <label class="map-draw-range-row map-draw-tool-setting" id="map-river-terrain-respect-row" data-overlay-subview-group="drawing" hidden>
+          <span>Terrain Respect <strong id="map-river-terrain-respect-value">100%</strong></span>
+          <input id="map-river-terrain-respect" type="range" min="0" max="200" step="5" value="100">
+        </label>
+        <label class="map-draw-range-row map-draw-tool-setting" id="map-river-straightness-row" data-overlay-subview-group="drawing" hidden>
+          <span>Straightness Override <strong id="map-river-straightness-value">0%</strong></span>
+          <input id="map-river-straightness" type="range" min="0" max="100" step="5" value="0">
+        </label>
+        <label class="map-draw-option-row map-draw-tool-setting" id="map-river-auto-falls-row" data-overlay-subview-group="drawing" hidden>
           <input id="map-river-auto-falls" type="checkbox" checked>
           <span>Auto Falls</span>
+        </label>
+        <label class="map-draw-option-row map-draw-tool-setting" id="map-river-tributaries-row" data-overlay-subview-group="drawing" hidden>
+          <input id="map-river-tributaries" type="checkbox" checked>
+          <span>Tributaries</span>
+        </label>
+        <label class="map-draw-option-row map-draw-tool-setting" id="map-river-wetland-vanish-row" data-overlay-subview-group="drawing" hidden>
+          <input id="map-river-wetland-vanish" type="checkbox">
+          <span>Wetland Vanish</span>
         </label>
         <label class="map-draw-option-row" id="map-route-major-row" data-overlay-subview-group="drawing" hidden>
           <input id="map-route-major" type="checkbox">
@@ -537,21 +561,21 @@
           <span>Route Name</span>
           <input id="map-route-name" type="text" maxlength="80" placeholder="Old Imperial Road">
         </label>
-        <button id="map-named-routes-button" class="map-draw-secondary-button" data-overlay-subview-group="drawing" type="button">Named Routes</button>
         <div class="map-draw-section-title map-draw-subsection-title" data-overlay-subview-group="drawing">Other</div>
         <div class="map-draw-tool-row map-draw-tool-row-compact" data-overlay-subview-group="drawing" role="group" aria-label="Other overlay tools">
           <button type="button" data-map-draw-tool="wall">Wall</button>
           <button type="button" data-map-draw-tool="mist">Mist</button>
           <button type="button" data-map-draw-tool="erase">Erase Overlay</button>
         </div>
-        <label class="map-draw-range-row" id="map-mist-brush-size-row" data-overlay-subview-group="drawing" hidden>
+        <label class="map-draw-range-row map-draw-tool-setting" id="map-mist-brush-size-row" data-overlay-subview-group="drawing" hidden>
           <span>Brush Size <strong id="map-mist-brush-size-value">1</strong></span>
           <input id="map-mist-brush-size" type="range" min="1" max="5" step="1" value="1">
         </label>
-        <label class="map-draw-range-row" id="map-mist-noise-row" data-overlay-subview-group="drawing" hidden>
+        <label class="map-draw-range-row map-draw-tool-setting" id="map-mist-noise-row" data-overlay-subview-group="drawing" hidden>
           <span>Noise <strong id="map-mist-noise-value">0%</strong></span>
           <input id="map-mist-noise" type="range" min="0" max="90" step="5" value="0">
         </label>
+        <button id="map-named-routes-button" class="map-draw-secondary-button map-named-routes-anchor" data-overlay-subview-group="drawing" type="button">Named Routes</button>
         <div class="map-draw-section-title map-draw-subsection-title" data-overlay-subview-group="purge">Purge Saved Overlays</div>
         <p class="map-edit-empty-note map-edit-warning-note" data-overlay-subview-group="purge">These purge saved live-map overlays immediately and can be undone from this session.</p>
         <div class="map-draw-tool-row map-draw-tool-row-compact" data-overlay-subview-group="purge" role="group" aria-label="Purge saved overlay types">
@@ -1213,6 +1237,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
+<script src="js/codex-dialog.js"></script>
 <script src="js/campaign-auth.js"></script>
 <script src="js/terrain-rules.js"></script>
 <script src="js/generated-map-generator.js"></script>
