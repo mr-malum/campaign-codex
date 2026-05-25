@@ -57,6 +57,22 @@ Do not introduce frameworks, build tools, servers, package managers, or large re
 - If touching shared helpers, check likely downstream usage.
 - Ask only if ambiguity creates real risk.
 
+## Generated Map Renderer Safeguards
+
+Before editing `js/generated-map-renderer.js`, inspect the exact save/apply/undo/render functions involved and preserve tuned map behavior unless the user explicitly asks to change it.
+
+- Do not simplify road, river, path, wall, mist, terrain, feature, generation, cache, zoom, or mobile editor logic as a cleanup side effect.
+- Preserve layer/order behavior: roads over rivers, paths under rivers, region borders over overlays, and elevation bleed over roads/rivers/paths.
+- Preserve path shaping rules: road/path snapping and center-bending only when appropriate, rivers blending/stopping at water, and water cutoff behavior.
+- Preserve overlay behavior: roads/paths can register every hex they pass through, branches should not gain weird auto-curves, roads/paths into water should stop at coasts unless explicitly connected, and walls use the tuned dark layered stroke with light dash/crenellation styling.
+- Preserve feature behavior: feature art cache/supersampling, dead woods/forest visual variants, no feature-art suppression under POIs, painting compatibility rules, max feature limits, and eyedropper hex highlight behavior.
+- Preserve terrain behavior: manual terrain/feature painting rules, terrain generation preview behavior, elevation bleed over roads/rivers/paths, and cached canvas performance during pan/zoom.
+- Preserve editor boundaries: Cartographer terrain/features are staged until Apply; Surveyor live-data tools write immediately unless intentionally changed. If a tool writes live, the UI must say so clearly.
+- Preserve zoom/pan feel, including stepped zoom locking and stable cursor anchoring.
+- Preserve mobile editor usability: collapse behavior, touch drawing intent, and no-tool hover/tooltip inspection should remain usable.
+- Keep backend writes through existing Supabase RPCs and permission/RLS-safe paths; do not bypass security client-side.
+- After renderer changes, run `node --check js/generated-map-renderer.js` and give a focused Test checklist for the affected map mechanics.
+
 ## After Editing
 
 Verify what is practical:
