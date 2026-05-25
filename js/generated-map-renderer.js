@@ -124,6 +124,7 @@
   const PAN_PADDING_RATIO = 0.45;
   const TERRAIN_CACHE_SCALE = 1.5;
   const FEATURE_IMAGE_SUPERSAMPLE = 3;
+  const FEATURE_IMAGE_BATCH_SIZE = 4;
   const BULK_OVERLAY_LOADING_THRESHOLD = 10;
   const PATH_REVEAL_MIN_DURATION = 320;
   const PATH_REVEAL_MAX_DURATION = 820;
@@ -376,8 +377,16 @@
     cacheCanvas: document.createElement("canvas"),
     cacheCtx: null,
     cacheDirty: true,
+    overlayCacheCanvas: document.createElement("canvas"),
+    overlayCacheCtx: null,
+    overlayCacheDirty: true,
     featureAssets: new Map(),
     featureImages: new Map(),
+    featureImageUsage: new Map(),
+    featureImageQueue: [],
+    featureImageQueued: new Set(),
+    featureImageFrame: null,
+    featureImageActiveLoads: 0,
     featureAssetsLoading: null,
     routeIconAssets: new Map(),
     routeIconAssetsLoading: null,
@@ -465,6 +474,13 @@
       generationRiverAmount: 100,
       generationRiverLength: 100,
       generationSection: "terrain",
+      stagedTerrainOriginals: new Map(),
+      terrainDirtyHexIds: new Set(),
+      stagedOverlayBaseline: null,
+      stagedUndoStack: [],
+      stagedRedoStack: [],
+      editorIntroSeen: false,
+      beforeUnloadBound: false,
       generationPreviewOriginals: new Map(),
       generationPreviewActions: [],
       undoStack: [],
@@ -489,6 +505,9 @@
       paintedThisDrag: new Set(),
       dragActionBatch: null,
       dragActionCommitTimer: null,
+      queuedRenderFrame: null,
+      queuedFullRender: false,
+      featureViewportKey: "",
       activePathReveal: null,
       pathRevealFrame: null,
       pendingTerrainSaves: new Map(),
@@ -527,6 +546,7 @@
     renderer.canvas = renderer.root.querySelector("canvas");
     renderer.ctx = renderer.canvas.getContext("2d");
     renderer.cacheCtx = renderer.cacheCanvas.getContext("2d");
+    renderer.overlayCacheCtx = renderer.overlayCacheCanvas.getContext("2d");
     renderer.svg = renderer.root.querySelector("svg");
     renderer.popup = renderer.root.querySelector(".generated-map-popup");
     renderer.loadingVeil = renderer.root.querySelector(".generated-map-loading-veil");
@@ -661,7 +681,7 @@
     renderer.poisByHexId = groupPoisByHexId(db?.raw?.pois || []);
     renderer.poiHexIds = new Set(renderer.poisByHexId.keys());
     renderer.mapOverlays = db?.raw?.generatedMapOverlays || [];
-    renderer.cacheDirty = true;
+    markAllMapCachesDirty();
     updateDrawClearButton();
     setLoading(true);
     populateDrawRegionSelect();
@@ -703,7 +723,7 @@
   function refreshOverlayLayerFromDatabase() {
     if (!isActive()) return;
     renderer.mapOverlays = db?.raw?.generatedMapOverlays || [];
-    renderer.cacheDirty = true;
+    markOverlayCacheDirty();
     updateDrawClearButton();
     render();
   }
@@ -763,7 +783,15 @@
     const generationPreviewTerrain = document.getElementById("map-generation-preview-terrain");
     const generationApplyPreview = document.getElementById("map-generation-apply-preview");
     const generationDiscardPreview = document.getElementById("map-generation-discard-preview");
+    const sharedApplyButton = document.getElementById("map-editor-apply-staged");
+    const sharedDiscardButton = document.getElementById("map-editor-discard-staged");
+    const introCloseButton = document.getElementById("map-editor-intro-close");
     if (!button || !panel) return;
+
+    if (!renderer.drawing.beforeUnloadBound) {
+      window.addEventListener("beforeunload", handleMapEditorBeforeUnload);
+      renderer.drawing.beforeUnloadBound = true;
+    }
 
     viewButton?.addEventListener("click", event => {
       event.preventDefault();
@@ -799,7 +827,7 @@
     closeEditButton?.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
-      closeMapEditMode();
+      requestCloseMapEditMode();
       render();
     });
 
@@ -818,8 +846,11 @@
         enterMapEditMode();
       }
       if (!isOpening) {
-        restoreMapEditViewState();
-        resetDrawingState();
+        if (!requestCloseMapEditMode()) {
+          panel.hidden = false;
+          button.classList.add("active");
+          renderer.drawing.enabled = true;
+        }
       }
       updateDrawToolButtons();
       updateDrawRegionControls();
@@ -866,7 +897,7 @@
         if (!type || !(type in renderer.drawing.visibleOverlays)) return;
         renderer.drawing.visibleOverlays[type] = toggle.checked;
         syncMapOverlayToggleInputs();
-        renderer.cacheDirty = true;
+        markAllMapCachesDirty();
         render();
       });
     });
@@ -1112,6 +1143,24 @@
       discardGeneratedTerrainPreview();
     });
 
+    sharedApplyButton?.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      applyGeneratedTerrainPreview();
+    });
+
+    sharedDiscardButton?.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      discardGeneratedTerrainPreview();
+    });
+
+    introCloseButton?.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMapEditorIntro();
+    });
+
     regionSelect?.addEventListener("change", () => {
       renderer.drawing.regionId = regionSelect.value || UNCLAIMED_REGION_REF;
       syncRegionColorInputs();
@@ -1237,6 +1286,7 @@
 
   function closeMapEditMode() {
     discardGeneratedTerrainPreview({ silent: true });
+    closeMapEditorIntro();
     const button = document.getElementById("map-draw-button");
     const panel = document.getElementById("map-draw-panel");
     const viewPanel = document.getElementById("map-view-panel");
@@ -1253,6 +1303,13 @@
     restoreMapEditViewState();
     updateMapChromeForEdit(false);
     resetDrawingState();
+  }
+
+  function requestCloseMapEditMode() {
+    const confirmed = confirmDiscardUnappliedEdits("Leave map editor and discard unapplied preview changes? Regions save immediately and will stay saved.");
+    if (!confirmed) return false;
+    closeMapEditMode();
+    return true;
   }
 
   function expandMapEditPane() {
@@ -1374,7 +1431,46 @@
       renderer.drawing.visibleOverlays[type] = true;
     });
     syncMapOverlayToggleInputs();
-    renderer.cacheDirty = true;
+    markAllMapCachesDirty();
+    showMapEditorIntroIfNeeded();
+  }
+
+  function showMapEditorIntroIfNeeded() {
+    const campaignId = getActiveCampaign?.()?.id || "default";
+    const storageKey = `campaign-codex-map-editor-intro:${campaignId}`;
+    let alreadySeen = renderer.drawing.editorIntroSeen;
+    try {
+      alreadySeen = alreadySeen || window.sessionStorage?.getItem(storageKey) === "1";
+    } catch (error) {
+      // Ignore storage failures and fall back to the in-memory flag.
+    }
+    if (alreadySeen) return;
+
+    const intro = document.getElementById("map-editor-intro");
+    const body = document.getElementById("map-editor-intro-body");
+    if (body) {
+      body.innerHTML = `
+        <p>Terrain, feature, overlay, and generation edits now preview locally first. Nothing in those sections is saved until you apply.</p>
+        <p>Discard All throws away unapplied preview edits. Regions still save immediately for safety, so region paint and region color changes are not part of Discard All.</p>
+        <p>If you try to close the editor or refresh with unapplied preview edits, you will get a warning first.</p>
+      `;
+    }
+    intro?.classList.remove("hidden");
+    intro?.setAttribute("aria-hidden", "false");
+  }
+
+  function closeMapEditorIntro() {
+    const campaignId = getActiveCampaign?.()?.id || "default";
+    const storageKey = `campaign-codex-map-editor-intro:${campaignId}`;
+    const intro = document.getElementById("map-editor-intro");
+    intro?.classList.add("hidden");
+    intro?.setAttribute("aria-hidden", "true");
+    renderer.drawing.editorIntroSeen = true;
+    try {
+      window.sessionStorage?.setItem(storageKey, "1");
+    } catch (error) {
+      // Ignore storage failures and keep the in-memory flag.
+    }
   }
 
   function restoreMapEditViewState() {
@@ -1383,7 +1479,7 @@
     renderer.drawing.visibleOverlays = { ...renderer.drawing.preEditVisibleOverlays };
     renderer.drawing.preEditVisibleOverlays = null;
     syncMapOverlayToggleInputs();
-    renderer.cacheDirty = true;
+    markAllMapCachesDirty();
   }
 
   function updateDrawControlsVisibility() {
@@ -1532,6 +1628,10 @@
     renderer.drawing.generationMountains = 100;
     renderer.drawing.generationCompression = 100;
     renderer.drawing.generationContinuity = 100;
+    renderer.drawing.stagedTerrainOriginals.clear();
+    renderer.drawing.stagedOverlayBaseline = null;
+    renderer.drawing.stagedUndoStack = [];
+    renderer.drawing.stagedRedoStack = [];
     renderer.drawing.generationPreviewOriginals.clear();
     renderer.drawing.generationPreviewActions = [];
     renderer.drawing.undoStack = [];
@@ -1539,6 +1639,22 @@
     renderer.drawing.visibleOverlays = getDefaultVisibleOverlays();
     renderer.drawing.preEditVisibleOverlays = null;
     renderer.routeLabelCache = { key: "", labels: [] };
+    if (renderer.drawing.queuedRenderFrame) {
+      window.cancelAnimationFrame(renderer.drawing.queuedRenderFrame);
+    }
+    renderer.drawing.queuedRenderFrame = null;
+    renderer.drawing.queuedFullRender = false;
+    renderer.drawing.featureViewportKey = "";
+    renderer.drawing.terrainDirtyHexIds.clear();
+    renderer.overlayCacheDirty = true;
+    renderer.featureImageUsage.clear();
+    renderer.featureImageQueue = [];
+    renderer.featureImageQueued.clear();
+    if (renderer.featureImageFrame) {
+      window.cancelAnimationFrame(renderer.featureImageFrame);
+    }
+    renderer.featureImageFrame = null;
+    renderer.featureImageActiveLoads = 0;
     renderer.drawing.pendingTerrainSaves.clear();
     renderer.drawing.terrainSaveRunning = false;
     renderer.drawing.terrainSaveErrorShown = false;
@@ -1612,6 +1728,56 @@
     reveal?.resolve?.();
   }
 
+  function queueMapRender(full = true) {
+    if (full) renderer.drawing.queuedFullRender = true;
+    if (renderer.drawing.queuedRenderFrame) return;
+    renderer.drawing.queuedRenderFrame = window.requestAnimationFrame(() => {
+      renderer.drawing.queuedRenderFrame = null;
+      const shouldFullRender = renderer.drawing.queuedFullRender;
+      renderer.drawing.queuedFullRender = false;
+      if (shouldFullRender) render();
+      else renderSvgOnly();
+    });
+  }
+
+  function markTerrainCacheDirty() {
+    renderer.cacheDirty = true;
+    renderer.drawing.terrainDirtyHexIds.clear();
+  }
+
+  function markOverlayCacheDirty() {
+    renderer.overlayCacheDirty = true;
+  }
+
+  function markAllMapCachesDirty() {
+    markTerrainCacheDirty();
+    markOverlayCacheDirty();
+  }
+
+  function markTerrainHexesDirty(hexes, radius = 3, enforceThreshold = true) {
+    const candidates = (hexes || []).filter(Boolean);
+    if (!candidates.length) return;
+    candidates.forEach(hex => {
+      if (!hex?.id) return;
+      renderer.drawing.terrainDirtyHexIds.add(hex.id);
+      nearbyHexesWithin(hex, radius).forEach(neighbor => {
+        if (neighbor?.id) renderer.drawing.terrainDirtyHexIds.add(neighbor.id);
+      });
+    });
+    if (enforceThreshold && renderer.drawing.terrainDirtyHexIds.size > Math.max(180, Math.floor(renderer.hexes.length * 0.35))) {
+      markTerrainCacheDirty();
+    }
+  }
+
+  function markTerrainHexDirty(hexId, radius = 3) {
+    const hex = renderer.hexes.find(candidate => candidate.id === hexId);
+    if (!hex) {
+      markTerrainCacheDirty();
+      return;
+    }
+    markTerrainHexesDirty([hex], radius, true);
+  }
+
   function clearTouchDrawIntent() {
     if (renderer.drawing.touchDrawTimer) {
       window.clearTimeout(renderer.drawing.touchDrawTimer);
@@ -1656,7 +1822,7 @@
       renderer.drawing.dragActionCommitTimer = null;
     }
     if (!renderer.drawing.dragActionBatch) {
-      renderer.drawing.dragActionBatch = { type: "batch", actions: [] };
+      renderer.drawing.dragActionBatch = { type: "batch", actions: [], localStage: false };
     }
   }
 
@@ -1675,7 +1841,16 @@
     const batch = renderer.drawing.dragActionBatch;
     renderer.drawing.dragActionBatch = null;
     if (!batch?.actions?.length) return;
-    pushMapEditAction(batch.actions.length === 1 ? batch.actions[0] : batch, { force: true });
+    const action = batch.actions.length === 1 ? batch.actions[0] : {
+      type: "batch",
+      actions: batch.actions,
+      previewSection: batch.previewSection || ""
+    };
+    if (batch.localStage) {
+      pushStagedMapEditAction(action, { force: true });
+      return;
+    }
+    pushMapEditAction(action, { force: true });
   }
 
   function updateDrawToolButtons() {
@@ -2124,6 +2299,8 @@
     const generationPreviewTerrain = document.getElementById("map-generation-preview-terrain");
     const generationApplyPreview = document.getElementById("map-generation-apply-preview");
     const generationDiscardPreview = document.getElementById("map-generation-discard-preview");
+    const sharedApplyButton = document.getElementById("map-editor-apply-staged");
+    const sharedDiscardButton = document.getElementById("map-editor-discard-staged");
 
     if (generationSeed && generationSeed.value !== renderer.drawing.generationSeed) {
       generationSeed.value = renderer.drawing.generationSeed || "";
@@ -2173,6 +2350,8 @@
     if (generationPreviewTerrain) generationPreviewTerrain.disabled = Boolean(renderer.drawing.saving);
     if (generationApplyPreview) generationApplyPreview.disabled = Boolean(renderer.drawing.saving || !hasPreview);
     if (generationDiscardPreview) generationDiscardPreview.disabled = Boolean(renderer.drawing.saving || !hasPreview);
+    if (sharedApplyButton) sharedApplyButton.disabled = Boolean(renderer.drawing.saving || !hasPreview);
+    if (sharedDiscardButton) sharedDiscardButton.disabled = Boolean(renderer.drawing.saving || !hasPreview);
   }
 
   function resetGenerationTerrainSliders() {
@@ -2206,8 +2385,328 @@
     updateGenerationControls();
   }
 
+  function hasStagedMapEdits() {
+    return (renderer.drawing.stagedUndoStack || []).length > 0;
+  }
+
   function hasGenerationPreview() {
-    return (renderer.drawing.generationPreviewActions || []).length > 0;
+    return hasStagedMapEdits();
+  }
+
+  function isLocalStagedAction(action) {
+    return Boolean(action?.localStage);
+  }
+
+  function cloneOverlayRecord(overlay) {
+    if (!overlay) return overlay;
+    return {
+      ...overlay
+    };
+  }
+
+  function cloneMapEditAction(action) {
+    if (!action?.type) return null;
+    if (action.type === "batch") {
+      return {
+        type: "batch",
+        previewSection: action.previewSection || "",
+        previewOverlayType: action.previewOverlayType || "",
+        actions: (action.actions || []).map(cloneMapEditAction).filter(Boolean)
+      };
+    }
+    if (action.type === "overlay") {
+      return {
+        type: "overlay",
+        previewSection: action.previewSection || "",
+        previewOverlayType: action.previewOverlayType || "",
+        overlays: (action.overlays || []).map(cloneOverlayRecord)
+      };
+    }
+    return JSON.parse(JSON.stringify({
+      type: action.type,
+      hexId: action.hexId,
+      regionType: action.regionType,
+      before: action.before,
+      after: action.after,
+      previewSection: action.previewSection || ""
+    }));
+  }
+
+  function createLocalOverlayRecord(segment, prefix = "staged") {
+    renderer.localOverlayNonce = (renderer.localOverlayNonce || 0) + 1;
+    const isHexOverlay = segment.tool === "wall" || segment.tool === "mist";
+    return {
+      __uuid: `${prefix}-${renderer.localOverlayNonce}`,
+      __preview: prefix === "preview",
+      __staged: true,
+      Overlay_Type: segment.tool,
+      From_Hex_ID_Ref: !isHexOverlay ? segment.fromHexId : "",
+      To_Hex_ID_Ref: segment.toHexId || "",
+      Hex_ID_Ref: isHexOverlay ? segment.fromHexId : "",
+      Edge: segment.edge || "",
+      Style: segment.style || "",
+      Is_Major_Route: Boolean(segment.routeMetadata?.isMajorRoute),
+      Route_Name: segment.routeMetadata?.routeName || ""
+    };
+  }
+
+  function ensureStagedOverlayBaseline() {
+    if (renderer.drawing.stagedOverlayBaseline) return;
+    renderer.drawing.stagedOverlayBaseline = (renderer.mapOverlays || []).map(cloneOverlayRecord);
+  }
+
+  function captureStagedTerrainOriginals(action) {
+    if (!action?.type) return;
+    if (action.type === "batch") {
+      (action.actions || []).forEach(captureStagedTerrainOriginals);
+      return;
+    }
+    if (action.type === "terrain" && action.before && !renderer.drawing.stagedTerrainOriginals.has(action.hexId)) {
+      renderer.drawing.stagedTerrainOriginals.set(action.hexId, normalizeTerrainSnapshot(action.before));
+    }
+  }
+
+  function pushStagedMapEditAction(action, options = {}) {
+    if (!action?.type) return;
+    if (renderer.drawing.dragActionBatch && !options.force) {
+      renderer.drawing.dragActionBatch.localStage = true;
+      if (!renderer.drawing.dragActionBatch.previewSection && action.previewSection) {
+        renderer.drawing.dragActionBatch.previewSection = action.previewSection;
+      }
+      renderer.drawing.dragActionBatch.actions.push(action);
+      return;
+    }
+    captureStagedTerrainOriginals(action);
+    action.localStage = true;
+    renderer.drawing.stagedUndoStack.push(action);
+    renderer.drawing.stagedRedoStack = [];
+    updateDrawUndoButton();
+    updateDrawRedoButton();
+    updateDrawClearButton();
+    updateGenerationControls();
+  }
+
+  function applyLocalMapEditAction(action, direction) {
+    if (!action?.type) return;
+    if (action.type === "batch") {
+      const actions = direction === "undo"
+        ? [...(action.actions || [])].reverse()
+        : (action.actions || []);
+      actions.forEach(childAction => applyLocalMapEditAction(childAction, direction));
+      return;
+    }
+
+    if (action.type === "terrain") {
+      applyLocalTerrainSnapshot(action.hexId, direction === "undo" ? action.before : action.after);
+      return;
+    }
+
+    if (action.type === "overlay") {
+      (action.overlays || []).forEach(overlay => {
+        const shouldRemove = direction === "redo" ? overlay.__undoDeleted : !overlay.__undoDeleted;
+        if (shouldRemove) removeLocalOverlayById(overlay.__uuid);
+        else upsertLocalOverlay(overlay);
+      });
+    }
+  }
+
+  function pruneTemporaryOverlaysFromAction(action, overlayIds) {
+    if (!action?.type) return null;
+    if (action.type === "batch") {
+      const actions = (action.actions || [])
+        .map(childAction => pruneTemporaryOverlaysFromAction(childAction, overlayIds))
+        .filter(Boolean);
+      if (!actions.length) return null;
+      return {
+        ...action,
+        actions
+      };
+    }
+    if (action.type !== "overlay") return action;
+    const overlays = (action.overlays || []).filter(overlay => !overlayIds.has(overlay.__uuid));
+    if (!overlays.length) return null;
+    return {
+      ...action,
+      overlays
+    };
+  }
+
+  function dropTemporaryOverlaysFromStagedActions(overlayIds) {
+    if (!overlayIds?.size) return;
+    const transformStack = stack => (stack || [])
+      .map(action => pruneTemporaryOverlaysFromAction(action, overlayIds))
+      .filter(Boolean);
+    renderer.drawing.stagedUndoStack = transformStack(renderer.drawing.stagedUndoStack);
+    renderer.drawing.stagedRedoStack = transformStack(renderer.drawing.stagedRedoStack);
+  }
+
+  function restoreStagedOverlayBaseline() {
+    if (!renderer.drawing.stagedOverlayBaseline) return;
+    renderer.mapOverlays = renderer.drawing.stagedOverlayBaseline.map(cloneOverlayRecord);
+    if (db?.raw?.generatedMapOverlays) db.raw.generatedMapOverlays = renderer.mapOverlays;
+  }
+
+  function restoreStagedTerrainOriginals() {
+    renderer.drawing.stagedTerrainOriginals.forEach((snapshot, hexId) => {
+      applyLocalTerrainSnapshot(hexId, snapshot);
+    });
+  }
+
+  function rebuildStagedTerrainOriginals() {
+    const originals = new Map();
+    const collect = action => {
+      if (!action?.type) return;
+      if (action.type === "batch") {
+        (action.actions || []).forEach(collect);
+        return;
+      }
+      if (action.type === "terrain" && action.before && !originals.has(action.hexId)) {
+        originals.set(action.hexId, normalizeTerrainSnapshot(action.before));
+      }
+    };
+    (renderer.drawing.stagedUndoStack || []).forEach(collect);
+    (renderer.drawing.stagedRedoStack || []).forEach(collect);
+    renderer.drawing.stagedTerrainOriginals = originals;
+  }
+
+  function collectTerrainHexIdsFromAction(action, hexIds = new Set()) {
+    if (!action?.type) return hexIds;
+    if (action.type === "batch") {
+      (action.actions || []).forEach(childAction => collectTerrainHexIdsFromAction(childAction, hexIds));
+      return hexIds;
+    }
+    if (action.type === "terrain" && action.hexId) hexIds.add(action.hexId);
+    return hexIds;
+  }
+
+  function actionHasOverlayEdits(action) {
+    if (!action?.type) return false;
+    if (action.type === "batch") return (action.actions || []).some(actionHasOverlayEdits);
+    return action.type === "overlay";
+  }
+
+  function applyLocalTerrainActionsForHexes(action, direction, hexIds) {
+    if (!action?.type || !hexIds?.size) return;
+    if (action.type === "batch") {
+      const actions = direction === "undo"
+        ? [...(action.actions || [])].reverse()
+        : (action.actions || []);
+      actions.forEach(childAction => applyLocalTerrainActionsForHexes(childAction, direction, hexIds));
+      return;
+    }
+    if (action.type !== "terrain" || !hexIds.has(action.hexId)) return;
+    applyLocalTerrainSnapshot(action.hexId, direction === "undo" ? action.before : action.after);
+  }
+
+  function applyLocalOverlayActions(action, direction) {
+    if (!action?.type) return;
+    if (action.type === "batch") {
+      const actions = direction === "undo"
+        ? [...(action.actions || [])].reverse()
+        : (action.actions || []);
+      actions.forEach(childAction => applyLocalOverlayActions(childAction, direction));
+      return;
+    }
+    if (action.type !== "overlay") return;
+    (action.overlays || []).forEach(overlay => {
+      const shouldRemove = direction === "redo" ? overlay.__undoDeleted : !overlay.__undoDeleted;
+      if (shouldRemove) removeLocalOverlayById(overlay.__uuid);
+      else upsertLocalOverlay(overlay);
+    });
+  }
+
+  function removeStagedActionsByPredicate(predicate, options = {}) {
+    const matches = action => predicate(action);
+    const previousUndo = renderer.drawing.stagedUndoStack || [];
+    const previousRedo = renderer.drawing.stagedRedoStack || [];
+    const removedUndo = previousUndo.filter(matches);
+    const removedRedo = previousRedo.filter(matches);
+    if (!removedUndo.length && !removedRedo.length) return false;
+
+    renderer.drawing.stagedUndoStack = previousUndo.filter(action => !matches(action));
+    renderer.drawing.stagedRedoStack = previousRedo.filter(action => !matches(action));
+
+    const affectedTerrainHexIds = removedUndo.reduce((set, action) => collectTerrainHexIdsFromAction(action, set), new Set());
+    const affectedOverlays = removedUndo.some(actionHasOverlayEdits);
+
+    if (affectedTerrainHexIds.size) {
+      [...removedUndo].reverse().forEach(action => applyLocalTerrainActionsForHexes(action, "undo", affectedTerrainHexIds));
+      (renderer.drawing.stagedUndoStack || []).forEach(action => applyLocalTerrainActionsForHexes(action, "redo", affectedTerrainHexIds));
+      affectedTerrainHexIds.forEach(hexId => markTerrainHexDirty(hexId));
+    }
+
+    if (affectedOverlays) {
+      [...removedUndo].reverse().forEach(action => applyLocalOverlayActions(action, "undo"));
+      (renderer.drawing.stagedUndoStack || []).forEach(action => applyLocalOverlayActions(action, "redo"));
+      markOverlayCacheDirty();
+    }
+
+    rebuildStagedTerrainOriginals();
+    if (!options.silent) {
+      render();
+      updateDrawHint();
+    }
+    updateDrawUndoButton();
+    updateDrawRedoButton();
+    updateDrawClearButton();
+    updateGenerationControls();
+    return true;
+  }
+
+  function rebuildStagedLocalState() {
+    restoreStagedOverlayBaseline();
+    restoreStagedTerrainOriginals();
+    (renderer.drawing.stagedUndoStack || []).forEach(action => applyLocalMapEditAction(action, "redo"));
+    markTerrainCacheDirty();
+    render();
+  }
+
+  function clearStagedMapEditState() {
+    renderer.drawing.stagedTerrainOriginals.clear();
+    renderer.drawing.stagedOverlayBaseline = null;
+    renderer.drawing.stagedUndoStack = [];
+    renderer.drawing.stagedRedoStack = [];
+    renderer.drawing.generationPreviewOriginals.clear();
+    renderer.drawing.generationPreviewActions = [];
+  }
+
+  function discardAllStagedMapEdits(options = {}) {
+    if (!hasStagedMapEdits()) return;
+    restoreStagedOverlayBaseline();
+    restoreStagedTerrainOriginals();
+    clearStagedMapEditState();
+    markAllMapCachesDirty();
+    render();
+    updateDrawUndoButton();
+    updateDrawRedoButton();
+    updateDrawClearButton();
+    updateGenerationControls();
+    if (!options.silent) updateDrawHint();
+  }
+
+  function discardStagedMapEditSection(section, options = {}) {
+    const normalized = ["terrain", "features", "overlays"].includes(section) ? section : "";
+    if (!normalized || !hasStagedMapEdits()) return;
+    removeStagedActionsByPredicate(action => action?.previewSection === normalized, options);
+  }
+
+  function hasPendingEditorExitWarning() {
+    return renderer.drawing.enabled && hasStagedMapEdits();
+  }
+
+  function confirmDiscardUnappliedEdits(message) {
+    if (!hasPendingEditorExitWarning()) return true;
+    if (typeof window.confirm !== "function") {
+      window.alert?.("Confirmation is unavailable, so the editor stayed open.");
+      return false;
+    }
+    return window.confirm(message) === true;
+  }
+
+  function handleMapEditorBeforeUnload(event) {
+    if (!hasPendingEditorExitWarning()) return;
+    event.preventDefault();
+    event.returnValue = "";
   }
 
   function getAutoTerrainElevation(baseTerrain, features = []) {
@@ -2307,39 +2806,50 @@
   function updateDrawUndoButton() {
     const undoButton = document.getElementById("map-draw-undo");
     if (!undoButton) return;
-    undoButton.disabled = renderer.drawing.undoStack.length === 0 || renderer.drawing.saving;
-    undoButton.textContent = renderer.drawing.undoStack.length
-      ? `Undo (${renderer.drawing.undoStack.length})`
+    const count = hasStagedMapEdits()
+      ? renderer.drawing.stagedUndoStack.length
+      : renderer.drawing.undoStack.length;
+    undoButton.disabled = count === 0 || renderer.drawing.saving;
+    undoButton.textContent = count
+      ? `Undo (${count})`
       : "Undo";
   }
 
   function updateDrawRedoButton() {
     const redoButton = document.getElementById("map-draw-redo");
     if (!redoButton) return;
-    redoButton.disabled = renderer.drawing.redoStack.length === 0 || renderer.drawing.saving;
-    redoButton.textContent = renderer.drawing.redoStack.length
-      ? `Redo (${renderer.drawing.redoStack.length})`
+    const count = hasStagedMapEdits() || renderer.drawing.stagedRedoStack.length
+      ? renderer.drawing.stagedRedoStack.length
+      : renderer.drawing.redoStack.length;
+    redoButton.disabled = count === 0 || renderer.drawing.saving;
+    redoButton.textContent = count
+      ? `Redo (${count})`
       : "Redo";
   }
 
   function updateDrawClearButton() {
+    const hasStagedEdits = hasStagedMapEdits();
     [
-      "map-draw-clear",
-      "map-clear-geo-regions",
-      "map-clear-pol-regions",
-      "map-clear-features",
       "map-generation-run-features",
       "map-generation-run-roads",
       "map-generation-run-rivers",
       "map-generation-reset-sliders",
       "map-generation-random-seed",
-      "map-generation-preview-terrain",
-      "map-generation-apply-preview",
-      "map-generation-discard-preview"
+      "map-generation-preview-terrain"
     ].forEach(buttonId => {
       const button = document.getElementById(buttonId);
       if (button) button.disabled = renderer.drawing.saving;
     });
+    [
+      "map-draw-clear",
+      "map-clear-geo-regions",
+      "map-clear-pol-regions",
+      "map-clear-features"
+    ].forEach(buttonId => {
+      const button = document.getElementById(buttonId);
+      if (button) button.disabled = renderer.drawing.saving || hasStagedEdits;
+    });
+    updateGenerationControls();
   }
 
   function getCurrentMapOverlays() {
@@ -2406,20 +2916,22 @@
     const viewport = resizeCanvas();
     clampView();
     const visibleHexes = getVisibleHexes();
-    renderTerrain(viewport);
+    renderTerrain(viewport, visibleHexes);
     renderSvg(viewport, visibleHexes);
     positionPopup();
   }
 
-  function renderTerrain({ width, height, scale }) {
+  function renderTerrain({ width, height, scale }, visibleHexes) {
     const ctx = renderer.ctx;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    updateTerrainCache();
-    drawTerrainCacheSlice(ctx, width, height);
+    updateTerrainCache(visibleHexes);
+    updateOverlayCache();
+    drawCacheSlice(ctx, renderer.cacheCanvas, width, height);
+    drawCacheSlice(ctx, renderer.overlayCacheCanvas, width, height);
   }
 
-  function drawTerrainCacheSlice(ctx, width, height) {
+  function drawCacheSlice(ctx, sourceCanvas, width, height) {
     const sourceWorldX = Math.max(0, renderer.view.panX);
     const sourceWorldY = Math.max(0, renderer.view.panY);
     const sourceWorldRight = Math.min(renderer.view.width, renderer.view.panX + width / renderer.view.zoom);
@@ -2435,7 +2947,7 @@
     const destinationHeight = sourceWorldHeight * renderer.view.zoom;
 
     ctx.drawImage(
-      renderer.cacheCanvas,
+      sourceCanvas,
       sourceWorldX * TERRAIN_CACHE_SCALE,
       sourceWorldY * TERRAIN_CACHE_SCALE,
       sourceWorldWidth * TERRAIN_CACHE_SCALE,
@@ -2447,38 +2959,107 @@
     );
   }
 
-  function updateTerrainCache() {
+  function updateTerrainCache(visibleHexes = []) {
     const cacheWidth = Math.max(1, Math.ceil(renderer.view.width * TERRAIN_CACHE_SCALE));
     const cacheHeight = Math.max(1, Math.ceil(renderer.view.height * TERRAIN_CACHE_SCALE));
 
     if (renderer.cacheCanvas.width !== cacheWidth || renderer.cacheCanvas.height !== cacheHeight) {
       renderer.cacheCanvas.width = cacheWidth;
       renderer.cacheCanvas.height = cacheHeight;
-      renderer.cacheDirty = true;
+      markTerrainCacheDirty();
     }
 
-    if (!renderer.cacheDirty) return;
+    if (!renderer.cacheDirty && !renderer.drawing.terrainDirtyHexIds.size) return;
 
     const ctx = renderer.cacheCtx;
     ctx.setTransform(TERRAIN_CACHE_SCALE, 0, 0, TERRAIN_CACHE_SCALE, 0, 0);
-    ctx.clearRect(0, 0, renderer.view.width, renderer.view.height);
+    if (renderer.cacheDirty) {
+      ctx.clearRect(0, 0, renderer.view.width, renderer.view.height);
 
-    renderer.hexes.forEach(hex => {
-      drawCanvasPolygon(ctx, hex.points, hex.fill);
+      renderer.hexes.forEach(hex => {
+        drawCanvasPolygon(ctx, hex.points, hex.fill);
+      });
+
+      renderer.hexes.forEach(hex => renderEdgeBleedForHex(ctx, hex));
+      if (renderer.drawing.visibleOverlays.features && shouldRenderFeatureArt()) {
+        renderer.hexes.forEach(hex => renderFeatureArtForHex(ctx, hex));
+      }
+    } else {
+      const dirtyBounds = getTerrainDirtyBounds();
+      if (!dirtyBounds) return;
+      const patchHexes = renderer.hexes.filter(hex => hexIntersectsBounds(hex, dirtyBounds));
+      ctx.clearRect(
+        dirtyBounds.left,
+        dirtyBounds.top,
+        dirtyBounds.right - dirtyBounds.left,
+        dirtyBounds.bottom - dirtyBounds.top
+      );
+      patchHexes.forEach(hex => {
+        drawCanvasPolygon(ctx, hex.points, hex.fill);
+      });
+      patchHexes.forEach(hex => renderEdgeBleedForHex(ctx, hex));
+      if (renderer.drawing.visibleOverlays.features && shouldRenderFeatureArt()) {
+        patchHexes.forEach(hex => renderFeatureArtForHex(ctx, hex));
+      }
+    }
+    renderer.cacheDirty = false;
+    renderer.drawing.terrainDirtyHexIds.clear();
+    if (!renderer.drawing.saving) {
+      setLoading(false);
+    }
+  }
+
+  function getTerrainDirtyBounds() {
+    if (!renderer.drawing.terrainDirtyHexIds.size) return null;
+    const dimensions = getGeneratedMapDimensions();
+    const padX = Math.max(110, dimensions.radius * 2.4);
+    const padTop = Math.max(130, dimensions.hexHeight * 2.1);
+    const padBottom = Math.max(90, dimensions.hexHeight * 1.2);
+    let bounds = null;
+
+    renderer.drawing.terrainDirtyHexIds.forEach(hexId => {
+      const hex = renderer.hexes.find(candidate => candidate.id === hexId);
+      if (!hex) return;
+      const next = {
+        left: Math.max(0, hex.center.x - padX),
+        right: Math.min(renderer.view.width, hex.center.x + padX),
+        top: Math.max(0, hex.center.y - padTop),
+        bottom: Math.min(renderer.view.height, hex.center.y + padBottom)
+      };
+      if (!bounds) {
+        bounds = next;
+        return;
+      }
+      bounds.left = Math.min(bounds.left, next.left);
+      bounds.right = Math.max(bounds.right, next.right);
+      bounds.top = Math.min(bounds.top, next.top);
+      bounds.bottom = Math.max(bounds.bottom, next.bottom);
     });
 
-    renderCanvasDrawablePaths(ctx);
-    renderer.hexes.forEach(hex => renderEdgeBleedForHex(ctx, hex));
-    if (renderer.drawing.visibleOverlays.features && shouldRenderFeatureArt()) {
-      renderer.hexes.forEach(hex => renderFeatureArtForHex(ctx, hex));
+    return bounds;
+  }
+
+  function updateOverlayCache() {
+    const cacheWidth = Math.max(1, Math.ceil(renderer.view.width * TERRAIN_CACHE_SCALE));
+    const cacheHeight = Math.max(1, Math.ceil(renderer.view.height * TERRAIN_CACHE_SCALE));
+
+    if (renderer.overlayCacheCanvas.width !== cacheWidth || renderer.overlayCacheCanvas.height !== cacheHeight) {
+      renderer.overlayCacheCanvas.width = cacheWidth;
+      renderer.overlayCacheCanvas.height = cacheHeight;
+      renderer.overlayCacheDirty = true;
     }
+
+    if (!renderer.overlayCacheDirty) return;
+
+    const ctx = renderer.overlayCacheCtx;
+    ctx.setTransform(TERRAIN_CACHE_SCALE, 0, 0, TERRAIN_CACHE_SCALE, 0, 0);
+    ctx.clearRect(0, 0, renderer.view.width, renderer.view.height);
+
+    renderCanvasDrawablePaths(ctx);
     if (renderer.drawing.visibleOverlays.mist && shouldRenderFeatureArt()) {
       renderCanvasMistOverlays(ctx);
     }
-    renderer.cacheDirty = false;
-    if (renderer.featureAssets.size > 0 && !hasPendingFeatureImages()) {
-      setLoading(false);
-    }
+    renderer.overlayCacheDirty = false;
   }
 
   function drawCanvasPolygon(ctx, points, fill, opacity = 1) {
@@ -2719,11 +3300,132 @@
       } catch {}
     })).then(() => {
       renderer.featureImages.clear();
-      renderer.cacheDirty = true;
-      render();
+      markAllMapCachesDirty();
+      queueMapRender(true);
     });
 
     return renderer.featureAssetsLoading;
+  }
+
+  function getFeatureImageCacheKey(file, tint) {
+    return `${file}|${tint}|${FEATURE_IMAGE_SUPERSAMPLE}`;
+  }
+
+  function ensureFeatureImageUsage(cacheKey) {
+    let usage = renderer.featureImageUsage.get(cacheKey);
+    if (!usage) {
+      usage = { terrainHexIds: new Set(), overlayTypes: new Set() };
+      renderer.featureImageUsage.set(cacheKey, usage);
+    }
+    return usage;
+  }
+
+  function registerFeatureImageUsage(cacheKey, usage) {
+    if (!cacheKey || !usage) return;
+    const entry = ensureFeatureImageUsage(cacheKey);
+    if (usage.type === "terrain" && usage.hexId) {
+      entry.terrainHexIds.add(usage.hexId);
+      return;
+    }
+    if (usage.type === "overlay" && usage.overlayType) {
+      entry.overlayTypes.add(usage.overlayType);
+    }
+  }
+
+  function queueFeatureImageLoad(cacheKey, file, tint) {
+    const asset = renderer.featureAssets.get(file);
+    if (!asset) return;
+    let entry = renderer.featureImages.get(cacheKey);
+    if (!entry) {
+      entry = { image: null, loaded: false, loading: false, file, tint };
+      renderer.featureImages.set(cacheKey, entry);
+    } else {
+      entry.file = file;
+      entry.tint = tint;
+    }
+    if (entry.loaded || entry.loading || renderer.featureImageQueued.has(cacheKey)) return;
+    renderer.featureImageQueued.add(cacheKey);
+    renderer.featureImageQueue.push(cacheKey);
+    scheduleFeatureImageQueue();
+  }
+
+  function scheduleFeatureImageQueue() {
+    if (renderer.featureImageFrame) return;
+    renderer.featureImageFrame = window.requestAnimationFrame(() => {
+      renderer.featureImageFrame = null;
+      processFeatureImageQueue();
+    });
+  }
+
+  function processFeatureImageQueue() {
+    while (renderer.featureImageActiveLoads < FEATURE_IMAGE_BATCH_SIZE && renderer.featureImageQueue.length) {
+      const cacheKey = renderer.featureImageQueue.shift();
+      renderer.featureImageQueued.delete(cacheKey);
+      startFeatureImageLoad(cacheKey);
+    }
+    if (renderer.featureImageQueue.length && !renderer.featureImageFrame) {
+      scheduleFeatureImageQueue();
+    }
+  }
+
+  function startFeatureImageLoad(cacheKey) {
+    const entry = renderer.featureImages.get(cacheKey);
+    if (!entry?.file || entry.loaded || entry.loading) return;
+    const asset = renderer.featureAssets.get(entry.file);
+    if (!asset) return;
+
+    entry.loading = true;
+    renderer.featureImageActiveLoads += 1;
+    const image = new Image();
+    image.onload = () => {
+      const current = renderer.featureImages.get(cacheKey);
+      if (!current) {
+        renderer.featureImageActiveLoads = Math.max(0, renderer.featureImageActiveLoads - 1);
+        processFeatureImageQueue();
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.ceil(asset.width * FEATURE_IMAGE_SUPERSAMPLE));
+      canvas.height = Math.max(1, Math.ceil(asset.height * FEATURE_IMAGE_SUPERSAMPLE));
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      current.image = canvas;
+      current.loaded = true;
+      current.loading = false;
+      renderer.featureImageActiveLoads = Math.max(0, renderer.featureImageActiveLoads - 1);
+      markFeatureImageUsageDirty(cacheKey);
+      processFeatureImageQueue();
+    };
+    image.onerror = () => {
+      const current = renderer.featureImages.get(cacheKey);
+      if (current) current.loading = false;
+      renderer.featureImageActiveLoads = Math.max(0, renderer.featureImageActiveLoads - 1);
+      processFeatureImageQueue();
+    };
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${asset.viewBox}" color="${entry.tint}" fill="currentColor">${asset.body}</svg>`
+    )}`;
+  }
+
+  function markFeatureImageUsageDirty(cacheKey) {
+    const usage = renderer.featureImageUsage.get(cacheKey);
+    if (!usage) {
+      queueMapRender(true);
+      return;
+    }
+    if (usage.terrainHexIds.size) {
+      const affectedHexes = [...usage.terrainHexIds]
+        .map(hexId => renderer.hexes.find(hex => hex.id === hexId))
+        .filter(Boolean);
+      markTerrainHexesDirty(affectedHexes, 0, false);
+    }
+    if (usage.overlayTypes.size) {
+      markOverlayCacheDirty();
+    }
+    queueMapRender(true);
   }
 
   async function loadRouteIconAssets() {
@@ -2775,7 +3477,7 @@
     const zoomOpacity = getFeatureArtZoomOpacity();
 
     stack.forEach((item, index) => {
-      const image = getFeatureArtImage(item.file, getFeatureArtTint(hex, item));
+      const image = getFeatureArtImage(item.file, getFeatureArtTint(hex, item), { type: "terrain", hexId: hex.id });
       if (!image) return;
       drawFeatureArtImage(ctx, image, applyFeatureArtSizeMultiplier(featureArtDrawBox(hex, index), item.featureId), getFeatureArtOpacity(hex, item, zoomOpacity));
     });
@@ -2790,36 +3492,15 @@
     ctx.restore();
   }
 
-  function getFeatureArtImage(file, tint) {
+  function getFeatureArtImage(file, tint, usage = null) {
     const asset = renderer.featureAssets.get(file);
     if (!asset) return null;
 
-    const cacheKey = `${file}|${tint}|${FEATURE_IMAGE_SUPERSAMPLE}`;
+    const cacheKey = getFeatureImageCacheKey(file, tint);
+    registerFeatureImageUsage(cacheKey, usage);
     const cached = renderer.featureImages.get(cacheKey);
     if (cached?.loaded) return cached.image;
-    if (cached) return null;
-
-    const image = new Image();
-    renderer.featureImages.set(cacheKey, { image, loaded: false });
-    image.onload = () => {
-      const entry = renderer.featureImages.get(cacheKey);
-      if (!entry) return;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.ceil(asset.width * FEATURE_IMAGE_SUPERSAMPLE));
-      canvas.height = Math.max(1, Math.ceil(asset.height * FEATURE_IMAGE_SUPERSAMPLE));
-      const ctx = canvas.getContext("2d");
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      entry.image = canvas;
-      entry.loaded = true;
-      renderer.cacheDirty = true;
-      render();
-    };
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${asset.viewBox}" color="${tint}" fill="currentColor">${asset.body}</svg>`
-    )}`;
+    queueFeatureImageLoad(cacheKey, file, tint);
     return null;
   }
 
@@ -3430,7 +4111,11 @@
   function buildRouteLabelCacheKey() {
     const visible = renderer.drawing.visibleOverlays;
     const routeRows = (renderer.mapOverlays || [])
-      .filter(overlay => ["road", "river", "sea_route"].includes(overlay.Overlay_Type))
+      .filter(overlay => (
+        (overlay.Overlay_Type === "road" && overlay.Is_Major_Route && overlay.Route_Name) ||
+        (overlay.Overlay_Type === "river" && overlay.Is_Major_Route && overlay.Route_Name) ||
+        (overlay.Overlay_Type === "sea_route" && overlay.Route_Name)
+      ))
       .map(overlay => [
         overlay.__uuid,
         overlay.Overlay_Type,
@@ -3574,7 +4259,7 @@
   }
 
   function renderCanvasMistOverlays(ctx) {
-    const image = getFeatureArtImage(FEATURE_ART_FILES.mist, "#f0f0e8");
+    const image = getFeatureArtImage(FEATURE_ART_FILES.mist, "#f0f0e8", { type: "overlay", overlayType: "mist" });
     if (!image) return;
 
     (renderer.mapOverlays || [])
@@ -5687,12 +6372,10 @@
       }, before);
       if (!action) continue;
       applyLocalTerrainSnapshot(action.hexId, action.after);
-      queueTerrainSave(action.hexId, action.after);
       actions.push(action);
     }
-    pushBrushTerrainActions(actions);
-    renderer.cacheDirty = true;
-    render();
+    pushBrushTerrainActions(actions, "terrain-manual");
+    queueMapRender(true);
   }
 
   function getTerrainBrushBase(hex, centerHex) {
@@ -5739,12 +6422,10 @@
       }, targetBefore);
       if (!action) continue;
       applyLocalTerrainSnapshot(action.hexId, action.after);
-      queueTerrainSave(action.hexId, action.after);
       actions.push(action);
     }
-    pushBrushTerrainActions(actions);
-    renderer.cacheDirty = true;
-    render();
+    pushBrushTerrainActions(actions, "features-manual");
+    queueMapRender(true);
   }
 
   function updateGeneratedHexFeatureEraseBrush(centerHex) {
@@ -5765,12 +6446,10 @@
       }, before);
       if (!action) continue;
       applyLocalTerrainSnapshot(action.hexId, action.after);
-      queueTerrainSave(action.hexId, action.after);
       actions.push(action);
     }
-    pushBrushTerrainActions(actions);
-    renderer.cacheDirty = true;
-    render();
+    pushBrushTerrainActions(actions, "features-manual");
+    queueMapRender(true);
   }
 
   async function updateGeneratedHexTerrain(hexId, target, before = null) {
@@ -5805,10 +6484,13 @@
     };
   }
 
-  function pushBrushTerrainActions(actions) {
+  function pushBrushTerrainActions(actions, previewSection = "") {
     const valid = (actions || []).filter(Boolean);
     if (!valid.length) return;
-    pushMapEditAction(valid.length === 1 ? valid[0] : { type: "batch", actions: valid });
+    const historyAction = valid.length === 1
+      ? { ...valid[0], previewSection }
+      : { type: "batch", previewSection, actions: valid };
+    pushStagedMapEditAction(historyAction);
   }
 
   function terrainSnapshotsEqual(a, b) {
@@ -6150,7 +6832,7 @@
   async function runGenerationFeaturePass() {
     const campaign = getActiveCampaign?.();
     if (!campaign || renderer.drawing.saving) return;
-    if (hasGenerationPreview()) discardGeneratedTerrainPreview({ silent: true });
+    discardStagedMapEditSection("features", { silent: true });
 
     const refreshExisting = Boolean(renderer.drawing.generationRefreshExisting);
     if (refreshExisting && typeof window.confirm === "function") {
@@ -6197,10 +6879,13 @@
       return;
     }
 
-    renderer.drawing.generationPreviewOriginals = new Map(renderer.hexes.map(hex => [hex.id, getTerrainSnapshot(hex.id)]));
-    renderer.drawing.generationPreviewActions = actions.map(action => ({ ...action, previewSection: "features" }));
+    const historyAction = {
+      type: "batch",
+      previewSection: "features",
+      actions
+    };
     actions.forEach(action => applyLocalTerrainSnapshot(action.hexId, action.after));
-    renderer.cacheDirty = true;
+    pushStagedMapEditAction(historyAction);
     render();
     updateGenerationControls();
   }
@@ -6246,7 +6931,7 @@
   }
 
   function confirmOverlayGeneration(type, label) {
-    const replacingPreview = (renderer.drawing.generationPreviewActions || [])
+    const replacingPreview = (renderer.drawing.stagedUndoStack || [])
       .some(action => action.previewSection === "overlays" && action.previewOverlayType === type);
     if (replacingPreview) return true;
 
@@ -6258,9 +6943,7 @@
   }
 
   function previewGeneratedOverlayRoutes({ campaignId, routes, tool, style, routeMetadata, emptyMessage }) {
-    const replacedActions = (renderer.drawing.generationPreviewActions || [])
-      .filter(action => action.previewSection === "overlays" && action.previewOverlayType === tool);
-    removeGenerationPreviewOverlays(replacedActions);
+    discardOverlayPreviewType(tool, { silent: true });
 
     const segments = getGeneratedOverlaySegments({ routes, tool, style, routeMetadata, skipExisting: true });
 
@@ -6269,31 +6952,16 @@
       return;
     }
 
-    const previewOverlays = segments.map((segment, index) => ({
-      __uuid: `preview-${tool}-${Date.now()}-${index}`,
-      __preview: true,
-      Overlay_Type: segment.tool,
-      From_Hex_ID_Ref: segment.fromHexId,
-      To_Hex_ID_Ref: segment.toHexId || "",
-      Hex_ID_Ref: "",
-      Edge: segment.edge || "",
-      Style: segment.style,
-      Is_Major_Route: Boolean(segment.routeMetadata?.isMajorRoute),
-      Route_Name: segment.routeMetadata?.routeName || ""
-    }));
-
-    renderer.drawing.generationPreviewActions = [
-      ...(renderer.drawing.generationPreviewActions || [])
-        .filter(action => !(action.previewSection === "overlays" && action.previewOverlayType === tool)),
-      {
-        type: "overlay",
-        previewSection: "overlays",
-        previewOverlayType: tool,
-        overlays: previewOverlays
-      }
-    ];
+    const previewOverlays = segments.map(segment => createLocalOverlayRecord(segment, "preview"));
+    ensureStagedOverlayBaseline();
     previewOverlays.forEach(upsertLocalOverlay);
-    renderer.cacheDirty = true;
+    pushStagedMapEditAction({
+      type: "overlay",
+      previewSection: "overlays",
+      previewOverlayType: tool,
+      overlays: previewOverlays
+    });
+    markAllMapCachesDirty();
     render();
     updateGenerationControls();
   }
@@ -6394,7 +7062,7 @@
 
       saved.forEach(upsertLocalOverlay);
       pushOverlayUndoAction(saved.filter(overlay => !existingOverlayIds.has(overlay.__uuid)));
-      renderer.cacheDirty = true;
+      markAllMapCachesDirty();
       render();
     } catch (error) {
       console.error("Unable to generate map overlays:", error);
@@ -6680,8 +7348,7 @@
     const generator = window.CampaignGeneratedMapGenerator;
     if (!campaign || !generator?.generateNaturalTerrain || renderer.drawing.saving) return;
 
-    if (renderer.drawing.generationPreviewActions.length) discardGeneratedTerrainPreview({ silent: true });
-    const originals = new Map(renderer.hexes.map(hex => [hex.id, getTerrainSnapshot(hex.id)]));
+    discardStagedMapEditSection("terrain", { silent: true });
     const drafts = generator.generateNaturalTerrain({
       ...getGeneratorOptions(campaign.id),
       hexes: renderer.hexes,
@@ -6690,7 +7357,7 @@
 
     const actions = drafts
       .map(draft => {
-        const before = originals.get(draft.hexId);
+        const before = getTerrainSnapshot(draft.hexId);
         if (!before) return null;
         const after = normalizeTerrainSnapshot({
           hexId: draft.hexId,
@@ -6713,26 +7380,29 @@
       return;
     }
 
-    renderer.drawing.generationPreviewOriginals = originals;
-    renderer.drawing.generationPreviewActions = actions.map(action => ({ ...action, previewSection: "terrain" }));
+    const historyAction = {
+      type: "batch",
+      previewSection: "terrain",
+      actions
+    };
     actions.forEach(action => applyLocalTerrainSnapshot(action.hexId, action.after));
-    renderer.cacheDirty = true;
+    pushStagedMapEditAction(historyAction);
     render();
     updateGenerationControls();
   }
 
   async function applyGeneratedTerrainPreview() {
     const campaign = getActiveCampaign?.();
-    const actions = renderer.drawing.generationPreviewActions || [];
+    const actions = renderer.drawing.stagedUndoStack || [];
     if (!campaign || renderer.drawing.saving || !actions.length) return;
     if (typeof window.confirm !== "function") {
       window.alert?.("Confirmation is unavailable, so the terrain preview was not applied.");
       return;
     }
-    const confirmed = window.confirm("Apply this generation preview to the saved map? You can still use map undo during this session.");
+    const confirmed = window.confirm("Apply these staged map edits to the saved map? Terrain, feature, overlay, and generation preview changes will all be saved together.");
     if (!confirmed) return;
 
-    const historyAction = actions.length === 1 ? actions[0] : { type: "batch", actions };
+    const historyAction = actions.length === 1 ? cloneMapEditAction(actions[0]) : { type: "batch", actions: actions.map(cloneMapEditAction).filter(Boolean) };
     const showBulkLoading = getMapEditActionSize(historyAction) >= BULK_OVERLAY_LOADING_THRESHOLD;
 
     renderer.drawing.saving = true;
@@ -6743,12 +7413,10 @@
     updateGenerationControls();
 
     try {
-      removeGenerationPreviewOverlays(actions);
-      await applyMapEditAction(campaign.id, historyAction, "redo");
+      await persistStagedMapEditAction(campaign.id, historyAction);
       pushMapEditAction(historyAction, { force: true });
-      renderer.drawing.generationPreviewOriginals.clear();
-      renderer.drawing.generationPreviewActions = [];
-      renderer.cacheDirty = true;
+      clearStagedMapEditState();
+      markAllMapCachesDirty();
       render();
     } catch (error) {
       console.error("Unable to apply generated terrain preview:", error);
@@ -6764,51 +7432,11 @@
   }
 
   function discardGeneratedTerrainPreview(options = {}) {
-    removeGenerationPreviewOverlays(renderer.drawing.generationPreviewActions || []);
-    const originals = renderer.drawing.generationPreviewOriginals;
-    if (!originals?.size) {
-      renderer.drawing.generationPreviewActions = [];
-      updateGenerationControls();
-      return;
-    }
-
-    originals.forEach((snapshot, hexId) => {
-      applyLocalTerrainSnapshot(hexId, snapshot);
-    });
-    renderer.drawing.generationPreviewOriginals.clear();
-    renderer.drawing.generationPreviewActions = [];
-    renderer.cacheDirty = true;
-    render();
-    updateGenerationControls();
-    if (!options.silent) updateDrawHint();
+    discardAllStagedMapEdits(options);
   }
 
   function discardGenerationPreviewSection(section) {
-    const normalized = ["terrain", "features", "overlays"].includes(section) ? section : "";
-    if (!normalized) return;
-    const actions = renderer.drawing.generationPreviewActions || [];
-    const removedActions = actions.filter(action => action.previewSection === normalized);
-    if (!removedActions.length) return;
-
-    if (normalized === "overlays") {
-      removeGenerationPreviewOverlays(removedActions);
-      renderer.drawing.generationPreviewActions = actions.filter(action => action.previewSection !== normalized);
-    } else {
-      const originals = renderer.drawing.generationPreviewOriginals;
-      removedActions.forEach(action => {
-        const snapshot = originals?.get(action.hexId) || action.before;
-        if (snapshot) applyLocalTerrainSnapshot(action.hexId, snapshot);
-      });
-      renderer.drawing.generationPreviewActions = actions.filter(action => action.previewSection !== normalized);
-      if (!renderer.drawing.generationPreviewActions.some(action => action.type === "terrain")) {
-        renderer.drawing.generationPreviewOriginals.clear();
-      }
-    }
-
-    renderer.cacheDirty = true;
-    render();
-    updateGenerationControls();
-    updateDrawHint();
+    discardStagedMapEditSection(section);
   }
 
   function removeGenerationPreviewOverlays(actions = []) {
@@ -6829,7 +7457,83 @@
 
     renderer.mapOverlays = renderer.mapOverlays.filter(overlay => !previewIds.includes(overlay.__uuid));
     if (db?.raw?.generatedMapOverlays) db.raw.generatedMapOverlays = renderer.mapOverlays;
-    renderer.cacheDirty = true;
+    markAllMapCachesDirty();
+  }
+
+  function discardOverlayPreviewType(type, options = {}) {
+    removeStagedActionsByPredicate(
+      action => action?.previewSection === "overlays" && action.previewOverlayType === type,
+      options
+    );
+  }
+
+  async function persistStagedMapEditAction(campaignId, action) {
+    if (!action?.type) return;
+    if (action.type === "batch") {
+      await persistStagedMapEditActions(campaignId, action.actions || []);
+      return;
+    }
+    if (action.type === "terrain") {
+      await applyTerrainSnapshot(campaignId, action.hexId, action.after);
+      return;
+    }
+    if (action.type === "overlay") {
+      for (const overlay of action.overlays || []) {
+        if (overlay.__undoDeleted) {
+          if (!isTemporaryOverlayId(overlay.__uuid)) {
+            await deleteOverlayById(campaignId, overlay.__uuid);
+          }
+          removeLocalOverlayById(overlay.__uuid);
+          continue;
+        }
+        if (isTemporaryOverlayId(overlay.__uuid)) {
+          const temporaryId = overlay.__uuid;
+          const restored = await restoreDeletedOverlay(campaignId, overlay);
+          if (restored?.__uuid) {
+            removeLocalOverlayById(temporaryId);
+            Object.assign(overlay, restored, { __preview: false, __staged: false });
+            upsertLocalOverlay(overlay);
+          }
+        }
+      }
+    }
+  }
+
+  async function persistStagedMapEditActions(campaignId, actions = []) {
+    const pendingTerrain = [];
+    const flushTerrain = async () => {
+      if (!pendingTerrain.length) return;
+      const terrainActions = pendingTerrain.splice(0, pendingTerrain.length);
+      if (terrainActions.length === 1) {
+        await applyTerrainSnapshot(campaignId, terrainActions[0].hexId, terrainActions[0].after);
+        return;
+      }
+      await applyTerrainBatchAction(campaignId, terrainActions, "redo");
+    };
+
+    for (const action of actions) {
+      if (!action?.type) continue;
+      if (action.type === "terrain") {
+        pendingTerrain.push(action);
+        continue;
+      }
+      if (action.type === "batch") {
+        const childActions = action.actions || [];
+        if (childActions.length && childActions.every(childAction => childAction?.type === "terrain")) {
+          pendingTerrain.push(...childActions);
+          continue;
+        }
+      }
+      await flushTerrain();
+      await persistStagedMapEditAction(campaignId, action);
+    }
+
+    await flushTerrain();
+  }
+
+  function isTemporaryOverlayId(overlayId) {
+    const value = String(overlayId || "");
+    return value.startsWith("preview-") || value.startsWith("staged-");
   }
 
   function getTerrainSnapshot(hexId) {
@@ -6882,6 +7586,8 @@
     if (renderer.selectedHexId === hexId && renderer.popup && !renderer.popup.hidden) {
       showPopup(hexId);
     }
+
+    markTerrainHexDirty(hexId);
   }
 
   function getGeneratedTerrainLabel(baseTerrain, features) {
@@ -6981,45 +7687,46 @@
     }
     if (sequence.length < 2 && !targetExitEdge) return;
 
-    const campaign = getActiveCampaign?.();
-    if (!campaign) return;
-
     const style = getCurrentDrawOverlayStyle(tool);
     const routeMetadata = getCurrentRouteMetadata(tool);
     const reveal = beginPathRevealAnimation(tool, sequence, style);
-    const existingOverlayIds = new Set((renderer.mapOverlays || []).map(overlay => overlay.__uuid).filter(Boolean));
-    renderer.drawing.saving = true;
-    updateDrawUndoButton();
-    updateDrawRedoButton();
 
     try {
-      const overlays = await Promise.all(sequence.slice(0, -1).map((hexId, index) => {
-        const nextHexId = sequence[index + 1];
-        const segmentTool = getPersistedSegmentTool(tool, hexId, nextHexId);
-        return savePathOverlaySegment(campaign.id, segmentTool, hexId, nextHexId, segmentTool === "sea_route" ? "sea_route" : style, null, getSegmentRouteMetadata(segmentTool, routeMetadata));
-      }));
-      if (targetExitEdge) {
-        overlays.push(await savePathOverlaySegment(campaign.id, tool, toHexId, null, style, targetExitEdge, routeMetadata));
-      }
-      const validOverlays = overlays.filter(Boolean);
-
+      const segments = getGeneratedOverlaySegments({
+        routes: [{ sequence, exitEdge: targetExitEdge }],
+        tool,
+        style,
+        routeMetadata,
+        skipExisting: true
+      });
       await reveal.finished;
-      validOverlays.forEach(upsertLocalOverlay);
-      pushOverlayUndoAction(validOverlays.filter(overlay => !existingOverlayIds.has(overlay.__uuid)));
+      if (!segments.length) {
+        renderer.drawing.lastHexId = null;
+        renderer.drawing.dragLastHexId = null;
+        renderSvgOnly();
+        return;
+      }
+      ensureStagedOverlayBaseline();
+      const overlays = segments.map(segment => createLocalOverlayRecord(segment));
+      overlays.forEach(upsertLocalOverlay);
+      pushStagedMapEditAction({
+        type: "overlay",
+        previewSection: "overlay-manual",
+        overlays
+      });
       renderer.drawing.lastHexId = null;
       renderer.drawing.dragLastHexId = null;
-      renderer.cacheDirty = true;
+      markAllMapCachesDirty();
       render();
     } catch (error) {
-      console.error("Unable to save generated map overlay path:", error);
-      window.alert?.(error.message || "Unable to save map overlay.");
+      console.error("Unable to preview generated map overlay path:", error);
+      window.alert?.(error.message || "Unable to preview map overlay.");
       await reveal.finished.catch(() => {});
       renderSvgOnly();
     } finally {
       if (renderer.drawing.activePathReveal === reveal) {
         clearPathRevealAnimation();
       }
-      renderer.drawing.saving = false;
       updateDrawUndoButton();
       updateDrawRedoButton();
       updateDrawClearButton();
@@ -7091,8 +7798,7 @@
   }
 
   async function persistWallOverlay(hexId, edge) {
-    const campaign = getActiveCampaign?.();
-    if (!campaign || !edge) return;
+    if (!edge) return;
     if (renderer.mapOverlays.some(overlay => (
       overlay.Overlay_Type === "wall" &&
       overlay.Hex_ID_Ref === hexId &&
@@ -7100,41 +7806,34 @@
     ))) {
       return;
     }
-
-    renderer.drawing.saving = true;
-
-    try {
-      const { data, error } = await campaignSupabase.rpc("add_generated_map_overlay", {
-        target_campaign_id: campaign.id,
-        target_overlay_type: "wall",
-        from_hex_ref: hexId,
-        to_hex_ref: null,
-        target_edge: edge,
-        target_style: "wall"
-      });
-
-      if (error) throw error;
-
-      const overlay = adaptOverlayRpcRow(data);
-      upsertLocalOverlay(overlay);
-      pushOverlayUndoAction([overlay]);
-      renderSvgOnly();
-    } catch (error) {
-      console.error("Unable to save generated map wall:", error);
-      window.alert?.(error.message || "Unable to save map wall.");
-    } finally {
-      renderer.drawing.saving = false;
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-    }
+    ensureStagedOverlayBaseline();
+    const overlay = createLocalOverlayRecord({
+      tool: "wall",
+      fromHexId: hexId,
+      toHexId: null,
+      edge,
+      style: "wall",
+      routeMetadata: {}
+    });
+    upsertLocalOverlay(overlay);
+    pushStagedMapEditAction({
+      type: "overlay",
+      previewSection: "overlay-manual",
+      overlays: [overlay]
+    });
+    renderSvgOnly();
   }
 
   async function persistMistOverlay(hexId) {
     const overlays = await persistMistOverlays([hexId]);
     if (!overlays.length) return;
-    pushOverlayUndoAction(overlays);
-    renderer.cacheDirty = true;
-    render();
+    pushStagedMapEditAction({
+      type: "overlay",
+      previewSection: "overlay-manual",
+      overlays
+    });
+    markAllMapCachesDirty();
+    queueMapRender(true);
   }
 
   async function persistMistBrush(centerHex) {
@@ -7142,15 +7841,16 @@
     if (!hexIds.length) return;
     const overlays = await persistMistOverlays(hexIds);
     if (!overlays.length) return;
-    pushOverlayUndoAction(overlays);
-    renderer.cacheDirty = true;
-    render();
+    pushStagedMapEditAction({
+      type: "overlay",
+      previewSection: "overlay-manual",
+      overlays
+    });
+    markAllMapCachesDirty();
+    queueMapRender(true);
   }
 
   async function persistMistOverlays(hexIds) {
-    const campaign = getActiveCampaign?.();
-    if (!campaign) return [];
-
     const existingMistHexIds = new Set((renderer.mapOverlays || [])
       .filter(overlay => overlay.Overlay_Type === "mist")
       .map(overlay => overlay.Hex_ID_Ref));
@@ -7158,75 +7858,49 @@
       .filter(hexId => hexId && !existingMistHexIds.has(hexId));
     if (!targetHexIds.length) return [];
 
-    renderer.drawing.saving = true;
-
-    try {
-      const overlays = [];
-      for (const hexId of targetHexIds) {
-        const { data, error } = await campaignSupabase.rpc("add_generated_map_overlay", {
-          target_campaign_id: campaign.id,
-          target_overlay_type: "mist",
-          from_hex_ref: hexId,
-          to_hex_ref: null,
-          target_edge: null,
-          target_style: "mist"
-        });
-
-        if (error) throw error;
-        const overlay = adaptOverlayRpcRow(data);
-        if (overlay?.__uuid) {
-          overlays.push(overlay);
-          upsertLocalOverlay(overlay);
-        }
-      }
-      return overlays;
-    } catch (error) {
-      console.error("Unable to save generated map mist:", error);
-      window.alert?.(error.message || "Unable to save map mist.");
-      return [];
-    } finally {
-      renderer.drawing.saving = false;
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-    }
+    ensureStagedOverlayBaseline();
+    const overlays = targetHexIds.map(hexId => createLocalOverlayRecord({
+      tool: "mist",
+      fromHexId: hexId,
+      toHexId: null,
+      edge: null,
+      style: "mist",
+      routeMetadata: {}
+    }));
+    overlays.forEach(upsertLocalOverlay);
+    return overlays;
   }
 
   async function eraseOverlaysAtHex(hexId) {
-    const campaign = getActiveCampaign?.();
-    if (!campaign) return;
-
-    renderer.drawing.saving = true;
-
-    try {
-      const { error } = await campaignSupabase.rpc("erase_generated_map_overlays_at_hex", {
-        target_campaign_id: campaign.id,
-        target_hex_ref: hexId
+    ensureStagedOverlayBaseline();
+    const removed = renderer.mapOverlays.filter(overlay => (
+      overlay.From_Hex_ID_Ref === hexId ||
+      overlay.To_Hex_ID_Ref === hexId ||
+      overlay.Hex_ID_Ref === hexId
+    ));
+    if (!removed.length) return;
+    const temporaryIds = new Set(removed.filter(overlay => isTemporaryOverlayId(overlay.__uuid)).map(overlay => overlay.__uuid));
+    if (temporaryIds.size) {
+      dropTemporaryOverlaysFromStagedActions(temporaryIds);
+    }
+    removed.forEach(overlay => removeLocalOverlayById(overlay.__uuid));
+    const persistedRemoved = removed
+      .filter(overlay => !temporaryIds.has(overlay.__uuid))
+      .map(overlay => ({ ...cloneOverlayRecord(overlay), __undoDeleted: true }));
+    if (persistedRemoved.length) {
+      pushStagedMapEditAction({
+        type: "overlay",
+        previewSection: "overlay-manual",
+        overlays: persistedRemoved
       });
-
-      if (error) throw error;
-
-      const removed = renderer.mapOverlays.filter(overlay => (
-        overlay.From_Hex_ID_Ref === hexId ||
-        overlay.To_Hex_ID_Ref === hexId ||
-        overlay.Hex_ID_Ref === hexId
-      ));
-      renderer.mapOverlays = renderer.mapOverlays.filter(overlay => (
-        overlay.From_Hex_ID_Ref !== hexId &&
-        overlay.To_Hex_ID_Ref !== hexId &&
-        overlay.Hex_ID_Ref !== hexId
-      ));
-      if (db?.raw?.generatedMapOverlays) db.raw.generatedMapOverlays = renderer.mapOverlays;
-      pushOverlayUndoAction(removed.map(overlay => ({ ...overlay, __undoDeleted: true })));
-      renderer.cacheDirty = true;
-      render();
-    } catch (error) {
-      console.error("Unable to erase generated map overlays:", error);
-      window.alert?.(error.message || "Unable to erase map overlays.");
-    } finally {
-      renderer.drawing.saving = false;
+    } else {
       updateDrawUndoButton();
       updateDrawRedoButton();
+      updateDrawClearButton();
+      updateGenerationControls();
     }
+    markAllMapCachesDirty();
+    queueMapRender(true);
   }
 
   function pushOverlayUndoAction(overlays) {
@@ -7248,6 +7922,23 @@
   }
 
   async function undoLastDrawAction() {
+    if (renderer.drawing.stagedUndoStack.length) {
+      const action = renderer.drawing.stagedUndoStack.pop();
+      if (!action?.type) {
+        updateDrawUndoButton();
+        return;
+      }
+      applyLocalMapEditAction(action, "undo");
+      renderer.drawing.stagedRedoStack.push(action);
+      markAllMapCachesDirty();
+      render();
+      updateDrawUndoButton();
+      updateDrawRedoButton();
+      updateDrawClearButton();
+      updateGenerationControls();
+      return;
+    }
+
     const campaign = getActiveCampaign?.();
     const action = renderer.drawing.undoStack.pop();
     if (!campaign || !action?.type) {
@@ -7264,7 +7955,7 @@
     try {
       await applyMapEditAction(campaign.id, action, "undo");
       renderer.drawing.redoStack.push(action);
-      renderer.cacheDirty = true;
+      markAllMapCachesDirty();
       render();
     } catch (error) {
       console.error("Unable to undo generated map edit:", error);
@@ -7283,6 +7974,23 @@
   }
 
   async function redoLastDrawAction() {
+    if (renderer.drawing.stagedRedoStack.length) {
+      const action = renderer.drawing.stagedRedoStack.pop();
+      if (!action?.type) {
+        updateDrawRedoButton();
+        return;
+      }
+      applyLocalMapEditAction(action, "redo");
+      renderer.drawing.stagedUndoStack.push(action);
+      markTerrainCacheDirty();
+      render();
+      updateDrawUndoButton();
+      updateDrawRedoButton();
+      updateDrawClearButton();
+      updateGenerationControls();
+      return;
+    }
+
     const campaign = getActiveCampaign?.();
     const action = renderer.drawing.redoStack.pop();
     if (!campaign || !action?.type) {
@@ -7299,7 +8007,7 @@
     try {
       await applyMapEditAction(campaign.id, action, "redo");
       renderer.drawing.undoStack.push(action);
-      renderer.cacheDirty = true;
+      markAllMapCachesDirty();
       render();
     } catch (error) {
       console.error("Unable to redo generated map edit:", error);
@@ -7571,7 +8279,7 @@
       renderer.mapOverlays = [];
       if (db?.raw?.generatedMapOverlays) db.raw.generatedMapOverlays = renderer.mapOverlays;
       pushMapEditAction({ type: "nuke-overlays", overlays: removed }, { force: true });
-      renderer.cacheDirty = true;
+      markTerrainCacheDirty();
       render();
     } catch (error) {
       console.error("Unable to clear generated map overlays:", error);
@@ -7725,7 +8433,7 @@
       if (error) throw error;
       (data || []).map(adaptOverlayRpcRow).filter(Boolean).forEach(upsertLocalOverlay);
       renderer.routeLabelCache = { key: "", labels: [] };
-      renderer.cacheDirty = true;
+      markAllMapCachesDirty();
       clearNamedRouteEditForm();
       renderNamedRoutesList();
       render();
@@ -7752,7 +8460,7 @@
       }
       pushOverlayUndoAction(removed);
       renderer.routeLabelCache = { key: "", labels: [] };
-      renderer.cacheDirty = true;
+        markAllMapCachesDirty();
       renderNamedRoutesList();
       render();
     } catch (error) {
@@ -7843,7 +8551,7 @@
         actions.forEach(action => {
           applyLocalTerrainSnapshot(action.hexId, action.after);
         });
-        renderer.cacheDirty = true;
+        markAllMapCachesDirty();
         render();
       },
       historyAction: { type: "nuke-features", actions },
@@ -7954,7 +8662,7 @@
     }
 
     if (db?.raw?.generatedMapOverlays) db.raw.generatedMapOverlays = renderer.mapOverlays;
-    renderer.cacheDirty = true;
+    markAllMapCachesDirty();
     updateDrawClearButton();
   }
 
@@ -7976,7 +8684,7 @@
   function removeLocalOverlayById(overlayId) {
     renderer.mapOverlays = renderer.mapOverlays.filter(overlay => overlay.__uuid !== overlayId);
     if (db?.raw?.generatedMapOverlays) db.raw.generatedMapOverlays = renderer.mapOverlays;
-    renderer.cacheDirty = true;
+    markAllMapCachesDirty();
     updateDrawClearButton();
   }
 

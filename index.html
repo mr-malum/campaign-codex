@@ -6,6 +6,9 @@
   <meta name="google" content="notranslate" />
   <title>Campaign Codex</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" sizes="32x32" href="assets/ico/favicon_32x32.ico">
+  <link rel="icon" type="image/x-icon" sizes="64x64" href="assets/ico/favicon_64x64.ico">
+  <link rel="icon" type="image/x-icon" sizes="256x256" href="assets/ico/favicon_256x256.ico">
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="css/base.css">
@@ -747,6 +750,20 @@
           </span>
         </span>
       </div>
+      <div class="map-edit-history-row map-edit-apply-row" aria-label="Map preview actions">
+        <button id="map-editor-discard-staged" class="map-draw-no-tool" type="button" disabled>Discard All</button>
+        <button id="map-editor-apply-staged" class="map-draw-undo" type="button" disabled>Apply Preview</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="map-editor-intro" class="map-editor-intro-modal hidden" role="dialog" aria-modal="true" aria-labelledby="map-editor-intro-title" aria-hidden="true">
+  <div class="map-editor-intro-panel">
+    <div class="map-editor-intro-kicker">Hex Mapper</div>
+    <h2 id="map-editor-intro-title">Preview Editing</h2>
+    <div id="map-editor-intro-body" class="map-editor-intro-body"></div>
+    <div class="map-editor-intro-actions">
+      <button id="map-editor-intro-close" type="button">Continue</button>
     </div>
   </div>
 </div>

@@ -1019,6 +1019,11 @@
   margin-top: 0;
 }
 
+.map-edit-apply-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
 .map-edit-history-help {
   justify-content: center;
 }
@@ -1071,6 +1076,71 @@
 .map-draw-clear:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+.map-editor-intro-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(9, 8, 7, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.map-editor-intro-modal.hidden {
+  display: none;
+}
+
+.map-editor-intro-panel {
+  width: min(520px, 100%);
+  padding: 20px 22px 18px;
+  border: 1px solid rgba(214, 168, 94, 0.42);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(60, 39, 22, 0.96), rgba(25, 17, 11, 0.98));
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 224, 153, 0.05);
+  color: #f4dfaf;
+}
+
+.map-editor-intro-kicker {
+  margin-bottom: 6px;
+  color: rgba(244, 223, 175, 0.68);
+  font: 0.76rem/1.2 'Marcellus SC', Georgia, serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.map-editor-intro-panel h2 {
+  margin: 0 0 10px;
+  font: 1.32rem/1.15 'Marcellus SC', Georgia, serif;
+  color: #fff0c6;
+}
+
+.map-editor-intro-body {
+  display: grid;
+  gap: 10px;
+  color: rgba(244, 223, 175, 0.88);
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.map-editor-intro-body p {
+  margin: 0;
+}
+
+.map-editor-intro-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.map-editor-intro-actions button {
+  min-width: 126px;
 }
 
 .map-edit-empty-note {
