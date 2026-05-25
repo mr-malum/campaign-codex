@@ -495,7 +495,6 @@
           <button type="button" data-map-draw-tool="river">River</button>
           <button type="button" data-map-draw-tool="sea_route">Sea Route</button>
         </div>
-        <button id="map-named-routes-button" class="map-draw-secondary-button" type="button">Named Routes</button>
         <label class="map-draw-style-row">
           <span id="map-draw-style-label">Road Style</span>
           <select id="map-draw-road-style">
@@ -580,7 +579,9 @@
       <section class="map-draw-panel-section" data-map-edit-section="nuke">
         <div class="map-draw-section-title">Utilities</div>
         <p class="map-edit-empty-note">These actions affect the whole generated map. Each requires confirmation and can be undone from this session.</p>
+        <p class="map-edit-empty-note map-edit-warning-note">Clear All Drawn Overlays and Clear All Features save to the live map immediately. They are not part of staged preview edits, Discard All, or Apply Preview.</p>
         <div class="map-nuke-action-list" aria-label="Map utility actions">
+          <button id="map-named-routes-button" class="map-draw-secondary-button" type="button">Named Routes</button>
           <button id="map-draw-clear" class="map-draw-clear" type="button">Clear All Drawn Overlays</button>
           <button id="map-clear-features" class="map-draw-clear" type="button">Clear All Features</button>
           <p class="map-edit-empty-note map-nuke-region-note">Cleared regions must be manually deleted from the Codex.</p>
@@ -726,10 +727,8 @@
             <span>Seed</span>
             <input id="map-generation-seed" type="text" maxlength="80" placeholder="Campaign seed">
           </label>
-          <div class="map-draw-tool-row map-generation-footer-actions" role="group" aria-label="Generation preview actions">
+          <div class="map-draw-tool-row map-generation-footer-actions" role="group" aria-label="Generation actions">
             <button id="map-generation-random-seed" data-generation-random-seed type="button">Random Seed</button>
-            <button id="map-generation-discard-preview" type="button" disabled>Discard All</button>
-            <button id="map-generation-apply-preview" type="button" disabled>Apply Preview</button>
           </div>
         </div>
       </section>

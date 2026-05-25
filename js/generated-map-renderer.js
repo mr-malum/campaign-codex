@@ -781,8 +781,6 @@
     const generationRunRivers = document.getElementById("map-generation-run-rivers");
     const generationResetSliders = document.getElementById("map-generation-reset-sliders");
     const generationPreviewTerrain = document.getElementById("map-generation-preview-terrain");
-    const generationApplyPreview = document.getElementById("map-generation-apply-preview");
-    const generationDiscardPreview = document.getElementById("map-generation-discard-preview");
     const sharedApplyButton = document.getElementById("map-editor-apply-staged");
     const sharedDiscardButton = document.getElementById("map-editor-discard-staged");
     const introCloseButton = document.getElementById("map-editor-intro-close");
@@ -1131,18 +1129,6 @@
       previewGeneratedTerrain();
     });
 
-    generationApplyPreview?.addEventListener("click", event => {
-      event.preventDefault();
-      event.stopPropagation();
-      applyGeneratedTerrainPreview();
-    });
-
-    generationDiscardPreview?.addEventListener("click", event => {
-      event.preventDefault();
-      event.stopPropagation();
-      discardGeneratedTerrainPreview();
-    });
-
     sharedApplyButton?.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
@@ -1273,9 +1259,7 @@
     populateDrawRegionSelect();
     updateDrawRegionControls();
     updateDrawStyleControls();
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
+    refreshEditorActionControls();
     syncMapOverlayToggleInputs();
     populateTerrainControls();
     updateGenerationControls();
@@ -1694,10 +1678,7 @@
     updateDrawRegionControls();
     updateDrawStyleControls();
     updateTerrainControls();
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
-    updateGenerationControls();
+    refreshEditorPreviewControls();
     updateDrawHint();
   }
 
@@ -2297,8 +2278,6 @@
     const generationRunRivers = document.getElementById("map-generation-run-rivers");
     const generationResetSliders = document.getElementById("map-generation-reset-sliders");
     const generationPreviewTerrain = document.getElementById("map-generation-preview-terrain");
-    const generationApplyPreview = document.getElementById("map-generation-apply-preview");
-    const generationDiscardPreview = document.getElementById("map-generation-discard-preview");
     const sharedApplyButton = document.getElementById("map-editor-apply-staged");
     const sharedDiscardButton = document.getElementById("map-editor-discard-staged");
 
@@ -2348,8 +2327,6 @@
     });
     const hasPreview = hasGenerationPreview();
     if (generationPreviewTerrain) generationPreviewTerrain.disabled = Boolean(renderer.drawing.saving);
-    if (generationApplyPreview) generationApplyPreview.disabled = Boolean(renderer.drawing.saving || !hasPreview);
-    if (generationDiscardPreview) generationDiscardPreview.disabled = Boolean(renderer.drawing.saving || !hasPreview);
     if (sharedApplyButton) sharedApplyButton.disabled = Boolean(renderer.drawing.saving || !hasPreview);
     if (sharedDiscardButton) sharedDiscardButton.disabled = Boolean(renderer.drawing.saving || !hasPreview);
   }
@@ -2386,7 +2363,51 @@
   }
 
   function hasStagedMapEdits() {
-    return (renderer.drawing.stagedUndoStack || []).length > 0;
+    return getStagedUndoStack().length > 0;
+  }
+
+  function editorUsesStagedHistoryOnly() {
+    return Boolean(renderer.drawing.enabled);
+  }
+
+  function getStagedUndoStack() {
+    return renderer.drawing.stagedUndoStack || [];
+  }
+
+  function getStagedRedoStack() {
+    return renderer.drawing.stagedRedoStack || [];
+  }
+
+  function getPersistedUndoStack() {
+    return renderer.drawing.undoStack || [];
+  }
+
+  function getPersistedRedoStack() {
+    return renderer.drawing.redoStack || [];
+  }
+
+  function clearStagedRedoStack() {
+    renderer.drawing.stagedRedoStack = [];
+  }
+
+  function clearPersistedRedoStack() {
+    renderer.drawing.redoStack = [];
+  }
+
+  function pushStagedUndoAction(action) {
+    renderer.drawing.stagedUndoStack.push(action);
+  }
+
+  function pushStagedRedoAction(action) {
+    renderer.drawing.stagedRedoStack.push(action);
+  }
+
+  function pushPersistedUndoAction(action) {
+    renderer.drawing.undoStack.push(action);
+  }
+
+  function pushPersistedRedoAction(action) {
+    renderer.drawing.redoStack.push(action);
   }
 
   function hasGenerationPreview() {
@@ -2478,12 +2499,9 @@
     }
     captureStagedTerrainOriginals(action);
     action.localStage = true;
-    renderer.drawing.stagedUndoStack.push(action);
-    renderer.drawing.stagedRedoStack = [];
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
-    updateGenerationControls();
+    pushStagedUndoAction(action);
+    clearStagedRedoStack();
+    refreshEditorActionControls();
   }
 
   function applyLocalMapEditAction(action, direction) {
@@ -2536,8 +2554,8 @@
     const transformStack = stack => (stack || [])
       .map(action => pruneTemporaryOverlaysFromAction(action, overlayIds))
       .filter(Boolean);
-    renderer.drawing.stagedUndoStack = transformStack(renderer.drawing.stagedUndoStack);
-    renderer.drawing.stagedRedoStack = transformStack(renderer.drawing.stagedRedoStack);
+    renderer.drawing.stagedUndoStack = transformStack(getStagedUndoStack());
+    renderer.drawing.stagedRedoStack = transformStack(getStagedRedoStack());
   }
 
   function restoreStagedOverlayBaseline() {
@@ -2564,8 +2582,8 @@
         originals.set(action.hexId, normalizeTerrainSnapshot(action.before));
       }
     };
-    (renderer.drawing.stagedUndoStack || []).forEach(collect);
-    (renderer.drawing.stagedRedoStack || []).forEach(collect);
+    getStagedUndoStack().forEach(collect);
+    getStagedRedoStack().forEach(collect);
     renderer.drawing.stagedTerrainOriginals = originals;
   }
 
@@ -2617,8 +2635,8 @@
 
   function removeStagedActionsByPredicate(predicate, options = {}) {
     const matches = action => predicate(action);
-    const previousUndo = renderer.drawing.stagedUndoStack || [];
-    const previousRedo = renderer.drawing.stagedRedoStack || [];
+    const previousUndo = getStagedUndoStack();
+    const previousRedo = getStagedRedoStack();
     const removedUndo = previousUndo.filter(matches);
     const removedRedo = previousRedo.filter(matches);
     if (!removedUndo.length && !removedRedo.length) return false;
@@ -2631,13 +2649,13 @@
 
     if (affectedTerrainHexIds.size) {
       [...removedUndo].reverse().forEach(action => applyLocalTerrainActionsForHexes(action, "undo", affectedTerrainHexIds));
-      (renderer.drawing.stagedUndoStack || []).forEach(action => applyLocalTerrainActionsForHexes(action, "redo", affectedTerrainHexIds));
+      getStagedUndoStack().forEach(action => applyLocalTerrainActionsForHexes(action, "redo", affectedTerrainHexIds));
       affectedTerrainHexIds.forEach(hexId => markTerrainHexDirty(hexId));
     }
 
     if (affectedOverlays) {
       [...removedUndo].reverse().forEach(action => applyLocalOverlayActions(action, "undo"));
-      (renderer.drawing.stagedUndoStack || []).forEach(action => applyLocalOverlayActions(action, "redo"));
+      getStagedUndoStack().forEach(action => applyLocalOverlayActions(action, "redo"));
       markOverlayCacheDirty();
     }
 
@@ -2646,17 +2664,14 @@
       render();
       updateDrawHint();
     }
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
-    updateGenerationControls();
+    refreshEditorActionControls();
     return true;
   }
 
   function rebuildStagedLocalState() {
     restoreStagedOverlayBaseline();
     restoreStagedTerrainOriginals();
-    (renderer.drawing.stagedUndoStack || []).forEach(action => applyLocalMapEditAction(action, "redo"));
+    getStagedUndoStack().forEach(action => applyLocalMapEditAction(action, "redo"));
     markTerrainCacheDirty();
     render();
   }
@@ -2677,10 +2692,7 @@
     clearStagedMapEditState();
     markAllMapCachesDirty();
     render();
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
-    updateGenerationControls();
+    refreshEditorActionControls();
     if (!options.silent) updateDrawHint();
   }
 
@@ -2806,9 +2818,11 @@
   function updateDrawUndoButton() {
     const undoButton = document.getElementById("map-draw-undo");
     if (!undoButton) return;
-    const count = hasStagedMapEdits()
-      ? renderer.drawing.stagedUndoStack.length
-      : renderer.drawing.undoStack.length;
+    const count = editorUsesStagedHistoryOnly()
+      ? getStagedUndoStack().length
+      : hasStagedMapEdits()
+      ? getStagedUndoStack().length
+      : getPersistedUndoStack().length;
     undoButton.disabled = count === 0 || renderer.drawing.saving;
     undoButton.textContent = count
       ? `Undo (${count})`
@@ -2818,13 +2832,26 @@
   function updateDrawRedoButton() {
     const redoButton = document.getElementById("map-draw-redo");
     if (!redoButton) return;
-    const count = hasStagedMapEdits() || renderer.drawing.stagedRedoStack.length
-      ? renderer.drawing.stagedRedoStack.length
-      : renderer.drawing.redoStack.length;
+    const count = editorUsesStagedHistoryOnly()
+      ? getStagedRedoStack().length
+      : hasStagedMapEdits() || getStagedRedoStack().length
+      ? getStagedRedoStack().length
+      : getPersistedRedoStack().length;
     redoButton.disabled = count === 0 || renderer.drawing.saving;
     redoButton.textContent = count
       ? `Redo (${count})`
       : "Redo";
+  }
+
+  function refreshEditorActionControls() {
+    updateDrawUndoButton();
+    updateDrawRedoButton();
+    updateDrawClearButton();
+  }
+
+  function refreshEditorPreviewControls() {
+    refreshEditorActionControls();
+    updateGenerationControls();
   }
 
   function updateDrawClearButton() {
@@ -6931,7 +6958,7 @@
   }
 
   function confirmOverlayGeneration(type, label) {
-    const replacingPreview = (renderer.drawing.stagedUndoStack || [])
+    const replacingPreview = getStagedUndoStack()
       .some(action => action.previewSection === "overlays" && action.previewOverlayType === type);
     if (replacingPreview) return true;
 
@@ -7040,10 +7067,7 @@
     const showBulkLoading = segments.length >= BULK_OVERLAY_LOADING_THRESHOLD;
     renderer.drawing.saving = true;
     if (showBulkLoading) setLoading(true);
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
-    updateGenerationControls();
+    refreshEditorPreviewControls();
 
     try {
       const saved = [];
@@ -7070,10 +7094,7 @@
     } finally {
       renderer.drawing.saving = false;
       if (showBulkLoading) setLoading(false);
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
-      updateGenerationControls();
+      refreshEditorPreviewControls();
     }
   }
 
@@ -7393,7 +7414,7 @@
 
   async function applyGeneratedTerrainPreview() {
     const campaign = getActiveCampaign?.();
-    const actions = renderer.drawing.stagedUndoStack || [];
+    const actions = getStagedUndoStack();
     if (!campaign || renderer.drawing.saving || !actions.length) return;
     if (typeof window.confirm !== "function") {
       window.alert?.("Confirmation is unavailable, so the terrain preview was not applied.");
@@ -7407,10 +7428,7 @@
 
     renderer.drawing.saving = true;
     if (showBulkLoading) setLoading(true);
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
-    updateGenerationControls();
+    refreshEditorPreviewControls();
 
     try {
       await persistStagedMapEditAction(campaign.id, historyAction);
@@ -7424,10 +7442,7 @@
     } finally {
       renderer.drawing.saving = false;
       if (showBulkLoading) setLoading(false);
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
-      updateGenerationControls();
+      refreshEditorPreviewControls();
     }
   }
 
@@ -7894,10 +7909,7 @@
         overlays: persistedRemoved
       });
     } else {
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
-      updateGenerationControls();
+      refreshEditorPreviewControls();
     }
     markAllMapCachesDirty();
     queueMapRender(true);
@@ -7915,32 +7927,32 @@
       renderer.drawing.dragActionBatch.actions.push(action);
       return;
     }
-    renderer.drawing.undoStack.push(action);
-    renderer.drawing.redoStack = [];
-    updateDrawUndoButton();
-    updateDrawRedoButton();
+    pushPersistedUndoAction(action);
+    clearPersistedRedoStack();
+    refreshEditorActionControls();
   }
 
   async function undoLastDrawAction() {
-    if (renderer.drawing.stagedUndoStack.length) {
+    if (editorUsesStagedHistoryOnly() && !getStagedUndoStack().length) {
+      updateDrawUndoButton();
+      return;
+    }
+    if (getStagedUndoStack().length) {
       const action = renderer.drawing.stagedUndoStack.pop();
       if (!action?.type) {
         updateDrawUndoButton();
         return;
       }
       applyLocalMapEditAction(action, "undo");
-      renderer.drawing.stagedRedoStack.push(action);
+      pushStagedRedoAction(action);
       markAllMapCachesDirty();
       render();
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
-      updateGenerationControls();
+      refreshEditorActionControls();
       return;
     }
 
     const campaign = getActiveCampaign?.();
-    const action = renderer.drawing.undoStack.pop();
+    const action = getPersistedUndoStack().pop();
     if (!campaign || !action?.type) {
       updateDrawUndoButton();
       return;
@@ -7949,12 +7961,11 @@
     renderer.drawing.saving = true;
     const showBulkLoading = getMapEditActionSize(action) >= BULK_OVERLAY_LOADING_THRESHOLD;
     if (showBulkLoading) setLoading(true);
-    updateDrawUndoButton();
-    updateDrawRedoButton();
+    refreshEditorActionControls();
 
     try {
       await applyMapEditAction(campaign.id, action, "undo");
-      renderer.drawing.redoStack.push(action);
+      pushPersistedRedoAction(action);
       markAllMapCachesDirty();
       render();
     } catch (error) {
@@ -7963,9 +7974,7 @@
     } finally {
       renderer.drawing.saving = false;
       if (showBulkLoading) setLoading(false);
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
+      refreshEditorActionControls();
     }
   }
 
@@ -7974,25 +7983,26 @@
   }
 
   async function redoLastDrawAction() {
-    if (renderer.drawing.stagedRedoStack.length) {
+    if (editorUsesStagedHistoryOnly() && !getStagedRedoStack().length) {
+      updateDrawRedoButton();
+      return;
+    }
+    if (getStagedRedoStack().length) {
       const action = renderer.drawing.stagedRedoStack.pop();
       if (!action?.type) {
         updateDrawRedoButton();
         return;
       }
       applyLocalMapEditAction(action, "redo");
-      renderer.drawing.stagedUndoStack.push(action);
+      pushStagedUndoAction(action);
       markTerrainCacheDirty();
       render();
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
-      updateGenerationControls();
+      refreshEditorActionControls();
       return;
     }
 
     const campaign = getActiveCampaign?.();
-    const action = renderer.drawing.redoStack.pop();
+    const action = getPersistedRedoStack().pop();
     if (!campaign || !action?.type) {
       updateDrawRedoButton();
       return;
@@ -8001,12 +8011,11 @@
     renderer.drawing.saving = true;
     const showBulkLoading = getMapEditActionSize(action) >= BULK_OVERLAY_LOADING_THRESHOLD;
     if (showBulkLoading) setLoading(true);
-    updateDrawUndoButton();
-    updateDrawRedoButton();
+    refreshEditorActionControls();
 
     try {
       await applyMapEditAction(campaign.id, action, "redo");
-      renderer.drawing.undoStack.push(action);
+      pushPersistedUndoAction(action);
       markAllMapCachesDirty();
       render();
     } catch (error) {
@@ -8015,9 +8024,7 @@
     } finally {
       renderer.drawing.saving = false;
       if (showBulkLoading) setLoading(false);
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
+      refreshEditorActionControls();
     }
   }
 
@@ -8254,13 +8261,11 @@
     const campaign = getActiveCampaign?.();
     if (!campaign) return;
 
-    if (!confirmNukeAction("Clear all drawn roads, rivers, paths, walls, and mist from this generated map?")) return;
+    if (!confirmNukeAction("Clear all saved live-map roads, rivers, paths, walls, and mist from this generated map immediately? This does not clear staged preview edits.")) return;
 
     renderer.drawing.saving = true;
     let showBulkLoading = false;
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
+    refreshEditorActionControls();
 
     try {
       const persistedOverlays = await fetchCurrentPersistedOverlays(campaign.id);
@@ -8287,9 +8292,7 @@
     } finally {
       renderer.drawing.saving = false;
       if (showBulkLoading) setLoading(false);
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
+      refreshEditorActionControls();
     }
   }
 
@@ -8468,8 +8471,7 @@
       window.alert?.(error.message || "Unable to delete named route.");
     } finally {
       renderer.drawing.saving = false;
-      updateDrawUndoButton();
-      updateDrawRedoButton();
+      refreshEditorActionControls();
     }
   }
 
@@ -8522,7 +8524,7 @@
   async function clearAllGeneratedFeatures() {
     const campaign = getActiveCampaign?.();
     if (!campaign) return;
-    if (!confirmNukeAction("Clear all terrain features from this generated map? Base terrain and elevation will be preserved.")) return;
+    if (!confirmNukeAction("Clear all saved live-map terrain features from this generated map immediately? Base terrain and elevation will be preserved. This does not clear staged preview edits.")) return;
 
     const actions = renderer.hexes
       .map(hex => {
@@ -8563,9 +8565,7 @@
     renderer.drawing.saving = true;
     const showBulkLoading = actions.length >= BULK_OVERLAY_LOADING_THRESHOLD;
     if (showBulkLoading) setLoading(true);
-    updateDrawUndoButton();
-    updateDrawRedoButton();
-    updateDrawClearButton();
+    refreshEditorActionControls();
 
     try {
       const { error } = await campaignSupabase.rpc(rpcName, rpcArgs);
@@ -8578,9 +8578,7 @@
     } finally {
       renderer.drawing.saving = false;
       if (showBulkLoading) setLoading(false);
-      updateDrawUndoButton();
-      updateDrawRedoButton();
-      updateDrawClearButton();
+      refreshEditorActionControls();
     }
   }
 
