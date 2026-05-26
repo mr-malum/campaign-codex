@@ -60,6 +60,19 @@
     opacity 0.14s ease;
 }
 
+.codex-row-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.codex-row-side-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .codex-row:hover,
 .codex-row:focus-visible,
 .codex-row-active {
@@ -132,6 +145,11 @@
   gap: 2px;
 }
 
+.codex-row-footer {
+  min-width: 0;
+  margin-top: 3px;
+}
+
 .codex-row-title {
   min-width: 0;
 
@@ -159,6 +177,145 @@
   line-height: 1.18;
 
   color: rgba(47, 29, 16, 0.76);
+}
+
+.codex-row-inline-action {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(70, 47, 24, 0.34);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 239, 0.96), rgba(238, 220, 188, 0.92)),
+    rgba(255, 248, 232, 0.88);
+  color: rgba(47, 29, 16, 0.9);
+  font-family: 'Marcellus SC', Georgia, serif;
+  font-size: 0.72rem;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 247, 227, 0.44);
+}
+
+.codex-row-inline-action:hover,
+.codex-row-inline-action:focus-visible {
+  border-color: rgba(70, 47, 24, 0.56);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 244, 0.98), rgba(244, 228, 198, 0.94)),
+    rgba(255, 248, 232, 0.9);
+}
+
+.codex-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.codex-row-tag-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.codex-row-tag-subsummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.codex-row-tag-subsummary-label {
+  color: rgba(47, 29, 16, 0.72);
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 0.76rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.codex-tag-chip {
+  --codex-tag-border: rgba(92, 64, 32, 0.24);
+  --codex-tag-bg: rgba(229, 214, 187, 0.44);
+  --codex-tag-text: rgba(47, 29, 16, 0.82);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 1px 8px 0;
+  border: 1px solid var(--codex-tag-border);
+  border-radius: 999px;
+  background: var(--codex-tag-bg);
+  color: var(--codex-tag-text);
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 0.74rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.codex-tag-chip-empty,
+.codex-tag-chip-overflow {
+  --codex-tag-border: rgba(92, 64, 32, 0.20);
+  --codex-tag-bg: rgba(229, 214, 187, 0.30);
+}
+
+button.codex-tag-chip {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+button.codex-tag-chip:hover,
+button.codex-tag-chip:focus-visible {
+  border-color: rgba(70, 47, 24, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 249, 231, 0.36);
+}
+
+.codex-tag-category-danger {
+  --codex-tag-border: rgba(123, 42, 32, 0.34);
+  --codex-tag-bg: rgba(157, 53, 35, 0.14);
+  --codex-tag-text: rgba(101, 31, 23, 0.92);
+}
+
+.codex-tag-category-function {
+  --codex-tag-border: rgba(123, 92, 28, 0.34);
+  --codex-tag-bg: rgba(179, 139, 48, 0.18);
+  --codex-tag-text: rgba(92, 66, 16, 0.92);
+}
+
+.codex-tag-category-state {
+  --codex-tag-border: rgba(88, 82, 67, 0.34);
+  --codex-tag-bg: rgba(121, 114, 99, 0.14);
+  --codex-tag-text: rgba(67, 57, 42, 0.92);
+}
+
+.codex-tag-category-affiliation {
+  --codex-tag-border: rgba(40, 84, 129, 0.34);
+  --codex-tag-bg: rgba(59, 110, 166, 0.16);
+  --codex-tag-text: rgba(28, 65, 104, 0.94);
+}
+
+.codex-tag-category-character {
+  --codex-tag-border: rgba(52, 108, 62, 0.34);
+  --codex-tag-bg: rgba(76, 135, 86, 0.16);
+  --codex-tag-text: rgba(32, 80, 41, 0.94);
+}
+
+.codex-tag-category-context {
+  --codex-tag-border: rgba(34, 108, 110, 0.34);
+  --codex-tag-bg: rgba(48, 138, 140, 0.16);
+  --codex-tag-text: rgba(19, 83, 86, 0.94);
+}
+
+.codex-tag-category-mystery {
+  --codex-tag-border: rgba(88, 62, 107, 0.34);
+  --codex-tag-bg: rgba(108, 78, 130, 0.15);
+  --codex-tag-text: rgba(63, 41, 81, 0.94);
 }
 
 .codex-row-arrow,
@@ -288,6 +445,10 @@
 }
 
 @media (max-width: 700px) {
+  .codex-row-shell {
+    gap: 6px;
+  }
+
   .codex-row {
     grid-template-columns: 30px minmax(0, 1fr) auto;
     gap: 10px;
@@ -335,5 +496,15 @@
   .codex-row-meta {
     white-space: normal;
     font-size: 0.88rem;
+  }
+
+  .codex-row-inline-action {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 0.68rem;
+  }
+
+  .codex-tag-chip {
+    font-size: 0.7rem;
   }
 }

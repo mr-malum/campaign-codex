@@ -11,16 +11,368 @@ alter table public.pois
 alter table public.poi_groups
   add column if not exists created_by uuid references auth.users(id) on delete set null;
 
-drop function if exists public.create_poi_with_next_ref_code(
-  uuid,
-  text,
-  text,
-  uuid,
-  text,
-  text,
-  text,
-  public.content_visibility
-);
+create or replace function public.normalize_poi_category_type(raw_value text)
+returns text
+language sql
+immutable
+as $$
+  select case lower(trim(coalesce(raw_value, '')))
+    when 'settlement' then 'settlement'
+    when 'stronghold' then 'stronghold'
+    when 'dungeon' then 'dungeon'
+    when 'dungeon complex' then 'dungeon_complex'
+    when 'dungeon_complex' then 'dungeon_complex'
+    when 'ruin' then 'ruin'
+    when 'holy site' then 'holy_site'
+    when 'holy_site' then 'holy_site'
+    when 'arcane site' then 'arcane_site'
+    when 'arcane_site' then 'arcane_site'
+    when 'waypoint' then 'waypoint'
+    when 'resource site' then 'resource_site'
+    when 'resource_site' then 'resource_site'
+    when 'wilderness site' then 'wilderness_site'
+    when 'wilderness_site' then 'wilderness_site'
+    when 'hazard' then 'hazard'
+    when 'landmark' then 'landmark'
+    else null
+  end
+$$;
+
+create or replace function public.normalize_poi_notoriety_tier(raw_value text)
+returns text
+language sql
+immutable
+as $$
+  with parsed as (
+    select nullif(substring(trim(coalesce(raw_value, '')) from '([0-9]+)'), '') as numeric_text
+  )
+  select case
+    when numeric_text is null then null
+    when numeric_text::integer between 1 and 10 then numeric_text::integer::text
+    else null
+  end
+  from parsed
+$$;
+
+create or replace function public.normalize_poi_icon_value(raw_value text)
+returns text
+language sql
+immutable
+as $$
+  with normalized as (
+    select trim(both '_' from regexp_replace(replace(replace(lower(trim(coalesce(raw_value, ''))), '''', ''), '’', ''), '[^a-z0-9]+', '_', 'g')) as icon_value
+  )
+  select case
+    when icon_value in (
+      'abbey', 'arcane_portal', 'bandit_camp', 'battlefield', 'bridge', 'campsite', 'castle', 'cave', 'chest', 'city', 'compass_rose',
+      'crater', 'dead_tree', 'docks', 'dragon_lair', 'dungeon', 'farmstead', 'ferry', 'ford', 'fort', 'galleon', 'gate', 'geyser',
+      'graveyard', 'harbor', 'hilltop_town', 'hunting_blind', 'kraken', 'lair', 'ley_nexus', 'lighthouse', 'lodge', 'lumber_camp',
+      'lumber_mill', 'market', 'mausoleum', 'mine', 'monolith', 'mountain_city', 'mountain_gate', 'mountain_hold', 'mountain_pass',
+      'oasis', 'obelisk', 'pirate_flag', 'port_town', 'pyramid', 'quarry', 'reef', 'rowboat', 'ruins', 'sacred_grove', 'sea_fort',
+      'ship_stern', 'shipwreck', 'shrine', 'sloop', 'spring', 'standing_stones', 'stone_tower', 'swamp', 'tavern', 'temple', 'trader',
+      'tree', 'unknown_marker', 'village', 'walled_city', 'walled_encampment', 'watchtower', 'waterfall', 'windmill', 'wizard_tower',
+      'ziggurat'
+    ) then icon_value
+    else null
+  end
+  from normalized
+$$;
+
+alter table public.pois
+  add column if not exists poi_tags text[] not null default '{}'::text[];
+
+alter table public.poi_groups
+  add column if not exists group_tags text[] not null default '{}'::text[];
+
+alter table public.pois
+  add column if not exists poi_icon text;
+
+alter table public.poi_groups
+  add column if not exists group_icon text;
+
+create or replace function public.normalize_poi_tag_value(raw_value text)
+returns text
+language sql
+immutable
+as $$
+  with normalized as (
+    select trim(both '_' from regexp_replace(replace(replace(lower(trim(coalesce(raw_value, ''))), '''', ''), '’', ''), '[^a-z0-9]+', '_', 'g')) as tag_value
+  )
+  select case
+    when tag_value in (
+      'haunted', 'cursed', 'plagued', 'monster_lair', 'banditry', 'warzone', 'blighted', 'trapped', 'desecrated', 'lawless',
+      'trade', 'rest', 'worship', 'research', 'mining', 'farming', 'fishing', 'smuggling', 'fortification', 'administration', 'pilgrimage', 'burial', 'refuge', 'craftwork',
+      'active', 'abandoned', 'occupied', 'sealed', 'hidden', 'contested', 'ruined', 'besieged', 'reclaimed', 'dormant',
+      'imperial', 'rebel', 'resistance', 'guild', 'cult', 'criminal', 'noble', 'ecclesiastical', 'military_order', 'arcane_order', 'tribal', 'mercantile',
+      'dwarven', 'elven', 'fey', 'ancient', 'draconic', 'arcane', 'sacred', 'infernal', 'celestial', 'primordial', 'necromantic', 'giant_made',
+      'underground', 'underwater', 'island', 'borderland', 'roadside', 'frontier', 'crossroads', 'river_crossing', 'offshore', 'remote',
+      'forbidden', 'anomalous', 'lost', 'mythic', 'prophetic', 'shrouded', 'impossible', 'whispered', 'nameless', 'otherworldly'
+    ) then tag_value
+    else null
+  end
+  from normalized
+$$;
+
+create or replace function public.get_poi_tag_category(tag_value text)
+returns text
+language sql
+immutable
+as $$
+  select case public.normalize_poi_tag_value(tag_value)
+    when 'haunted' then 'danger'
+    when 'cursed' then 'danger'
+    when 'plagued' then 'danger'
+    when 'monster_lair' then 'danger'
+    when 'banditry' then 'danger'
+    when 'warzone' then 'danger'
+    when 'blighted' then 'danger'
+    when 'trapped' then 'danger'
+    when 'desecrated' then 'danger'
+    when 'lawless' then 'danger'
+    when 'trade' then 'function'
+    when 'rest' then 'function'
+    when 'worship' then 'function'
+    when 'research' then 'function'
+    when 'mining' then 'function'
+    when 'farming' then 'function'
+    when 'fishing' then 'function'
+    when 'smuggling' then 'function'
+    when 'fortification' then 'function'
+    when 'administration' then 'function'
+    when 'pilgrimage' then 'function'
+    when 'burial' then 'function'
+    when 'refuge' then 'function'
+    when 'craftwork' then 'function'
+    when 'active' then 'state'
+    when 'abandoned' then 'state'
+    when 'occupied' then 'state'
+    when 'sealed' then 'state'
+    when 'hidden' then 'state'
+    when 'contested' then 'state'
+    when 'ruined' then 'state'
+    when 'besieged' then 'state'
+    when 'reclaimed' then 'state'
+    when 'dormant' then 'state'
+    when 'imperial' then 'affiliation'
+    when 'rebel' then 'affiliation'
+    when 'resistance' then 'affiliation'
+    when 'guild' then 'affiliation'
+    when 'cult' then 'affiliation'
+    when 'criminal' then 'affiliation'
+    when 'noble' then 'affiliation'
+    when 'ecclesiastical' then 'affiliation'
+    when 'military_order' then 'affiliation'
+    when 'arcane_order' then 'affiliation'
+    when 'tribal' then 'affiliation'
+    when 'mercantile' then 'affiliation'
+    when 'dwarven' then 'character'
+    when 'elven' then 'character'
+    when 'fey' then 'character'
+    when 'ancient' then 'character'
+    when 'draconic' then 'character'
+    when 'arcane' then 'character'
+    when 'sacred' then 'character'
+    when 'infernal' then 'character'
+    when 'celestial' then 'character'
+    when 'primordial' then 'character'
+    when 'necromantic' then 'character'
+    when 'giant_made' then 'character'
+    when 'underground' then 'context'
+    when 'underwater' then 'context'
+    when 'island' then 'context'
+    when 'borderland' then 'context'
+    when 'roadside' then 'context'
+    when 'frontier' then 'context'
+    when 'crossroads' then 'context'
+    when 'river_crossing' then 'context'
+    when 'offshore' then 'context'
+    when 'remote' then 'context'
+    when 'forbidden' then 'mystery'
+    when 'anomalous' then 'mystery'
+    when 'lost' then 'mystery'
+    when 'mythic' then 'mystery'
+    when 'prophetic' then 'mystery'
+    when 'shrouded' then 'mystery'
+    when 'impossible' then 'mystery'
+    when 'whispered' then 'mystery'
+    when 'nameless' then 'mystery'
+    when 'otherworldly' then 'mystery'
+    else null
+  end
+$$;
+
+create or replace function public.normalize_poi_tag_list(raw_values text[])
+returns text[]
+language plpgsql
+immutable
+as $$
+declare
+  raw_tag_value text;
+  normalized_tag_value text;
+  normalized_values text[] := '{}'::text[];
+begin
+  foreach raw_tag_value in array coalesce(raw_values, '{}'::text[]) loop
+    normalized_tag_value := public.normalize_poi_tag_value(raw_tag_value);
+
+    if normalized_tag_value is null then
+      raise exception 'POI tags must use supported canonical values.';
+    end if;
+
+    if normalized_tag_value = any(normalized_values) then
+      continue;
+    end if;
+
+    normalized_values := normalized_values || normalized_tag_value;
+  end loop;
+
+  if coalesce(array_length(normalized_values, 1), 0) > 4 then
+    raise exception 'POI tags are limited to 4 per place.';
+  end if;
+
+  if (
+    select count(*)
+    from unnest(normalized_values) as value
+    where public.get_poi_tag_category(value) = 'state'
+  ) > 2 then
+    raise exception 'POI tags allow at most 2 State tags.';
+  end if;
+
+  if (
+    select count(*)
+    from unnest(normalized_values) as value
+    where public.get_poi_tag_category(value) = 'affiliation'
+  ) > 2 then
+    raise exception 'POI tags allow at most 2 Affiliation tags.';
+  end if;
+
+  if (
+    select count(*)
+    from unnest(normalized_values) as value
+    where public.get_poi_tag_category(value) = 'character'
+  ) > 2 then
+    raise exception 'POI tags allow at most 2 Character tags.';
+  end if;
+
+  if (
+    select count(*)
+    from unnest(normalized_values) as value
+    where public.get_poi_tag_category(value) = 'mystery'
+  ) > 2 then
+    raise exception 'POI tags allow at most 2 Mystery tags.';
+  end if;
+
+  return normalized_values;
+end;
+$$;
+
+create or replace function public.are_valid_poi_tag_list(tag_values text[])
+returns boolean
+language sql
+immutable
+as $$
+  with prepared as (
+    select coalesce(tag_values, '{}'::text[]) as values
+  )
+  select
+    coalesce(array_length(values, 1), 0) <= 4
+    and coalesce((select count(*) from unnest(values) as value where value = public.normalize_poi_tag_value(value)), 0) = coalesce(array_length(values, 1), 0)
+    and coalesce((select count(distinct value) from unnest(values) as value), 0) = coalesce(array_length(values, 1), 0)
+    and coalesce((select count(*) from unnest(values) as value where public.get_poi_tag_category(value) = 'state'), 0) <= 2
+    and coalesce((select count(*) from unnest(values) as value where public.get_poi_tag_category(value) = 'affiliation'), 0) <= 2
+    and coalesce((select count(*) from unnest(values) as value where public.get_poi_tag_category(value) = 'character'), 0) <= 2
+    and coalesce((select count(*) from unnest(values) as value where public.get_poi_tag_category(value) = 'mystery'), 0) <= 2
+  from prepared
+$$;
+
+alter table public.pois
+  drop constraint if exists pois_poi_type_canonical_check;
+
+alter table public.pois
+  add constraint pois_poi_type_canonical_check
+  check (
+    poi_type is null
+    or poi_type in (
+      'settlement',
+      'stronghold',
+      'dungeon',
+      'dungeon_complex',
+      'ruin',
+      'holy_site',
+      'arcane_site',
+      'waypoint',
+      'resource_site',
+      'wilderness_site',
+      'hazard',
+      'landmark'
+    )
+  ) not valid;
+
+alter table public.poi_groups
+  drop constraint if exists poi_groups_group_type_canonical_check;
+
+alter table public.poi_groups
+  add constraint poi_groups_group_type_canonical_check
+  check (
+    group_type is null
+    or group_type in (
+      'settlement',
+      'stronghold',
+      'dungeon',
+      'dungeon_complex',
+      'ruin',
+      'holy_site',
+      'arcane_site',
+      'waypoint',
+      'resource_site',
+      'wilderness_site',
+      'hazard',
+      'landmark'
+    )
+  ) not valid;
+
+alter table public.pois
+  drop constraint if exists pois_notoriety_tier_canonical_check;
+
+alter table public.pois
+  add constraint pois_notoriety_tier_canonical_check
+  check (
+    notoriety_tier is null
+    or notoriety_tier in ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10')
+  ) not valid;
+
+alter table public.pois
+  drop constraint if exists pois_poi_tags_canonical_check;
+
+alter table public.pois
+  add constraint pois_poi_tags_canonical_check
+  check (public.are_valid_poi_tag_list(poi_tags)) not valid;
+
+alter table public.poi_groups
+  drop constraint if exists poi_groups_group_tags_canonical_check;
+
+alter table public.poi_groups
+  add constraint poi_groups_group_tags_canonical_check
+  check (public.are_valid_poi_tag_list(group_tags)) not valid;
+
+alter table public.pois
+  drop constraint if exists pois_poi_icon_canonical_check;
+
+alter table public.pois
+  add constraint pois_poi_icon_canonical_check
+  check (
+    nullif(trim(coalesce(poi_icon, '')), '') is not null
+    and poi_icon = public.normalize_poi_icon_value(poi_icon)
+  ) not valid;
+
+alter table public.poi_groups
+  drop constraint if exists poi_groups_group_icon_canonical_check;
+
+alter table public.poi_groups
+  add constraint poi_groups_group_icon_canonical_check
+  check (
+    nullif(trim(coalesce(group_icon, '')), '') is not null
+    and group_icon = public.normalize_poi_icon_value(group_icon)
+  ) not valid;
 
 drop function if exists public.create_poi_with_next_ref_code(
   uuid,
@@ -34,10 +386,36 @@ drop function if exists public.create_poi_with_next_ref_code(
   uuid
 );
 
+drop function if exists public.create_poi_with_next_ref_code(
+  uuid,
+  text,
+  text,
+  uuid,
+  text,
+  text[],
+  text,
+  text,
+  public.content_visibility
+);
+
+drop function if exists public.create_poi_with_next_ref_code(
+  uuid,
+  text,
+  text,
+  uuid,
+  text,
+  text[],
+  text,
+  text,
+  public.content_visibility,
+  uuid
+);
+
 drop function if exists public.create_poi_group_with_slug(
   uuid,
   text,
   text,
+  uuid,
   text,
   text,
   public.content_visibility
@@ -48,6 +426,8 @@ drop function if exists public.create_poi_group_with_slug(
   text,
   text,
   uuid,
+  text[],
+  text,
   text,
   public.content_visibility
 );
@@ -56,8 +436,10 @@ create or replace function public.create_poi_with_next_ref_code(
   target_campaign_id uuid,
   poi_name text,
   poi_type text,
+  poi_icon text,
   poi_hex_id uuid,
   poi_notoriety_tier text default null,
+  poi_tags text[] default '{}'::text[],
   poi_population text default null,
   poi_lore text default null,
   poi_visibility public.content_visibility default 'shared',
@@ -71,6 +453,10 @@ as $$
 declare
   next_number integer;
   next_ref_code text;
+  normalized_poi_type text;
+  normalized_poi_icon text;
+  normalized_notoriety_tier text;
+  normalized_poi_tags text[];
   created_record public.pois;
 begin
   if auth.uid() is null then
@@ -89,11 +475,33 @@ begin
     raise exception 'POI type is required.';
   end if;
 
+  normalized_poi_type := public.normalize_poi_category_type(poi_type);
+  if normalized_poi_type is null then
+    raise exception 'POI type must use a supported canonical value.';
+  end if;
+
+  if nullif(trim(poi_icon), '') is null then
+    raise exception 'POI icon is required.';
+  end if;
+
+  normalized_poi_icon := public.normalize_poi_icon_value(poi_icon);
+  if normalized_poi_icon is null then
+    raise exception 'POI icon must use a supported value from the picker.';
+  end if;
+
   if nullif(trim(poi_notoriety_tier), '') is null then
     raise exception 'POI notoriety is required.';
   end if;
 
-  if lower(trim(poi_type)) = 'settlement'
+  normalized_notoriety_tier := public.normalize_poi_notoriety_tier(poi_notoriety_tier);
+  if normalized_notoriety_tier is null then
+    raise exception 'POI notoriety must use a supported value from 1 to 10.';
+  end if;
+
+  normalized_poi_tags := public.normalize_poi_tag_list(poi_tags);
+
+  if normalized_poi_type = 'settlement'
+    and poi_group_id is null
     and nullif(trim(poi_population), '') is null then
     raise exception 'Population is required for Settlements.';
   end if;
@@ -135,6 +543,8 @@ begin
     hex_id,
     poi_group_id,
     poi_type,
+    poi_icon,
+    poi_tags,
     notoriety_tier,
     population,
     lore,
@@ -147,8 +557,10 @@ begin
     trim(poi_name),
     poi_hex_id,
     poi_group_id,
-    trim(poi_type),
-    nullif(trim(poi_notoriety_tier), ''),
+    normalized_poi_type,
+    normalized_poi_icon,
+    normalized_poi_tags,
+    normalized_notoriety_tier,
     nullif(trim(poi_population), ''),
     nullif(trim(poi_lore), ''),
     poi_visibility,
@@ -164,8 +576,10 @@ grant execute on function public.create_poi_with_next_ref_code(
   uuid,
   text,
   text,
+  text,
   uuid,
   text,
+  text[],
   text,
   text,
   public.content_visibility,
@@ -181,7 +595,10 @@ create or replace function public.create_poi_group_with_slug(
   target_campaign_id uuid,
   group_name text,
   group_type text,
+  group_icon text,
   initial_child_poi_id uuid,
+  group_tags text[] default '{}'::text[],
+  group_population text default null,
   group_lore text default null,
   group_visibility public.content_visibility default 'shared'
 )
@@ -194,6 +611,9 @@ declare
   base_slug text;
   candidate_slug text;
   suffix integer := 1;
+  normalized_group_type text;
+  normalized_group_icon text;
+  normalized_group_tags text[];
   created_record public.poi_groups;
 begin
   if auth.uid() is null then
@@ -211,6 +631,22 @@ begin
   if nullif(trim(group_type), '') is null then
     raise exception 'Grouped POI type is required.';
   end if;
+
+  normalized_group_type := public.normalize_poi_category_type(group_type);
+  if normalized_group_type is null then
+    raise exception 'Grouped POI type must use a supported canonical value.';
+  end if;
+
+  if nullif(trim(group_icon), '') is null then
+    raise exception 'Grouped POI icon is required.';
+  end if;
+
+  normalized_group_icon := public.normalize_poi_icon_value(group_icon);
+  if normalized_group_icon is null then
+    raise exception 'Grouped POI icon must use a supported value from the picker.';
+  end if;
+
+  normalized_group_tags := public.normalize_poi_tag_list(group_tags);
 
   if initial_child_poi_id is null then
     raise exception 'Initial child Area is required.';
@@ -250,6 +686,9 @@ begin
     slug,
     name,
     group_type,
+    group_icon,
+    group_tags,
+    population,
     lore,
     visibility,
     created_by
@@ -258,7 +697,10 @@ begin
     target_campaign_id,
     candidate_slug,
     trim(group_name),
-    trim(group_type),
+    normalized_group_type,
+    normalized_group_icon,
+    normalized_group_tags,
+    nullif(trim(group_population), ''),
     nullif(trim(group_lore), ''),
     group_visibility,
     auth.uid()
@@ -279,7 +721,10 @@ grant execute on function public.create_poi_group_with_slug(
   uuid,
   text,
   text,
+  text,
   uuid,
+  text[],
+  text,
   text,
   public.content_visibility
 ) to authenticated;

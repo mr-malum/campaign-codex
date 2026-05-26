@@ -27,7 +27,13 @@ function applyFilters(rows, filters) {
         ? filter.getValue(row)
         : row?.[filter.field];
 
-      return String(rowValue || "") === String(filter.value);
+      const rowValues = Array.isArray(rowValue)
+        ? rowValue
+        : [rowValue];
+
+      return rowValues.some(value => {
+        return String(value || "") === String(filter.value);
+      });
     });
   });
 }
@@ -106,6 +112,41 @@ function getPoiListSortName(row) {
   }
 
   return row?.Name || row?.POI_ID || "";
+}
+
+function getPoiListTypeValue(row) {
+  if (row?.__codexRecordType === "poi-group") {
+    return row.Group_Type || "";
+  }
+
+  return row?.POI_Type || "";
+}
+
+function getPoiListRowTypeValues(row) {
+  if (row?.__codexRecordType === "poi-group") {
+    return [...new Set([
+      row.Group_Type || "",
+      ...getPoiListRowGroupPois(row).map(poi => poi?.POI_Type || "")
+    ].filter(Boolean))];
+  }
+
+  return row?.POI_Type || "";
+}
+
+function getPoiListPopulationSortValue(row) {
+  const rawValue = row?.__codexRecordType === "poi-group"
+    ? row?.Population
+    : getPoiEffectivePopulation(row);
+
+  return Number(String(rawValue || "").replace(/[^\d]/g, "")) || 0;
+}
+
+function getPoiListNpcCount(row) {
+  if (row?.__codexRecordType === "poi-group") {
+    return getNpcsForPoiGroup(row.POI_Group_ID).length;
+  }
+
+  return getNpcsForPoi(row?.POI_ID).length;
 }
 
 function getPoiGroupForPoi(poi) {
@@ -245,10 +286,63 @@ function getPoiRegionLabel(poi) {
   return getHexRegionLabel(hex);
 }
 
+function getPoiListRowGroupPois(row) {
+  if (row?.__codexRecordType !== "poi-group") {
+    return [];
+  }
+
+  if (Array.isArray(row.__codexGroupPois)) {
+    return row.__codexGroupPois;
+  }
+
+  return getPoisForGroup(row.POI_Group_ID);
+}
+
+function getPoiListRowNotorietyValue(row) {
+  if (row?.__codexRecordType === "poi-group") {
+    return getPoiGroupNotorietyRange(row)?.lowest || "";
+  }
+
+  return getPoiNotorietyDisplayValue(row?.["Notoriety Tier"]);
+}
+
+function getPoiListRowRegionValues(row) {
+  if (row?.__codexRecordType === "poi-group") {
+    return getPoiListRowGroupPois(row)
+      .map(poi => getPoiRegionLabel(poi))
+      .filter(Boolean);
+  }
+
+  return getPoiRegionLabel(row);
+}
+
+function getPoiListRowTagValues(row) {
+  const coerceTagValues = window.CampaignPoiTags?.coerceTagValues;
+
+  if (!coerceTagValues) {
+    return [];
+  }
+
+  if (row?.__codexRecordType === "poi-group") {
+    const groupTagValues = coerceTagValues(row?.Group_Tags || []);
+    const childTagValues = getPoiListRowGroupPois(row).flatMap(poi => {
+      return coerceTagValues(poi?.POI_Tags || []);
+    });
+
+    return [...new Set([
+      ...groupTagValues,
+      ...childTagValues
+    ])];
+  }
+
+  return coerceTagValues(row?.POI_Tags || []);
+}
+
 function getPoiFilterValue(poi, field) {
-  if (field === "Type") return poi.POI_Type || "";
-  if (field === "Notoriety") return poi["Notoriety Tier"] || "";
-  if (field === "Region") return getPoiRegionLabel(poi);
+  if (field === "Type") return getPoiListRowTypeValues(poi);
+  if (field === "Notoriety") return getPoiListRowNotorietyValue(poi);
+  if (field === "Region") return getPoiListRowRegionValues(poi);
+  if (field === "Tag") return getPoiListRowTagValues(poi);
   return "";
 }
 
@@ -259,11 +353,24 @@ function getHexFilterValue(hex, field) {
 }
 
 function getUniqueValues(rows, getValue) {
-  return [...new Set(
-    rows
-      .map(getValue)
-      .filter(Boolean)
-  )].sort();
+  const values = [];
+
+  rows.forEach(row => {
+    const rowValue = getValue(row);
+
+    if (Array.isArray(rowValue)) {
+      rowValue
+        .filter(Boolean)
+        .forEach(value => values.push(value));
+      return;
+    }
+
+    if (rowValue) {
+      values.push(rowValue);
+    }
+  });
+
+  return [...new Set(values)].sort();
 }
 
 function getDynamicFilterOptions(rows, getValue) {
@@ -282,8 +389,46 @@ function getNpcFilterOptions(field) {
 }
 
 function getPoiFilterOptions(field) {
-  const pois = db?.raw?.pois || [];
-  return getDynamicFilterOptions(pois, poi => getPoiFilterValue(poi, field));
+  const rows = createPoiGroupListRows(db?.raw?.pois || []);
+
+  if (field === "Tag") {
+    const tagValues = new Set(
+      getUniqueValues(rows, row => getPoiFilterValue(row, field))
+    );
+
+    const categoryOptions = window.CampaignPoiTags?.getCategoryOptions?.() || [];
+    const orderedOptions = [];
+
+    categoryOptions.forEach(category => {
+      category.options.forEach(option => {
+        if (!tagValues.has(option.value)) return;
+        orderedOptions.push({
+          value: option.value,
+          label: `${category.label}: ${option.label}`
+        });
+      });
+    });
+
+    return [
+      { value: "all", label: "All" },
+      ...orderedOptions
+    ];
+  }
+
+  if (field === "Notoriety") {
+    const values = getUniqueValues(rows, row => getPoiFilterValue(row, field))
+      .sort((a, b) => getPoiNotorietyRank(a) - getPoiNotorietyRank(b));
+
+    return [
+      { value: "all", label: "All" },
+      ...values.map(value => ({
+        value,
+        label: value
+      }))
+    ];
+  }
+
+  return getDynamicFilterOptions(rows, row => getPoiFilterValue(row, field));
 }
 
 function getHexFilterOptions(field) {

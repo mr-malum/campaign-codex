@@ -113,6 +113,21 @@ function getPoiImageUrl(poi) {
   ]);
 }
 
+function getPoiStoredIconValue(record) {
+  return window.CampaignPoiIcons?.getStoredIconValue?.(record?.POI_Icon || record?.Group_Icon || "") || "";
+}
+
+function getPoiIconUrl(record, options = {}) {
+  return window.CampaignPoiIcons?.getIconAssetUrl?.(
+    getPoiStoredIconValue(record),
+    { fallback: options.fallback !== false }
+  ) || "";
+}
+
+function getPoiDisplayImageUrl(poi) {
+  return getPoiImageUrl(poi) || getPoiIconUrl(poi);
+}
+
 function getPoiGroupImageUrl(group) {
   return getCodexImageUrl(group, [
     "Image_File_ID",
@@ -125,6 +140,10 @@ function getPoiGroupImageUrl(group) {
     "Group_Image",
     "Group_Image_URL"
   ]);
+}
+
+function getPoiGroupDisplayImageUrl(group) {
+  return getPoiGroupImageUrl(group) || getPoiIconUrl(group);
 }
 
 function getNpcImageUrl(npc) {
@@ -185,12 +204,13 @@ function getCodexAssetAttrs(imageUrl, assetKind = "record") {
     `style="${cssVar}: url('${escapeJsString(resolvedUrl)}')"`,
     `data-codex-image-source="${escapeHtml(resolvedUrl)}"`,
     `data-codex-image-href="${escapeHtml(resolvedHref)}"`,
-    `data-codex-image-kind="${escapeHtml(assetKind)}"`
+    `data-codex-image-kind="${escapeHtml(assetKind)}"`,
+    assetKind === "icon" ? `data-codex-image-expand="false"` : ""
   ].join(" ");
 }
 
-function renderImageStyle(imageUrl) {
-  return getCodexAssetAttrs(imageUrl, "record");
+function renderImageStyle(imageUrl, assetKind = "record") {
+  return getCodexAssetAttrs(imageUrl, assetKind);
 }
 
 function renderMapTileStyle(imageUrl) {
@@ -246,6 +266,7 @@ function ensureCodexImageMissingLabel(node) {
 function getCodexRenderedImageFit(node) {
   if (!node) return "cover";
   if (node.dataset.codexImageKind === "map") return "contain";
+  if (node.dataset.codexImageKind === "icon") return "contain";
   if (node.classList.contains("codex-placeholder-npc")) return "contain";
   return "cover";
 }
@@ -278,8 +299,9 @@ function layoutCodexRenderedImage(node, image) {
   }
 
   const scale = Math.min(nodeWidth / naturalWidth, nodeHeight / naturalHeight);
-  const renderedWidth = Math.max(1, naturalWidth * scale);
-  const renderedHeight = Math.max(1, naturalHeight * scale);
+  const insetScale = node.dataset.codexImageKind === "icon" ? 0.68 : 1;
+  const renderedWidth = Math.max(1, naturalWidth * scale * insetScale);
+  const renderedHeight = Math.max(1, naturalHeight * scale * insetScale);
 
   image.style.width = `${renderedWidth}px`;
   image.style.height = `${renderedHeight}px`;

@@ -159,6 +159,21 @@ function renderCodexInlineLink(type, id, label) {
   `;
 }
 
+function renderCodexPoiTagField(record, recordType = "") {
+  const target = getCodexPoiTagEditorTarget(record, recordType);
+  if (!target) return "";
+
+  return `
+    <div class="codex-detail-tag-row">
+      <strong>Tags:</strong>
+      ${renderCodexTagList(getCodexRecordTagValues(record), {
+        onclick: `openPoiTagsEditor('${escapeJsString(target.recordType)}', '${escapeJsString(target.recordId)}')`,
+        emptyText: "Add tags"
+      })}
+    </div>
+  `;
+}
+
 function renderCodexMapCard(map) {
   const imageUrl = getCodexMapImageUrl(map);
   const mapName = map.Map_Name || map.Map_ID || "Unnamed Map";
@@ -534,7 +549,7 @@ function renderCodexHexPage(hexId) {
 
   const sections = [
     renderCodexDetailRailSection("codex-detail-journal", "DM Journal", renderCodexJournalContent(hex), "", true, renderAddJournalAction("hex", hexId)),
-    renderCodexDetailRailSection("codex-detail-pois", "Points of Interest", renderCodexLinkedList(pois, "No known points of interest in this hex.", "poi", "POI_ID", buildPoiListLabel), "", false, addPoiAction),
+    renderCodexDetailRailSection("codex-detail-pois", "Points of Interest", renderCodexPoiLinkedList(pois, "No known points of interest in this hex.", "poi", "POI_ID", buildPoiListLabel), "", false, addPoiAction),
     renderCodexDetailRailSection("codex-detail-npcs", "NPCs", renderCodexLinkedList(npcs, "No known NPCs associated with this hex.", "npc", "NPC_ID", buildNpcListLabel), "", false, addNpcAction),
     renderCodexDetailRailSection("codex-detail-maps", "Maps", renderCodexMapsContent(maps, "No maps recorded for this hex."), "", false, renderMapSectionActions("hex", hexId, maps))
   ].join("");
@@ -628,7 +643,7 @@ function renderCodexRegionPage(regionId) {
   const sections = [
     renderCodexDetailRailSection("codex-detail-lore", "Lore", renderCodexDetailTextContent(region?.Lore, "No lore recorded."), "", true),
     renderCodexDetailRailSection("codex-detail-journal", "DM Journal", renderCodexJournalContent(region), "", false, renderAddJournalAction("region", regionId)),
-    renderCodexDetailRailSection("codex-detail-pois", "Points of Interest", renderCodexLinkedList(poiListRows, "No points of interest currently recorded in this region.", "poi", "POI_ID", buildPoiListLabel)),
+    renderCodexDetailRailSection("codex-detail-pois", "Points of Interest", renderCodexPoiLinkedList(poiListRows, "No points of interest currently recorded in this region.", "poi", "POI_ID", buildPoiListLabel)),
     renderCodexDetailRailSection("codex-detail-npcs", "NPCs", renderCodexLinkedList(npcs, "No NPCs currently recorded in this region.", "npc", "NPC_ID", buildNpcListLabel)),
     renderCodexDetailRailSection("codex-detail-terrain", "Terrain", terrainSectionContent),
     renderCodexDetailRailSection("codex-detail-maps", "Maps", renderCodexMapsContent(maps, "No maps recorded for this region."), "", false, renderMapSectionActions("region", regionId, maps))
@@ -653,10 +668,14 @@ function renderCodexRelatedAreaGroup(
   idField = "POI_ID",
   getLabel = buildCodexMappedAreaListLabel
 ) {
+  const listHtml = ["poi", "poi-group"].includes(type)
+    ? renderCodexPoiLinkedList(rows, fallback, type, idField, getLabel)
+    : renderCodexLinkedList(rows, fallback, type, idField, getLabel);
+
   return `
     <section class="codex-detail-related-area-group">
       <h4>${escapeHtml(title)}</h4>
-      ${renderCodexLinkedList(rows, fallback, type, idField, getLabel)}
+      ${listHtml}
     </section>
   `;
 }
@@ -723,8 +742,11 @@ function renderCodexPoiPage(poiId) {
   const poiName = poi?.Name || poiId || "Unknown POI";
   const group = getPoiGroupForPoi(poi);
   const population = getPoiEffectivePopulation(poi);
-  const imageUrl = getPoiImageUrl(poi);
-  const placeholderClass = getPoiPlaceholderClass(poi);
+  const isSettlement = window.CampaignPoiTypes?.isSettlementType?.(poi?.POI_Type_Value || poi?.POI_Type) || poi?.POI_Type === "Settlement";
+  const customImageUrl = getPoiImageUrl(poi);
+  const imageUrl = getPoiDisplayImageUrl(poi);
+  const imageKind = customImageUrl ? "record" : "icon";
+  const placeholderClass = imageUrl ? "" : getPoiPlaceholderClass(poi);
   const maps = getMapsForPoi(poiId);
   const siblingPois = getSiblingPoisForPoi(poi);
   const localPois = getLocalPoisForPoi(poi);
@@ -744,14 +766,15 @@ function renderCodexPoiPage(poiId) {
     <section class="codex-detail-overview-panel codex-detail-overview-section">
       <h3>Overview</h3>
       <div class="codex-detail-fixed codex-detail-fixed-poi">
-        <div class="codex-detail-portrait-slot ${placeholderClass}" ${renderImageStyle(imageUrl)}></div>
+        <div class="codex-detail-portrait-slot ${placeholderClass}" ${renderImageStyle(imageUrl, imageKind)}></div>
 
         <div class="codex-detail-meta">
           <p><strong>Type:</strong> ${escapeHtml(poi?.POI_Type || "Unknown")}</p>
-          <p><strong>Notoriety Tier:</strong> ${escapeHtml(poi?.["Notoriety Tier"] || "Unknown")}</p>
+          <p><strong>Notoriety Tier:</strong> ${escapeHtml(window.CampaignPoiTypes?.getNotorietyDetailLabel?.(poi?.["Notoriety Tier_Value"] || poi?.["Notoriety Tier"]) || poi?.["Notoriety Tier"] || "Unknown")}</p>
           ${group ? `<p><strong>Part of:</strong> ${renderCodexInlineLink("poi-group", group.POI_Group_ID, group.POI_Group_Name || group.POI_Group_ID)}</p>` : ""}
           ${hexId ? `<p><strong>Hex:</strong> ${renderCodexInlineLink("hex", hexId, hexId)}</p>` : ""}
-          ${!group && (poi?.POI_Type === "Settlement" || population) ? `<p><strong>Population:</strong> ${escapeHtml(formatCodexPopulation(population) || "Unknown")}</p>` : ""}
+          ${!group && (isSettlement || population) ? `<p><strong>Population:</strong> ${escapeHtml(formatCodexPopulation(population) || "Unknown")}</p>` : ""}
+          ${renderCodexPoiTagField(poi, "poi")}
           ${maps.length ? `<p><strong>Maps:</strong> ${maps.length}</p>` : ""}
         </div>
       </div>
@@ -785,9 +808,12 @@ function renderCodexPoiGroupPage(groupId) {
   const pois = getPoisForGroup(groupId);
   const npcs = getNpcsForPoiGroup(groupId);
   const population = formatCodexPopulation(getPoiGroupPopulation(group));
-  const notorietyRange = formatPoiGroupNotorietyRange(group);
-  const imageUrl = getPoiGroupImageUrl(group);
-  const placeholderClass = getPoiPlaceholderClass(group);
+  const notorietyRange = getPoiGroupNotorietyRange(group);
+  const inheritedNotorietyLabel = window.CampaignPoiTypes?.getNotorietyDetailLabel?.(notorietyRange?.lowest) || notorietyRange?.lowest || "";
+  const customImageUrl = getPoiGroupImageUrl(group);
+  const imageUrl = getPoiGroupDisplayImageUrl(group);
+  const imageKind = customImageUrl ? "record" : "icon";
+  const placeholderClass = imageUrl ? "" : getPoiPlaceholderClass(group);
   const maps = getMapsForPoiGroup(groupId);
 
   document.getElementById("codex-title").innerHTML = `
@@ -807,12 +833,13 @@ function renderCodexPoiGroupPage(groupId) {
     <section class="codex-detail-overview-panel codex-detail-overview-section">
       <h3>Overview</h3>
       <div class="codex-detail-fixed codex-detail-fixed-poi">
-        <div class="codex-detail-portrait-slot ${placeholderClass}" ${renderImageStyle(imageUrl)}></div>
+        <div class="codex-detail-portrait-slot ${placeholderClass}" ${renderImageStyle(imageUrl, imageKind)}></div>
 
         <div class="codex-detail-meta">
           <p><strong>Type:</strong> ${escapeHtml(group?.Group_Type || "Grouped POI")}</p>
-          ${notorietyRange ? `<p><strong>${escapeHtml(notorietyRange)}</strong></p>` : ""}
+          ${inheritedNotorietyLabel ? `<p><strong>Notoriety Tier:</strong> ${escapeHtml(inheritedNotorietyLabel)}</p>` : ""}
           ${population ? `<p><strong>Population:</strong> ${escapeHtml(population)}</p>` : ""}
+          ${renderCodexPoiTagField(group, "poi-group")}
           <p><strong>Areas:</strong> ${pois.length}</p>
           ${maps.length ? `<p><strong>Maps:</strong> ${maps.length}</p>` : ""}
         </div>

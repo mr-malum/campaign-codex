@@ -8,6 +8,30 @@ function getPreviewAssetValue(asset) {
     : "";
 }
 
+function getLoadedPoiTypeValue(value) {
+  return window.CampaignPoiTypes?.getStoredTypeValue?.(value) || String(value || "").trim();
+}
+
+function getLoadedPoiTypeLabel(value) {
+  return window.CampaignPoiTypes?.getTypeLabel?.(value) || String(value || "").trim();
+}
+
+function getLoadedPoiNotorietyValue(value) {
+  return window.CampaignPoiTypes?.getStoredNotorietyValue?.(value) || String(value || "").trim();
+}
+
+function getLoadedPoiNotorietyLabel(value) {
+  return window.CampaignPoiTypes?.getNotorietyLabel?.(value) || String(value || "").trim();
+}
+
+function getLoadedPoiTagValues(values) {
+  return window.CampaignPoiTags?.coerceTagValues?.(values) || [];
+}
+
+function getLoadedPoiIconValue(value) {
+  return window.CampaignPoiIcons?.getStoredIconValue?.(value) || String(value || "").trim();
+}
+
 async function fetchAllCampaignRows(tableName, columns, campaignId) {
   const pageSize = 1000;
   const allRows = [];
@@ -42,6 +66,42 @@ async function fetchOptionalCampaignRows(tableName, columns, campaignId) {
   }
 }
 
+async function fetchPoiGroupRows(campaignId) {
+  try {
+    return await fetchAllCampaignRows(
+      "poi_groups",
+      "id, slug, name, group_type, group_icon, group_tags, population, lore, image_asset_id",
+      campaignId
+    );
+  } catch (error) {
+    console.warn("Grouped POI icons/tags are unavailable until the latest Supabase query is run. Falling back to legacy rows.", error);
+    const legacyRows = await fetchAllCampaignRows(
+      "poi_groups",
+      "id, slug, name, group_type, population, lore, image_asset_id",
+      campaignId
+    );
+    return legacyRows.map(row => ({ ...row, group_icon: "", group_tags: [] }));
+  }
+}
+
+async function fetchPoiRows(campaignId) {
+  try {
+    return await fetchAllCampaignRows(
+      "pois",
+      "id, ref_code, poi_group_id, name, hex_id, poi_type, poi_icon, poi_tags, notoriety_tier, population, lore, image_asset_id",
+      campaignId
+    );
+  } catch (error) {
+    console.warn("POI icons/tags are unavailable until the latest Supabase query is run. Falling back to legacy rows.", error);
+    const legacyRows = await fetchAllCampaignRows(
+      "pois",
+      "id, ref_code, poi_group_id, name, hex_id, poi_type, notoriety_tier, population, lore, image_asset_id",
+      campaignId
+    );
+    return legacyRows.map(row => ({ ...row, poi_icon: "", poi_tags: [] }));
+  }
+}
+
 async function fetchCampaignRows(campaignId) {
   const [
     regions,
@@ -55,8 +115,8 @@ async function fetchCampaignRows(campaignId) {
   ] = await Promise.all([
     fetchAllCampaignRows("regions", "id, ref_code, name, lore, image_asset_id, region_type, border_color", campaignId),
     fetchAllCampaignRows("hexes", "id, ref_code, terrain, map_xy, region_id, geographic_region_id, political_region_id, base_terrain, terrain_features, elevation", campaignId),
-    fetchAllCampaignRows("poi_groups", "id, slug, name, group_type, population, lore, image_asset_id", campaignId),
-    fetchAllCampaignRows("pois", "id, ref_code, poi_group_id, name, hex_id, poi_type, notoriety_tier, population, lore, image_asset_id", campaignId),
+    fetchPoiGroupRows(campaignId),
+    fetchPoiRows(campaignId),
     fetchAllCampaignRows("maps", "id, ref_code, name, map_type, sort_order, lore, image_asset_id, region_owner_id, poi_group_owner_id, poi_owner_id, hex_owner_id", campaignId),
     fetchAllCampaignRows("npcs", "id, ref_code, home_poi_id, title, name, organization, race, occupation, lore, image_asset_id", campaignId),
     fetchAllCampaignRows("dm_journal", "id, ref_code, entry_title, entry_body, entry_type, source_type, source_id, occurred_at, created_by_user_id, session_id, visibility", campaignId),
@@ -442,7 +502,10 @@ function adaptCampaignRows(rows, assetsById) {
     __uuid: group.id,
     POI_Group_ID: group.slug,
     POI_Group_Name: group.name || "",
-    Group_Type: group.group_type || "",
+    Group_Type: getLoadedPoiTypeLabel(group.group_type),
+    Group_Type_Value: getLoadedPoiTypeValue(group.group_type),
+    Group_Icon: getLoadedPoiIconValue(group.group_icon),
+    Group_Tags: getLoadedPoiTagValues(group.group_tags),
     Population: group.population || "",
     Lore: group.lore || "",
     Image: getAssetValue(assetsById[group.image_asset_id])
@@ -454,8 +517,12 @@ function adaptCampaignRows(rows, assetsById) {
     POI_Group_ID: recordMaps.poiGroupsByUuid[poi.poi_group_id] || "",
     Name: poi.name || "",
     Hex_ID_Ref: recordMaps.hexesByUuid[poi.hex_id] || "",
-    POI_Type: poi.poi_type || "",
-    "Notoriety Tier": poi.notoriety_tier || "",
+    POI_Type: getLoadedPoiTypeLabel(poi.poi_type),
+    POI_Type_Value: getLoadedPoiTypeValue(poi.poi_type),
+    POI_Icon: getLoadedPoiIconValue(poi.poi_icon),
+    POI_Tags: getLoadedPoiTagValues(poi.poi_tags),
+    "Notoriety Tier": getLoadedPoiNotorietyLabel(poi.notoriety_tier),
+    "Notoriety Tier_Value": getLoadedPoiNotorietyValue(poi.notoriety_tier),
     Population: poi.population || "",
     Lore: poi.lore || "",
     Image: getAssetValue(assetsById[poi.image_asset_id])

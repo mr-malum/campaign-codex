@@ -1026,7 +1026,7 @@
 
         <label>
           <span id="codex-add-poi-type-label">Type *</span>
-          <input id="codex-add-poi-type" type="text" required>
+          <select id="codex-add-poi-type" required></select>
         </label>
 
         <label id="codex-add-poi-parent-row">
@@ -1053,15 +1053,66 @@
 
         <label>
           <span>Notoriety *</span>
-          <input id="codex-add-poi-notoriety" type="number" min="1" step="1" required>
+          <select id="codex-add-poi-notoriety" required></select>
           <small>1 is most notorious.</small>
         </label>
 
         <label>
-          <span>Population</span>
+          <span>
+            <span id="codex-add-poi-population-label">Population</span>
+            <button
+              id="codex-add-poi-population-tooltip"
+              type="button"
+              title="This grouped POI population overrides child Area population while those Areas belong to this parent."
+              aria-label="Grouped population help"
+              hidden
+            >?</button>
+          </span>
           <input id="codex-add-poi-population" type="text">
-          <small>Required for Settlements.</small>
+          <small id="codex-add-poi-population-help">Required for Settlements.</small>
         </label>
+
+        <section class="codex-editor-selector-section" aria-labelledby="codex-add-poi-icon-heading">
+          <div class="codex-editor-selector-header">
+            <h3 id="codex-add-poi-icon-heading">Map Icon *</h3>
+            <small>Required. Used on the map and as the default portrait when no custom image is uploaded.</small>
+          </div>
+          <input id="codex-add-poi-icon" type="hidden" value="" data-summary-id="codex-add-poi-icon-summary">
+          <div class="codex-editor-selector-row">
+            <div id="codex-add-poi-icon-summary" class="codex-editor-selector-summary"></div>
+            <button
+              id="codex-add-poi-icon-button"
+              class="codex-editor-picker-trigger"
+              type="button"
+              data-picker-kind="icon"
+              data-picker-input="codex-add-poi-icon"
+              data-picker-title="Choose Map Icon"
+            >
+              Choose Icon
+            </button>
+          </div>
+        </section>
+
+        <section class="codex-editor-selector-section" aria-labelledby="codex-add-poi-tags-heading">
+          <div class="codex-editor-selector-header">
+            <h3 id="codex-add-poi-tags-heading">Tags</h3>
+            <small>Optional. Up to 4 tags per place.</small>
+          </div>
+          <input id="codex-add-poi-tags" type="hidden" value="" data-summary-id="codex-add-poi-tags-summary">
+          <div class="codex-editor-selector-row">
+            <div id="codex-add-poi-tags-summary" class="codex-editor-selector-summary"></div>
+            <button
+              id="codex-add-poi-tags-button"
+              class="codex-editor-picker-trigger"
+              type="button"
+              data-picker-kind="tags"
+              data-picker-input="codex-add-poi-tags"
+              data-picker-title="Edit Tags"
+            >
+              Edit Tags
+            </button>
+          </div>
+        </section>
 
         <label>
           <span>Lore</span>
@@ -1090,13 +1141,68 @@
 
         <label>
           <span>Group Type *</span>
-          <input id="codex-edit-poi-group-type" type="text" required>
+          <select id="codex-edit-poi-group-type" required></select>
         </label>
+
+        <label>
+          <span>
+            <span>Population</span>
+            <button
+              type="button"
+              title="This grouped POI population overrides child Area population while those Areas belong to this parent."
+              aria-label="Grouped population help"
+            >?</button>
+          </span>
+          <input id="codex-edit-poi-group-population" type="text">
+          <small>Total population for the grouped place.</small>
+        </label>
+
+        <section class="codex-editor-selector-section" aria-labelledby="codex-edit-poi-group-icon-heading">
+          <div class="codex-editor-selector-header">
+            <h3 id="codex-edit-poi-group-icon-heading">Map Icon *</h3>
+            <small>Required. Used on the map and as the default portrait when no custom image is uploaded.</small>
+          </div>
+          <input id="codex-edit-poi-group-icon" type="hidden" value="" data-summary-id="codex-edit-poi-group-icon-summary">
+          <div class="codex-editor-selector-row">
+            <div id="codex-edit-poi-group-icon-summary" class="codex-editor-selector-summary"></div>
+            <button
+              id="codex-edit-poi-group-icon-button"
+              class="codex-editor-picker-trigger"
+              type="button"
+              data-picker-kind="icon"
+              data-picker-input="codex-edit-poi-group-icon"
+              data-picker-title="Choose Grouped POI Icon"
+            >
+              Choose Icon
+            </button>
+          </div>
+        </section>
 
         <label>
           <span>Lore</span>
           <textarea id="codex-edit-poi-group-lore" rows="5"></textarea>
         </label>
+
+        <section class="codex-editor-selector-section" aria-labelledby="codex-edit-poi-group-tags-heading">
+          <div class="codex-editor-selector-header">
+            <h3 id="codex-edit-poi-group-tags-heading">Tags</h3>
+            <small>Optional. Up to 4 tags per place.</small>
+          </div>
+          <input id="codex-edit-poi-group-tags" type="hidden" value="" data-summary-id="codex-edit-poi-group-tags-summary">
+          <div class="codex-editor-selector-row">
+            <div id="codex-edit-poi-group-tags-summary" class="codex-editor-selector-summary"></div>
+            <button
+              id="codex-edit-poi-group-tags-button"
+              class="codex-editor-picker-trigger"
+              type="button"
+              data-picker-kind="tags"
+              data-picker-input="codex-edit-poi-group-tags"
+              data-picker-title="Edit Grouped POI Tags"
+            >
+              Edit Tags
+            </button>
+          </div>
+        </section>
 
         <label>
           <span>Add/Replace Image</span>
@@ -1119,6 +1225,24 @@
       <div class="codex-editor-actions">
         <button id="codex-poi-group-editor-submit" type="submit">Save Group</button>
         <button id="codex-poi-group-editor-close" type="button">Cancel</button>
+      </div>
+    </form>
+
+    <form id="codex-edit-tags-form" class="codex-editor-form" hidden>
+      <div class="codex-editor-fields">
+        <section class="codex-editor-tag-sheet-summary" aria-live="polite">
+          <h3 id="codex-edit-tags-record-name">Edit Tags</h3>
+          <p id="codex-edit-tags-record-meta"></p>
+          <small>Tags help other GMs and future generation identify a place at a glance. Up to 4 total.</small>
+        </section>
+
+        <input id="codex-edit-tags-values" type="hidden" value="">
+        <div id="codex-edit-tags-picker" class="codex-editor-tag-picker"></div>
+      </div>
+
+      <div class="codex-editor-actions">
+        <button id="codex-tags-editor-submit" type="submit">Save Tags</button>
+        <button id="codex-tags-editor-close" type="button">Cancel</button>
       </div>
     </form>
 
@@ -1194,6 +1318,23 @@
     </form>
 
     <p id="codex-editor-status" class="campaign-member-status" role="status"></p>
+
+    <div id="codex-editor-picker-overlay" class="codex-editor-picker-overlay hidden" aria-hidden="true">
+      <div class="codex-editor-picker-panel" role="dialog" aria-modal="true" aria-labelledby="codex-editor-picker-title">
+        <div class="codex-editor-picker-header">
+          <div class="codex-editor-picker-copy">
+            <h3 id="codex-editor-picker-title">Edit</h3>
+            <small id="codex-editor-picker-help"></small>
+          </div>
+          <button id="codex-editor-picker-close" class="codex-editor-picker-close" type="button" aria-label="Close picker">×</button>
+        </div>
+        <div id="codex-editor-picker-content" class="codex-editor-picker-content"></div>
+        <div class="codex-editor-actions codex-editor-picker-actions">
+          <button id="codex-editor-picker-apply" type="button">Done</button>
+          <button id="codex-editor-picker-cancel" type="button">Back</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1277,6 +1418,9 @@
 <script src="js/campaign-auth.js"></script>
 <script src="js/terrain-rules.js"></script>
 <script src="js/generated-map-generator.js"></script>
+<script src="js/poi-types.js"></script>
+<script src="js/poi-tags.js"></script>
+<script src="js/poi-icons.js"></script>
 <script src="js/data-loader.js"></script>
 <script src="js/app-core.js"></script>
 <script src="js/map-ui.js"></script>

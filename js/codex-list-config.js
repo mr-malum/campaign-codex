@@ -6,7 +6,8 @@ const poiCodexListConfig = {
   fieldOptions: [
     { value: "Type", label: "Type" },
     { value: "Notoriety", label: "Notoriety" },
-    { value: "Region", label: "Region" }
+    { value: "Region", label: "Region" },
+    { value: "Tag", label: "Tag" }
   ],
 
   filters: [
@@ -20,8 +21,8 @@ const poiCodexListConfig = {
     {
       id: "codex-poi-filter-2-value",
       fieldId: "codex-poi-filter-2-field",
-      label: "Notoriety",
-      fieldValue: "Notoriety",
+      label: "Tag",
+      fieldValue: "Tag",
       selectedValue: "all"
     }
   ],
@@ -41,7 +42,16 @@ const poiCodexListConfig = {
   sortComparators: {
     name: (a, b) => compareText(getPoiListSortName(a), getPoiListSortName(b)),
 
-    type: compareByTextThenName(row => row.POI_Type),
+    type: (a, b) => {
+      const primary = compareText(
+        getPoiListTypeValue(a),
+        getPoiListTypeValue(b)
+      );
+
+      return primary !== 0
+        ? primary
+        : compareText(getPoiListSortName(a), getPoiListSortName(b));
+    },
 
     notoriety: (a, b) => {
       const primary =
@@ -50,16 +60,28 @@ const poiCodexListConfig = {
 
       return primary !== 0
         ? primary
-        : compareText(a.Name, b.Name);
+        : compareText(getPoiListSortName(a), getPoiListSortName(b));
     },
 
-    population: compareByNumberThenName(row =>
-      Number(String(row.Population || "").replace(/[^\d]/g, "")) || 0
-    ),
+    population: (a, b) => {
+      const primary =
+        getPoiListPopulationSortValue(a) -
+        getPoiListPopulationSortValue(b);
 
-    "npc-count": compareByNumberThenName(row =>
-      getNpcsForPoi(row.POI_ID).length
-    )
+      return primary !== 0
+        ? primary
+        : compareText(getPoiListSortName(a), getPoiListSortName(b));
+    },
+
+    "npc-count": (a, b) => {
+      const primary =
+        getPoiListNpcCount(a) -
+        getPoiListNpcCount(b);
+
+      return primary !== 0
+        ? primary
+        : compareText(getPoiListSortName(a), getPoiListSortName(b));
+    }
   },
 
   bindControls: () => bindCodexListControls({
