@@ -83,6 +83,119 @@ function parseCodexRowLabel(label) {
   };
 }
 
+function getCodexRecordTagValues(record) {
+  if (!record) return [];
+  const rawValues = Array.isArray(record.POI_Tags)
+    ? record.POI_Tags
+    : Array.isArray(record.Group_Tags)
+      ? record.Group_Tags
+      : [];
+  return window.CampaignPoiTags?.coerceTagValues?.(rawValues) || [];
+}
+
+function getCodexPoiGroupChildTagValues(groupOrId) {
+  const groupId = typeof groupOrId === "string"
+    ? groupOrId
+    : groupOrId?.POI_Group_ID;
+  const coerceTagValues = window.CampaignPoiTags?.coerceTagValues;
+
+  if (!groupId || !coerceTagValues) {
+    return [];
+  }
+
+  const seenValues = new Set();
+  const childTagValues = [];
+
+  getPoisForGroup(groupId).forEach(poi => {
+    coerceTagValues(poi?.POI_Tags || []).forEach(tagValue => {
+      if (!tagValue || seenValues.has(tagValue)) return;
+      seenValues.add(tagValue);
+      childTagValues.push(tagValue);
+    });
+  });
+
+  return childTagValues;
+}
+
+function renderCodexTagChip(tagValue, options = {}) {
+  const label = window.CampaignPoiTags?.getTagLabel?.(tagValue) || String(tagValue || "").trim();
+  const categoryClass = window.CampaignPoiTags?.getTagCategoryClassName?.(tagValue) || "";
+  const extraClasses = options.classes || "";
+  const onclick = options.onclick || "";
+  const ariaLabel = options.ariaLabel || label;
+  const tagClass = ["codex-tag-chip", categoryClass, extraClasses].filter(Boolean).join(" ");
+
+  if (onclick) {
+    return `
+      <button
+        class="${tagClass}"
+        type="button"
+        onclick="${onclick}"
+        aria-label="${escapeHtml(ariaLabel)}"
+      >${escapeHtml(label)}</button>
+    `;
+  }
+
+  return `<span class="${tagClass}">${escapeHtml(label)}</span>`;
+}
+
+function renderCodexTagList(tagValues, options = {}) {
+  const values = window.CampaignPoiTags?.coerceTagValues?.(tagValues) || [];
+  const limit = Number.isInteger(options.limit) && options.limit > 0
+    ? options.limit
+    : values.length;
+  const onclick = options.onclick || "";
+  const emptyText = options.emptyText || "";
+
+  if (!values.length) {
+    if (!emptyText) return "";
+    const emptyClass = ["codex-tag-chip", "codex-tag-chip-empty", options.classes || ""].filter(Boolean).join(" ");
+    if (onclick) {
+      return `
+        <span class="codex-tag-list">
+          <button class="${emptyClass}" type="button" onclick="${onclick}">${escapeHtml(emptyText)}</button>
+        </span>
+      `;
+    }
+    return `<span class="codex-tag-list"><span class="${emptyClass}">${escapeHtml(emptyText)}</span></span>`;
+  }
+
+  const visibleValues = values.slice(0, limit);
+  const hiddenCount = Math.max(0, values.length - visibleValues.length);
+  const chipHtml = visibleValues.map(tagValue => renderCodexTagChip(tagValue, {
+    classes: options.classes || "",
+    onclick,
+    ariaLabel: onclick ? `Edit tags: ${window.CampaignPoiTags?.getTagLabel?.(tagValue) || tagValue}` : ""
+  }));
+
+  if (hiddenCount > 0) {
+    chipHtml.push(`<span class="codex-tag-chip codex-tag-chip-overflow">+${hiddenCount}</span>`);
+  }
+
+  return `<span class="codex-tag-list">${chipHtml.join("")}</span>`;
+}
+
+function renderCodexRecordTagSummary(record, options = {}) {
+  return renderCodexTagList(getCodexRecordTagValues(record), options);
+}
+
+function renderCodexRowActionButton(label, onclick, options = {}) {
+  if (!label || !onclick) return "";
+  const extraClasses = options.classes || "";
+  const title = options.title || label;
+  const ariaLabel = options.ariaLabel || title;
+
+  return `
+    <button
+      class="codex-row-inline-action ${escapeHtml(extraClasses)}"
+      type="button"
+      onclick="${onclick}"
+      title="${escapeHtml(title)}"
+      aria-label="${escapeHtml(ariaLabel)}"
+    >${escapeHtml(label)}</button>
+  `;
+}
+
 function getCodexRecordTypeIcon(type) {
   switch (type) {
     case "poi":
@@ -146,8 +259,9 @@ function renderCodexRow(options) {
   const noIconClass = !icon && !hasKicker ? "codex-linked-row" : "";
   const kickerClass = hasKicker ? "codex-row-has-kicker" : "";
   const iconClass = getCodexRowIconClass(icon);
-
-  return `
+  const footerHtml = options?.footerHtml || "";
+  const actionsHtml = options?.actionsHtml || "";
+  const rowHtml = `
     <button
       class="codex-row ${noIconClass} ${kickerClass} ${extraClasses} ${activeClass} ${disabledClass}"
       type="button"
@@ -170,6 +284,7 @@ function renderCodexRow(options) {
       <span class="codex-row-main">
         <span class="codex-row-title">${escapeHtml(title)}</span>
         ${meta ? `<span class="codex-row-meta">${escapeHtml(meta)}</span>` : ""}
+        ${footerHtml ? `<span class="codex-row-footer">${footerHtml}</span>` : ""}
       </span>
 
       ${
@@ -178,6 +293,17 @@ function renderCodexRow(options) {
           : `<span class="codex-row-arrow" aria-hidden="true">›</span>`
       }
     </button>
+  `;
+
+  if (!actionsHtml) {
+    return rowHtml;
+  }
+
+  return `
+    <div class="codex-row-shell">
+      ${rowHtml}
+      <span class="codex-row-side-actions">${actionsHtml}</span>
+    </div>
   `;
 }
 
@@ -217,12 +343,20 @@ function renderCodexLinkedList(
           ? getIcon(row, resolvedType)
           : getCodexRecordTypeIcon(resolvedType);
         const typeLabel = getCodexRecordTypeLabel(resolvedType);
+        const footerHtml = typeof options.getFooterHtml === "function"
+          ? options.getFooterHtml(row, resolvedType)
+          : "";
+        const actionsHtml = typeof options.getActionsHtml === "function"
+          ? options.getActionsHtml(row, resolvedType)
+          : "";
 
         return renderCodexRow({
           title,
           meta,
           icon,
           typeLabel,
+          footerHtml,
+          actionsHtml,
           classes: "codex-linked-record-row",
           onclick: getCodexLinkedRowOnclick(resolvedType, id, options)
         });

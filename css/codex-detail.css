@@ -507,6 +507,16 @@
   margin: 0 0 4px;
 }
 
+.codex-detail-tag-row {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.codex-detail-tag-row strong {
+  display: block;
+}
+
 .codex-detail-meta h3 {
   margin-top: 18px;
 }

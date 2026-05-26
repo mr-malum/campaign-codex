@@ -15,6 +15,14 @@ let codexEditorState = {
   onCreated: null
 };
 
+let codexEditorPickerState = {
+  kind: "",
+  inputId: "",
+  originalValue: "",
+  title: "",
+  help: ""
+};
+
 function populateNpcHomeOptions(options = {}) {
   const select = document.getElementById("codex-add-npc-home");
   if (!select) return;
@@ -77,6 +85,398 @@ function populatePoiGroupOptions(selectedGroupId = "") {
 
   select.innerHTML = options.join("");
   select.value = selectedGroupId || "";
+}
+
+function populatePoiTypeOptions(selectId, selectedValue = "", blankLabel = "Select a type...") {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  const typeOptions = window.CampaignPoiTypes?.getTypeOptions?.() || [];
+  const normalizedValue = window.CampaignPoiTypes?.normalizeTypeValue?.(selectedValue) || "";
+  const rawValue = String(selectedValue || "").trim();
+  const options = [];
+
+  if (blankLabel) {
+    options.push(`<option value="">${escapeHtml(blankLabel)}</option>`);
+  }
+  if (rawValue && !normalizedValue) {
+    options.push(`<option value="${escapeHtml(rawValue)}">Legacy type: ${escapeHtml(rawValue)} (choose a new type)</option>`);
+  }
+  typeOptions.forEach(option => {
+    options.push(`<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`);
+  });
+
+  select.innerHTML = options.join("");
+  select.value = normalizedValue || rawValue || "";
+}
+
+function populatePoiNotorietyOptions(selectId, selectedValue = "", blankLabel = "Select notoriety...") {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  const notorietyOptions = window.CampaignPoiTypes?.getNotorietyOptions?.() || [];
+  const normalizedValue = window.CampaignPoiTypes?.normalizeNotorietyValue?.(selectedValue) || "";
+  const rawValue = String(selectedValue || "").trim();
+  const options = [];
+
+  if (blankLabel) {
+    options.push(`<option value="">${escapeHtml(blankLabel)}</option>`);
+  }
+  if (rawValue && !normalizedValue) {
+    options.push(`<option value="${escapeHtml(rawValue)}">Legacy notoriety: ${escapeHtml(rawValue)} (choose 1-10)</option>`);
+  }
+  notorietyOptions.forEach(option => {
+    options.push(`<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`);
+  });
+
+  select.innerHTML = options.join("");
+  select.value = normalizedValue || rawValue || "";
+}
+
+function getNormalizedPoiIconValue(value, options = {}) {
+  const iconHelpers = window.CampaignPoiIcons;
+  if (!iconHelpers) return "";
+  return options.fallback === false
+    ? (iconHelpers.getStoredIconValue?.(value) || "")
+    : (iconHelpers.getDisplayIconValue?.(value) || "");
+}
+
+function readPoiIconInputValue(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return "";
+  return getNormalizedPoiIconValue(input.value || "", { fallback: false });
+}
+
+function writePoiIconInputValue(inputId, value) {
+  const input = document.getElementById(inputId);
+  if (!input) return "";
+  const normalizedValue = getNormalizedPoiIconValue(value, { fallback: false });
+  input.value = normalizedValue;
+  return normalizedValue;
+}
+
+function getPoiIconPickerOptions(pickerId) {
+  const picker = document.getElementById(pickerId);
+  return {
+    collapsible: picker?.dataset.iconPickerCollapsible === "true"
+  };
+}
+
+function buildPoiIconPickerMarkup(inputId, pickerId, value, options = {}) {
+  const selectedValue = getNormalizedPoiIconValue(value, { fallback: false });
+  const selectedLabel = selectedValue
+    ? (window.CampaignPoiIcons?.getIconLabel?.(selectedValue) || selectedValue)
+    : "";
+  const categories = window.CampaignPoiIcons?.getCategoryOptions?.() || [];
+  const collapsible = options.collapsible === true;
+
+  return `
+    <div class="codex-editor-icon-picker-summary">
+      <strong>${selectedLabel ? `Selected: ${escapeHtml(selectedLabel)}` : "No icon selected."}</strong>
+      <span>${selectedLabel ? "Click any icon to change it." : "Choose one icon to continue."}</span>
+    </div>
+    ${categories.map(category => {
+      const categoryHeader = `
+        <div class="codex-editor-icon-category-header">
+          <h4>${escapeHtml(category.label)}</h4>
+          <small>${category.options.length} icons</small>
+        </div>
+      `;
+      const categoryGrid = `
+        <div class="codex-editor-icon-grid">
+          ${category.options.map(option => {
+            const normalizedValue = option.value;
+            const selected = selectedValue === normalizedValue;
+
+            return `
+              <button
+                class="codex-editor-icon-option ${selected ? "is-selected" : ""}"
+                type="button"
+                data-icon-input="${escapeHtml(inputId)}"
+                data-icon-picker="${escapeHtml(pickerId)}"
+                data-icon-value="${escapeHtml(normalizedValue)}"
+                aria-pressed="${selected ? "true" : "false"}"
+                title="${escapeHtml(option.label)}"
+              >
+                <span class="codex-editor-icon-preview">
+                  <img src="${escapeHtml(option.assetUrl)}" alt="">
+                </span>
+                <span class="codex-editor-icon-label">${escapeHtml(option.label)}</span>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      `;
+
+      if (!collapsible) {
+        return `
+          <section class="codex-editor-icon-category">
+            ${categoryHeader}
+            ${categoryGrid}
+          </section>
+        `;
+      }
+
+      return `
+        <details class="codex-editor-icon-category codex-editor-icon-category-collapsible" open>
+          <summary class="codex-editor-icon-category-summary">
+            <span>${escapeHtml(category.label)}</span>
+            <small>${category.options.length} icons</small>
+          </summary>
+          ${categoryGrid}
+        </details>
+      `;
+    }).join("")}
+  `;
+}
+
+function buildPoiIconSelectionSummaryMarkup(value = "") {
+  const normalizedValue = getNormalizedPoiIconValue(value, { fallback: false });
+  if (!normalizedValue) {
+    return `
+      <div class="codex-editor-selection-empty">
+        <strong>No icon selected yet.</strong>
+        <small>Pick a map icon before saving.</small>
+      </div>
+    `;
+  }
+
+  const assetUrl = window.CampaignPoiIcons?.getIconAssetUrl?.(normalizedValue, { fallback: false }) || "";
+  const label = window.CampaignPoiIcons?.getIconLabel?.(normalizedValue) || normalizedValue;
+
+  return `
+    <div class="codex-editor-selection-card codex-editor-selection-card-icon">
+      <span class="codex-editor-selection-preview" aria-hidden="true">
+        ${assetUrl ? `<img src="${escapeHtml(assetUrl)}" alt="">` : ""}
+      </span>
+      <span class="codex-editor-selection-copy">
+        <strong>${escapeHtml(label)}</strong>
+        <small>Shown on the map and used as the default portrait when no custom image is uploaded.</small>
+      </span>
+    </div>
+  `;
+}
+
+function renderPoiIconSelectionSummary(inputId) {
+  const input = document.getElementById(inputId);
+  const summaryId = input?.dataset.summaryId || "";
+  const summary = summaryId ? document.getElementById(summaryId) : null;
+  if (!summary) return;
+  summary.innerHTML = buildPoiIconSelectionSummaryMarkup(readPoiIconInputValue(inputId));
+}
+
+function renderPoiIconPicker(inputId, pickerId, value = "", options = {}) {
+  const picker = document.getElementById(pickerId);
+  if (!picker) return;
+  const normalizedValue = writePoiIconInputValue(inputId, value);
+  picker.dataset.iconPickerCollapsible = options.collapsible === true ? "true" : "false";
+  picker.innerHTML = buildPoiIconPickerMarkup(inputId, pickerId, normalizedValue, options);
+  renderPoiIconSelectionSummary(inputId);
+}
+
+function selectPoiIconValue(inputId, pickerId, iconValue) {
+  const normalizedValue = getNormalizedPoiIconValue(iconValue, { fallback: false });
+  if (!normalizedValue) return;
+  renderPoiIconPicker(inputId, pickerId, normalizedValue, getPoiIconPickerOptions(pickerId));
+}
+
+function getNormalizedPoiTagValues(values) {
+  return window.CampaignPoiTags?.coerceTagValues?.(values) || [];
+}
+
+function readPoiTagInputValues(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return [];
+  return getNormalizedPoiTagValues(input.value || "");
+}
+
+function writePoiTagInputValues(inputId, values) {
+  const input = document.getElementById(inputId);
+  if (!input) return [];
+  const normalizedValues = getNormalizedPoiTagValues(values);
+  input.value = normalizedValues.join(",");
+  return normalizedValues;
+}
+
+function buildPoiTagPickerMarkup(inputId, pickerId, values) {
+  const selectedValues = getNormalizedPoiTagValues(values);
+  const categories = window.CampaignPoiTags?.getCategoryOptions?.() || [];
+  const maxTags = window.CampaignPoiTags?.MAX_TAGS || 4;
+
+  return `
+    <div class="codex-editor-tag-picker-summary">
+      <strong>${selectedValues.length}/${maxTags}</strong>
+      <span>${selectedValues.length >= maxTags ? "Tag limit reached." : "Choose up to 4 tags."}</span>
+    </div>
+    ${categories.map(category => {
+      const capLabel = category.max ? `Max ${category.max}` : "";
+      const tagButtons = category.options.map(option => {
+        const normalizedValue = window.CampaignPoiTags?.normalizeTagValue?.(option.value) || option.value;
+        const selected = selectedValues.includes(normalizedValue);
+        const disabled = !selected && !(window.CampaignPoiTags?.canSelectTag?.(normalizedValue, selectedValues));
+        const categoryClass = window.CampaignPoiTags?.getTagCategoryClassName?.(normalizedValue) || "";
+
+        return `
+          <button
+            class="codex-tag-chip codex-editor-tag-toggle ${categoryClass} ${selected ? "is-selected" : ""}"
+            type="button"
+            data-tag-input="${escapeHtml(inputId)}"
+            data-tag-picker="${escapeHtml(pickerId)}"
+            data-tag-value="${escapeHtml(normalizedValue)}"
+            aria-pressed="${selected ? "true" : "false"}"
+            ${disabled ? "disabled" : ""}
+          >${escapeHtml(option.label)}</button>
+        `;
+      }).join("");
+
+      return `
+        <section class="codex-editor-tag-category">
+          <div class="codex-editor-tag-category-header">
+            <h4>${escapeHtml(category.label)}</h4>
+            ${capLabel ? `<small>${escapeHtml(capLabel)}</small>` : ""}
+          </div>
+          <div class="codex-editor-tag-category-options">
+            ${tagButtons}
+          </div>
+        </section>
+      `;
+    }).join("")}
+  `;
+}
+
+function buildPoiTagSelectionSummaryMarkup(values = []) {
+  const normalizedValues = getNormalizedPoiTagValues(values);
+  if (!normalizedValues.length) {
+    return `
+      <div class="codex-editor-selection-empty">
+        <strong>No tags yet.</strong>
+        <small>Optional, but helpful for vibe and function.</small>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="codex-editor-selection-card codex-editor-selection-card-tags">
+      <div class="codex-editor-selection-tag-list">
+        ${normalizedValues.map(value => {
+          const label = window.CampaignPoiTags?.getTagLabel?.(value) || value;
+          const categoryClass = window.CampaignPoiTags?.getTagCategoryClassName?.(value) || "";
+          return `<span class="codex-tag-chip ${categoryClass}">${escapeHtml(label)}</span>`;
+        }).join("")}
+      </div>
+      <small>${normalizedValues.length} tag${normalizedValues.length === 1 ? "" : "s"} selected.</small>
+    </div>
+  `;
+}
+
+function renderPoiTagSelectionSummary(inputId) {
+  const input = document.getElementById(inputId);
+  const summaryId = input?.dataset.summaryId || "";
+  const summary = summaryId ? document.getElementById(summaryId) : null;
+  if (!summary) return;
+  summary.innerHTML = buildPoiTagSelectionSummaryMarkup(readPoiTagInputValues(inputId));
+}
+
+function renderPoiTagPicker(inputId, pickerId, values = []) {
+  const picker = document.getElementById(pickerId);
+  if (!picker) return;
+  const normalizedValues = writePoiTagInputValues(inputId, values);
+  picker.innerHTML = buildPoiTagPickerMarkup(inputId, pickerId, normalizedValues);
+  renderPoiTagSelectionSummary(inputId);
+}
+
+function togglePoiTagValue(inputId, pickerId, tagValue) {
+  const normalizedValue = window.CampaignPoiTags?.normalizeTagValue?.(tagValue) || "";
+  if (!normalizedValue) return;
+
+  const selectedValues = readPoiTagInputValues(inputId);
+  const nextValues = selectedValues.includes(normalizedValue)
+    ? selectedValues.filter(value => value !== normalizedValue)
+    : window.CampaignPoiTags?.canSelectTag?.(normalizedValue, selectedValues)
+      ? [...selectedValues, normalizedValue]
+      : selectedValues;
+
+  renderPoiTagPicker(inputId, pickerId, nextValues);
+}
+
+function resetCodexEditorPickerState() {
+  codexEditorPickerState = {
+    kind: "",
+    inputId: "",
+    originalValue: "",
+    title: "",
+    help: ""
+  };
+}
+
+function closeCodexEditorPicker(options = {}) {
+  const { commit = true } = options;
+  const overlay = document.getElementById("codex-editor-picker-overlay");
+  const content = document.getElementById("codex-editor-picker-content");
+
+  if (!commit && codexEditorPickerState.inputId) {
+    if (codexEditorPickerState.kind === "icon") {
+      writePoiIconInputValue(codexEditorPickerState.inputId, codexEditorPickerState.originalValue || "");
+      renderPoiIconSelectionSummary(codexEditorPickerState.inputId);
+    } else if (codexEditorPickerState.kind === "tags") {
+      writePoiTagInputValues(codexEditorPickerState.inputId, codexEditorPickerState.originalValue || "");
+      renderPoiTagSelectionSummary(codexEditorPickerState.inputId);
+    }
+  }
+
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  if (content) {
+    content.innerHTML = "";
+    delete content.dataset.iconPickerCollapsible;
+  }
+  resetCodexEditorPickerState();
+}
+
+function openCodexEditorPicker(kind, inputId, options = {}) {
+  const overlay = document.getElementById("codex-editor-picker-overlay");
+  const title = document.getElementById("codex-editor-picker-title");
+  const help = document.getElementById("codex-editor-picker-help");
+  const content = document.getElementById("codex-editor-picker-content");
+  const apply = document.getElementById("codex-editor-picker-apply");
+  if (!overlay || !content || !inputId) return;
+
+  codexEditorPickerState = {
+    kind,
+    inputId,
+    originalValue: kind === "icon"
+      ? readPoiIconInputValue(inputId)
+      : readPoiTagInputValues(inputId).join(","),
+    title: options.title || (kind === "icon" ? "Choose Map Icon" : "Edit Tags"),
+    help: options.help || ""
+  };
+
+  if (title) title.textContent = codexEditorPickerState.title;
+  if (help) help.textContent = codexEditorPickerState.help;
+  if (apply) apply.textContent = kind === "icon" ? "Use Icon" : "Done";
+
+  if (kind === "icon") {
+    renderPoiIconPicker(inputId, "codex-editor-picker-content", readPoiIconInputValue(inputId), {
+      collapsible: true
+    });
+  } else {
+    renderPoiTagPicker(inputId, "codex-editor-picker-content", readPoiTagInputValues(inputId));
+  }
+
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden", "false");
+}
+
+function getPoiTagValuesForRecord(record) {
+  return getNormalizedPoiTagValues(record?.POI_Tags || record?.Group_Tags || []);
+}
+
+function getPoiIconValueForRecord(record) {
+  return getNormalizedPoiIconValue(record?.POI_Icon || record?.Group_Icon || "", {
+    fallback: false
+  });
 }
 
 function populatePoiInitialChildOptions(selectedPoiId = "") {
@@ -160,15 +560,13 @@ function updatePoiGroupMode() {
   if (regionSelect) regionSelect.required = !isGroup;
   if (hexSelect) hexSelect.required = !isGroup;
   if (notorietyInput) notorietyInput.required = !isGroup;
-  if (populationInput) populationInput.required = false;
   if (regionSelect) regionSelect.disabled = isGroup || regionSelect.dataset.locked === "true";
   if (hexSelect) hexSelect.disabled = isGroup || hexSelect.dataset.locked === "true" || (!isGroup && !regionSelect?.value);
   if (notorietyInput) notorietyInput.disabled = isGroup;
-  if (populationInput) populationInput.disabled = isGroup;
   if (regionRow) regionRow.hidden = isGroup;
   if (hexRow) hexRow.hidden = isGroup;
   if (notorietyRow) notorietyRow.hidden = isGroup;
-  if (populationRow) populationRow.hidden = isGroup;
+  if (populationRow) populationRow.hidden = false;
   if (typeLabel) typeLabel.textContent = isGroup ? "Group Type *" : "Type *";
 }
 
@@ -201,11 +599,54 @@ function populatePoiHexOptions(regionId = "") {
 function updatePoiPopulationRequirement() {
   const typeInput = document.getElementById("codex-add-poi-type");
   const populationInput = document.getElementById("codex-add-poi-population");
+  const populationLabel = document.getElementById("codex-add-poi-population-label");
+  const populationHelp = document.getElementById("codex-add-poi-population-help");
+  const populationTooltip = document.getElementById("codex-add-poi-population-tooltip");
   const isGroup = document.getElementById("codex-add-poi-is-group")?.checked === true;
+  const parentGroupId = document.getElementById("codex-add-poi-parent-group")?.value || "";
+  const currentPoi = codexEditorState.mode === "edit-poi"
+    ? db?.poisById?.[codexEditorState.recordId]
+    : null;
   if (!typeInput || !populationInput) return;
 
-  const isSettlement = String(typeInput.value || "").trim().toLowerCase() === "settlement";
-  populationInput.required = !isGroup && isSettlement;
+  const isSettlement = window.CampaignPoiTypes?.isSettlementType?.(typeInput.value) || false;
+  const parentManaged = !isGroup && Boolean(parentGroupId);
+
+  if (populationLabel) {
+    populationLabel.textContent = isGroup ? "Group Population" : "Population";
+  }
+  if (populationTooltip) {
+    populationTooltip.hidden = !isGroup;
+  }
+
+  if (isGroup) {
+    populationInput.disabled = false;
+    populationInput.required = false;
+    if (populationHelp) {
+      populationHelp.textContent = "Total population for the grouped place.";
+    }
+    return;
+  }
+
+  if (parentManaged) {
+    populationInput.disabled = true;
+    populationInput.required = false;
+    populationInput.value = codexEditorState.mode === "edit-poi"
+      ? String(currentPoi?.Population || "")
+      : "";
+    if (populationHelp) {
+      populationHelp.textContent = "Population is managed from the parent grouped POI.";
+    }
+    return;
+  }
+
+  populationInput.disabled = false;
+  populationInput.required = isSettlement;
+  if (populationHelp) {
+    populationHelp.textContent = isSettlement
+      ? "Required for Settlements."
+      : "Optional.";
+  }
 }
 
 function setEditorMode(mode) {
@@ -213,11 +654,16 @@ function setEditorMode(mode) {
   const npcForm = document.getElementById("codex-add-npc-form");
   const poiForm = document.getElementById("codex-add-poi-form");
   const poiGroupForm = document.getElementById("codex-edit-poi-group-form");
+  const poiTagsForm = document.getElementById("codex-edit-tags-form");
   const regionForm = document.getElementById("codex-edit-region-form");
   const mapManagerForm = document.getElementById("codex-manage-maps-form");
   const journalForm = document.getElementById("codex-add-journal-form");
   const npcSubmit = npcForm?.querySelector('button[type="submit"]');
   const poiSubmit = document.getElementById("codex-poi-editor-submit");
+
+  if (codexEditorPickerState.kind) {
+    closeCodexEditorPicker({ commit: true });
+  }
 
   if (title) {
     if (mode === "poi") title.textContent = "Add POI";
@@ -226,6 +672,7 @@ function setEditorMode(mode) {
     else if (mode === "edit-npc") title.textContent = "Edit NPC";
     else if (mode === "edit-poi") title.textContent = "Edit POI";
     else if (mode === "edit-poi-group") title.textContent = "Edit Grouped POI";
+    else if (mode === "edit-tags") title.textContent = "Edit Tags";
     else if (mode === "edit-region") title.textContent = "Edit Region";
     else if (mode === "add-map") title.textContent = "Add Map";
     else if (mode === "manage-maps") title.textContent = "Manage Maps";
@@ -236,6 +683,7 @@ function setEditorMode(mode) {
   if (npcForm) npcForm.hidden = !["npc", "edit-npc"].includes(mode);
   if (poiForm) poiForm.hidden = !["poi", "edit-poi"].includes(mode);
   if (poiGroupForm) poiGroupForm.hidden = mode !== "edit-poi-group";
+  if (poiTagsForm) poiTagsForm.hidden = mode !== "edit-tags";
   if (regionForm) regionForm.hidden = !["region", "quick-region", "edit-region"].includes(mode);
   if (mapManagerForm) mapManagerForm.hidden = !["add-map", "manage-maps"].includes(mode);
   if (journalForm) journalForm.hidden = mode !== "add-journal";
@@ -289,6 +737,8 @@ function openAddPoiEditor(options = {}) {
   codexEditorState = { mode: "poi", recordType: "", recordId: "" };
   setEditorMode("poi");
   document.getElementById("codex-add-poi-form")?.reset();
+  populatePoiTypeOptions("codex-add-poi-type", options.poiTypeValue || "");
+  populatePoiNotorietyOptions("codex-add-poi-notoriety", options.notorietyValue || "");
   populatePoiRegionOptions();
   populatePoiHexOptions(options.regionId || "");
   populatePoiGroupOptions(options.parentGroupId || "");
@@ -326,6 +776,10 @@ function openAddPoiEditor(options = {}) {
     hexSelect.disabled = options.lockHex === true || !options.regionId;
   }
 
+  writePoiIconInputValue("codex-add-poi-icon", options.iconValue || "");
+  writePoiTagInputValues("codex-add-poi-tags", options.tagValues || []);
+  renderPoiIconSelectionSummary("codex-add-poi-icon");
+  renderPoiTagSelectionSummary("codex-add-poi-tags");
   updatePoiGroupMode();
   updatePoiPopulationRequirement();
   openEditorModal();
@@ -346,6 +800,8 @@ function openEditPoiEditor(poiId) {
   populatePoiHexOptions(regionId);
   populatePoiGroupOptions(poi.POI_Group_ID || "");
   populatePoiInitialChildOptions();
+  populatePoiTypeOptions("codex-add-poi-type", poi.POI_Type_Value || poi.POI_Type || "");
+  populatePoiNotorietyOptions("codex-add-poi-notoriety", poi["Notoriety Tier_Value"] || poi["Notoriety Tier"] || "");
 
   const groupCheckbox = document.getElementById("codex-add-poi-is-group");
   if (groupCheckbox) {
@@ -374,9 +830,11 @@ function openEditPoiEditor(poiId) {
   }
 
   document.getElementById("codex-add-poi-name").value = poi.Name || "";
-  document.getElementById("codex-add-poi-type").value = poi.POI_Type || "";
-  document.getElementById("codex-add-poi-notoriety").value = poi["Notoriety Tier"] || "";
   document.getElementById("codex-add-poi-population").value = poi.Population || "";
+  writePoiIconInputValue("codex-add-poi-icon", getPoiIconValueForRecord(poi));
+  writePoiTagInputValues("codex-add-poi-tags", getPoiTagValuesForRecord(poi));
+  renderPoiIconSelectionSummary("codex-add-poi-icon");
+  renderPoiTagSelectionSummary("codex-add-poi-tags");
   document.getElementById("codex-add-poi-lore").value = poi.Lore || "";
 
   updatePoiGroupMode();
@@ -423,10 +881,47 @@ function openEditPoiGroupEditor(groupId) {
   document.getElementById("codex-edit-poi-group-form")?.reset();
 
   document.getElementById("codex-edit-poi-group-name").value = group.POI_Group_Name || "";
-  document.getElementById("codex-edit-poi-group-type").value = group.Group_Type || "";
+  populatePoiTypeOptions("codex-edit-poi-group-type", group.Group_Type_Value || group.Group_Type || "", "Select a group type...");
+  document.getElementById("codex-edit-poi-group-population").value = group.Population || "";
+  writePoiIconInputValue("codex-edit-poi-group-icon", getPoiIconValueForRecord(group));
+  writePoiTagInputValues("codex-edit-poi-group-tags", getPoiTagValuesForRecord(group));
+  renderPoiIconSelectionSummary("codex-edit-poi-group-icon");
+  renderPoiTagSelectionSummary("codex-edit-poi-group-tags");
   document.getElementById("codex-edit-poi-group-lore").value = group.Lore || "";
 
   renderPoiGroupChildManager(groupId);
+  openEditorModal();
+}
+
+function openPoiTagsEditor(recordType, recordId) {
+  const isGroup = recordType === "poi-group";
+  const record = isGroup
+    ? db?.poiGroupsById?.[recordId]
+    : db?.poisById?.[recordId];
+
+  if (!record) return;
+
+  codexEditorState = { mode: "edit-tags", recordType, recordId };
+  setEditorMode("edit-tags");
+  document.getElementById("codex-edit-tags-form")?.reset();
+
+  const recordName = isGroup
+    ? record.POI_Group_Name || record.POI_Group_ID || "Unnamed Grouped POI"
+    : record.Name || record.POI_ID || "Unnamed POI";
+  const recordTypeLabel = isGroup
+    ? record.Group_Type || "Grouped POI"
+    : record.POI_Type || "POI";
+  const notorietyLabel = isGroup
+    ? ""
+    : (record["Notoriety Tier"] ? `Notoriety ${record["Notoriety Tier"]}` : "");
+  const metaLabel = [recordTypeLabel, notorietyLabel].filter(Boolean).join(" • ");
+
+  const nameEl = document.getElementById("codex-edit-tags-record-name");
+  const metaEl = document.getElementById("codex-edit-tags-record-meta");
+  if (nameEl) nameEl.textContent = recordName;
+  if (metaEl) metaEl.textContent = metaLabel;
+
+  renderPoiTagPicker("codex-edit-tags-values", "codex-edit-tags-picker", getPoiTagValuesForRecord(record));
   openEditorModal();
 }
 
@@ -608,6 +1103,7 @@ function closeCodexEditor() {
   if (poiGroupCheckbox) poiGroupCheckbox.disabled = false;
   if (poiParentGroup) poiParentGroup.disabled = false;
   if (poiInitialChild) poiInitialChild.disabled = false;
+  closeCodexEditorPicker({ commit: true });
   codexEditorState = {
     mode: "",
     recordType: "",
@@ -1424,7 +1920,10 @@ function adaptCreatedPoiGroupRow(row) {
     __uuid: createdRow.id,
     POI_Group_ID: createdRow.slug,
     POI_Group_Name: createdRow.name || "",
-    Group_Type: createdRow.group_type || "",
+    Group_Type: window.CampaignPoiTypes?.getTypeLabel?.(createdRow.group_type) || createdRow.group_type || "",
+    Group_Type_Value: window.CampaignPoiTypes?.getStoredTypeValue?.(createdRow.group_type) || createdRow.group_type || "",
+    Group_Icon: getNormalizedPoiIconValue(createdRow.group_icon, { fallback: false }),
+    Group_Tags: getNormalizedPoiTagValues(createdRow.group_tags),
     Population: createdRow.population || "",
     Lore: createdRow.lore || "",
     Image: ""
@@ -1586,8 +2085,12 @@ function adaptCreatedPoiRow(row) {
     POI_Group_ID: db?.raw?.poiGroups?.find(group => group.__uuid === createdRow.poi_group_id)?.POI_Group_ID || "",
     Name: createdRow.name || "",
     Hex_ID_Ref: db?.raw?.hexes?.find(hex => hex.__uuid === createdRow.hex_id)?.Hex_ID || "",
-    POI_Type: createdRow.poi_type || "",
-    "Notoriety Tier": createdRow.notoriety_tier || "",
+    POI_Type: window.CampaignPoiTypes?.getTypeLabel?.(createdRow.poi_type) || createdRow.poi_type || "",
+    POI_Type_Value: window.CampaignPoiTypes?.getStoredTypeValue?.(createdRow.poi_type) || createdRow.poi_type || "",
+    POI_Icon: getNormalizedPoiIconValue(createdRow.poi_icon, { fallback: false }),
+    POI_Tags: getNormalizedPoiTagValues(createdRow.poi_tags),
+    "Notoriety Tier": window.CampaignPoiTypes?.getNotorietyLabel?.(createdRow.notoriety_tier) || createdRow.notoriety_tier || "",
+    "Notoriety Tier_Value": window.CampaignPoiTypes?.getStoredNotorietyValue?.(createdRow.notoriety_tier) || createdRow.notoriety_tier || "",
     Population: createdRow.population || "",
     Lore: createdRow.lore || "",
     Image: ""
@@ -1781,12 +2284,15 @@ async function handleEditNpcSubmit({ campaign, name, title, organization, race, 
   refreshCodexAfterCreatedRecord("npc");
 }
 
-async function handleAddPoiGroupSubmit({ campaign, name, groupType, initialChildPoiId, lore, imageFile }) {
+async function handleAddPoiGroupSubmit({ campaign, name, groupType, groupIcon, initialChildPoiId, tagValues, population, lore, imageFile }) {
   const { data, error } = await campaignSupabase.rpc("create_poi_group_with_slug", {
     target_campaign_id: campaign.id,
     group_name: name,
     group_type: groupType,
+    group_icon: groupIcon,
     initial_child_poi_id: getPoiUuidByLegacyId(initialChildPoiId),
+    group_tags: tagValues,
+    group_population: population || null,
     group_lore: lore || null,
     group_visibility: "shared"
   });
@@ -1812,7 +2318,7 @@ async function handleAddPoiGroupSubmit({ campaign, name, groupType, initialChild
   refreshCodexAfterCreatedRecord("poi");
 }
 
-async function handleEditPoiSubmit({ campaign, name, poiType, parentGroupId, hexId, notoriety, population, lore, imageFile }) {
+async function handleEditPoiSubmit({ campaign, name, poiType, poiIcon, parentGroupId, hexId, notoriety, tagValues, population, lore, imageFile }) {
   const poi = db?.poisById?.[codexEditorState.recordId];
   if (!poi?.__uuid) {
     throw new Error("Unable to identify this POI. Refresh the app and try again.");
@@ -1823,9 +2329,11 @@ async function handleEditPoiSubmit({ campaign, name, poiType, parentGroupId, hex
     target_poi_id: poi.__uuid,
     poi_name: name,
     new_poi_type: poiType,
+    new_poi_icon: poiIcon,
     poi_hex_id: getHexUuidByLegacyId(hexId),
     new_poi_group_id: getPoiGroupUuidByLegacyId(parentGroupId),
     new_poi_notoriety_tier: notoriety || null,
+    new_poi_tags: tagValues,
     new_poi_population: population || null,
     new_poi_lore: lore || null
   });
@@ -1837,8 +2345,12 @@ async function handleEditPoiSubmit({ campaign, name, poiType, parentGroupId, hex
     Name: updated?.name || name,
     Hex_ID_Ref: db?.raw?.hexes?.find(hex => hex.__uuid === updated?.hex_id)?.Hex_ID || hexId,
     POI_Group_ID: db?.raw?.poiGroups?.find(group => group.__uuid === updated?.poi_group_id)?.POI_Group_ID || "",
-    POI_Type: updated?.poi_type || poiType,
-    "Notoriety Tier": updated?.notoriety_tier || "",
+    POI_Type: window.CampaignPoiTypes?.getTypeLabel?.(updated?.poi_type || poiType) || updated?.poi_type || poiType,
+    POI_Type_Value: window.CampaignPoiTypes?.getStoredTypeValue?.(updated?.poi_type || poiType) || updated?.poi_type || poiType,
+    POI_Icon: getNormalizedPoiIconValue(updated?.poi_icon || poiIcon, { fallback: false }),
+    POI_Tags: getNormalizedPoiTagValues(updated?.poi_tags || tagValues),
+    "Notoriety Tier": window.CampaignPoiTypes?.getNotorietyLabel?.(updated?.notoriety_tier || notoriety) || updated?.notoriety_tier || notoriety,
+    "Notoriety Tier_Value": window.CampaignPoiTypes?.getStoredNotorietyValue?.(updated?.notoriety_tier || notoriety) || updated?.notoriety_tier || notoriety,
     Population: updated?.population || "",
     Lore: updated?.lore || ""
   });
@@ -1865,24 +2377,48 @@ async function handleAddPoiSubmit(event) {
   if (!campaign) return;
 
   const name = document.getElementById("codex-add-poi-name")?.value.trim();
-  const poiType = document.getElementById("codex-add-poi-type")?.value.trim();
+  const poiTypeRaw = document.getElementById("codex-add-poi-type")?.value || "";
+  const poiType = window.CampaignPoiTypes?.normalizeTypeValue?.(poiTypeRaw) || "";
   const isGroup = document.getElementById("codex-add-poi-is-group")?.checked === true;
   const parentGroupId = document.getElementById("codex-add-poi-parent-group")?.value || "";
   const initialChildPoiId = document.getElementById("codex-add-poi-initial-child")?.value || "";
   const regionId = document.getElementById("codex-add-poi-region")?.value || "";
   const hexId = document.getElementById("codex-add-poi-hex")?.value || "";
-  const notoriety = document.getElementById("codex-add-poi-notoriety")?.value.trim();
-  const population = document.getElementById("codex-add-poi-population")?.value.trim();
+  const notorietyRaw = document.getElementById("codex-add-poi-notoriety")?.value || "";
+  const notoriety = window.CampaignPoiTypes?.normalizeNotorietyValue?.(notorietyRaw) || "";
+  const iconRaw = document.getElementById("codex-add-poi-icon")?.value || "";
+  const iconValue = getNormalizedPoiIconValue(iconRaw, { fallback: false });
+  const tagValues = readPoiTagInputValues("codex-add-poi-tags");
+  const rawPopulation = document.getElementById("codex-add-poi-population")?.value.trim();
+  const currentPoi = codexEditorState.mode === "edit-poi"
+    ? db?.poisById?.[codexEditorState.recordId]
+    : null;
+  const population = (!isGroup && parentGroupId)
+    ? (codexEditorState.mode === "edit-poi" ? String(currentPoi?.Population || "") : "")
+    : rawPopulation;
   const lore = document.getElementById("codex-add-poi-lore")?.value.trim();
   const imageFile = getEditorImageFile("codex-add-poi-image");
 
+  if (String(poiTypeRaw || "").trim() && !poiType) {
+    setCodexEditorStatus("Choose a valid type from the list.");
+    return;
+  }
+  if (String(notorietyRaw || "").trim() && !notoriety) {
+    setCodexEditorStatus("Choose a valid notoriety from the list.");
+    return;
+  }
+  if (String(iconRaw || "").trim() && !iconValue) {
+    setCodexEditorStatus("Choose a valid icon from the list.");
+    return;
+  }
+
   if (isGroup) {
-    if (!name || !poiType || !initialChildPoiId) {
-      setCodexEditorStatus("Name, Group Type, and Initial child Area are required.");
+    if (!name || !poiType || !iconValue || !initialChildPoiId) {
+      setCodexEditorStatus("Name, Group Type, Icon, and Initial child Area are required.");
       return;
     }
-  } else if (!name || !poiType || !regionId || !hexId || !notoriety) {
-    setCodexEditorStatus("Name, Type, Region, Hex, and Notoriety are required.");
+  } else if (!name || !poiType || !iconValue || !regionId || !hexId || !notoriety) {
+    setCodexEditorStatus("Name, Type, Icon, Region, Hex, and Notoriety are required.");
     return;
   }
 
@@ -1901,9 +2437,11 @@ async function handleAddPoiSubmit(event) {
         campaign,
         name,
         poiType,
+        poiIcon: iconValue,
         parentGroupId,
         hexId,
         notoriety,
+        tagValues,
         population,
         lore,
         imageFile
@@ -1916,7 +2454,10 @@ async function handleAddPoiSubmit(event) {
         campaign,
         name,
         groupType: poiType,
+        groupIcon: iconValue,
         initialChildPoiId,
+        tagValues,
+        population,
         lore,
         imageFile
       });
@@ -1927,7 +2468,9 @@ async function handleAddPoiSubmit(event) {
       target_campaign_id: campaign.id,
       poi_name: name,
       poi_type: poiType,
+      poi_icon: iconValue,
       poi_hex_id: getHexUuidByLegacyId(hexId),
+      poi_tags: tagValues,
       poi_notoriety_tier: notoriety || null,
       poi_population: population || null,
       poi_lore: lore || null,
@@ -1967,12 +2510,26 @@ async function handleEditPoiGroupSubmit(event) {
   if (!campaign || !group?.__uuid) return;
 
   const name = document.getElementById("codex-edit-poi-group-name")?.value.trim();
-  const groupType = document.getElementById("codex-edit-poi-group-type")?.value.trim();
+  const groupTypeRaw = document.getElementById("codex-edit-poi-group-type")?.value || "";
+  const groupType = window.CampaignPoiTypes?.normalizeTypeValue?.(groupTypeRaw) || "";
+  const groupIconRaw = document.getElementById("codex-edit-poi-group-icon")?.value || "";
+  const groupIcon = getNormalizedPoiIconValue(groupIconRaw, { fallback: false });
+  const tagValues = readPoiTagInputValues("codex-edit-poi-group-tags");
+  const population = document.getElementById("codex-edit-poi-group-population")?.value.trim();
   const lore = document.getElementById("codex-edit-poi-group-lore")?.value.trim();
   const imageFile = getEditorImageFile("codex-edit-poi-group-image");
 
-  if (!name || !groupType) {
-    setCodexEditorStatus("Name and Group Type are required.");
+  if (String(groupTypeRaw || "").trim() && !groupType) {
+    setCodexEditorStatus("Choose a valid group type from the list.");
+    return;
+  }
+  if (String(groupIconRaw || "").trim() && !groupIcon) {
+    setCodexEditorStatus("Choose a valid icon from the list.");
+    return;
+  }
+
+  if (!name || !groupType || !groupIcon) {
+    setCodexEditorStatus("Name, Group Type, and Icon are required.");
     return;
   }
 
@@ -1991,6 +2548,9 @@ async function handleEditPoiGroupSubmit(event) {
     target_poi_group_id: group.__uuid,
     group_name: name,
     new_group_type: groupType,
+    new_group_icon: groupIcon,
+    new_group_tags: tagValues,
+    new_group_population: population || null,
     new_group_lore: lore || null
   });
 
@@ -2012,7 +2572,11 @@ async function handleEditPoiGroupSubmit(event) {
     const updated = Array.isArray(data) ? data[0] : data;
     updatePoiGroupInLocalDb(group, {
       POI_Group_Name: updated?.name || name,
-      Group_Type: updated?.group_type || groupType,
+      Group_Type: window.CampaignPoiTypes?.getTypeLabel?.(updated?.group_type || groupType) || updated?.group_type || groupType,
+      Group_Type_Value: window.CampaignPoiTypes?.getStoredTypeValue?.(updated?.group_type || groupType) || updated?.group_type || groupType,
+      Group_Icon: getNormalizedPoiIconValue(updated?.group_icon || groupIcon, { fallback: false }),
+      Group_Tags: getNormalizedPoiTagValues(updated?.group_tags || tagValues),
+      Population: updated?.population || "",
       Lore: updated?.lore || ""
     });
 
@@ -2032,6 +2596,79 @@ async function handleEditPoiGroupSubmit(event) {
   } catch (error) {
     console.error("Failed to edit grouped POI:", error);
     setCodexEditorStatus(error.message || "Unable to save grouped POI.");
+  }
+}
+
+async function handleEditTagsSubmit(event) {
+  event.preventDefault();
+
+  const campaign = getActiveCampaign?.();
+  if (!campaign) return;
+
+  const tagValues = readPoiTagInputValues("codex-edit-tags-values");
+  const isGroup = codexEditorState.recordType === "poi-group";
+
+  try {
+    if (isGroup) {
+      const group = db?.poiGroupsById?.[codexEditorState.recordId];
+      if (!group?.__uuid) {
+        throw new Error("Unable to identify this grouped POI. Refresh the app and try again.");
+      }
+
+      setCodexEditorStatus("Saving grouped POI tags...");
+
+      const { data, error } = await campaignSupabase.rpc("update_poi_group_record", {
+        target_campaign_id: campaign.id,
+        target_poi_group_id: group.__uuid,
+        group_name: group.POI_Group_Name || "",
+        new_group_type: group.Group_Type_Value || group.Group_Type || "",
+        new_group_icon: group.Group_Icon || "",
+        new_group_tags: tagValues,
+        new_group_population: group.Population || null,
+        new_group_lore: group.Lore || null
+      });
+
+      if (error) throw error;
+
+      const updated = Array.isArray(data) ? data[0] : data;
+      updatePoiGroupInLocalDb(group, {
+        Group_Tags: getNormalizedPoiTagValues(updated?.group_tags || tagValues)
+      });
+    } else {
+      const poi = db?.poisById?.[codexEditorState.recordId];
+      if (!poi?.__uuid) {
+        throw new Error("Unable to identify this POI. Refresh the app and try again.");
+      }
+
+      setCodexEditorStatus("Saving POI tags...");
+
+      const { data, error } = await campaignSupabase.rpc("update_poi_record", {
+        target_campaign_id: campaign.id,
+        target_poi_id: poi.__uuid,
+        poi_name: poi.Name || "",
+        new_poi_type: poi.POI_Type_Value || poi.POI_Type || "",
+        new_poi_icon: poi.POI_Icon || "",
+        poi_hex_id: getHexUuidByLegacyId(poi.Hex_ID_Ref),
+        new_poi_group_id: getPoiGroupUuidByLegacyId(poi.POI_Group_ID),
+        new_poi_notoriety_tier: poi["Notoriety Tier_Value"] || poi["Notoriety Tier"] || "",
+        new_poi_tags: tagValues,
+        new_poi_population: poi.Population || null,
+        new_poi_lore: poi.Lore || null
+      });
+
+      if (error) throw error;
+
+      const updated = Array.isArray(data) ? data[0] : data;
+      updatePoiInLocalDb(poi, {
+        POI_Tags: getNormalizedPoiTagValues(updated?.poi_tags || tagValues)
+      });
+    }
+
+    closeCodexEditor();
+    refreshCodexAfterCreatedRecord("poi");
+  } catch (error) {
+    console.error("Failed to save tags:", error);
+    setCodexEditorStatus(error.message || "Unable to save tags.");
   }
 }
 
@@ -2185,6 +2822,50 @@ async function handlePoiGroupAddChild() {
 
   renderPoiGroupChildManager(codexEditorState.recordId);
   setCodexEditorStatus("Child Area staged for add. Save Group to apply.");
+}
+
+function handlePoiTagPickerClick(event) {
+  const tagButton = event.target.closest("[data-tag-input][data-tag-picker][data-tag-value]");
+  if (!tagButton) return;
+
+  togglePoiTagValue(
+    tagButton.dataset.tagInput,
+    tagButton.dataset.tagPicker,
+    tagButton.dataset.tagValue
+  );
+}
+
+function handlePoiIconPickerClick(event) {
+  const iconButton = event.target.closest("[data-icon-input][data-icon-picker][data-icon-value]");
+  if (!iconButton) return;
+
+  selectPoiIconValue(
+    iconButton.dataset.iconInput,
+    iconButton.dataset.iconPicker,
+    iconButton.dataset.iconValue
+  );
+}
+
+function handleCodexEditorPickerTriggerClick(event) {
+  const trigger = event.currentTarget;
+  const pickerKind = trigger?.dataset.pickerKind || "";
+  const inputId = trigger?.dataset.pickerInput || "";
+  if (!pickerKind || !inputId) return;
+
+  if (pickerKind === "icon") {
+    openCodexEditorPicker("icon", inputId, {
+      title: trigger.dataset.pickerTitle || "Choose Map Icon",
+      help: "Pick any icon. Categories are suggestions only."
+    });
+    return;
+  }
+
+  if (pickerKind === "tags") {
+    openCodexEditorPicker("tags", inputId, {
+      title: trigger.dataset.pickerTitle || "Edit Tags",
+      help: "Choose up to 4 tags to describe the place."
+    });
+  }
 }
 
 function updateCodexContextAction(type) {
@@ -2405,6 +3086,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("submit", handleAddPoiSubmit);
   document.getElementById("codex-edit-poi-group-form")
     ?.addEventListener("submit", handleEditPoiGroupSubmit);
+  document.getElementById("codex-edit-tags-form")
+    ?.addEventListener("submit", handleEditTagsSubmit);
   document.getElementById("codex-edit-region-form")
     ?.addEventListener("submit", handleEditRegionSubmit);
   document.getElementById("codex-add-journal-form")
@@ -2413,6 +3096,20 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", handlePoiGroupChildManagerClick);
   document.getElementById("codex-edit-poi-group-add-child-button")
     ?.addEventListener("click", handlePoiGroupAddChild);
+  document.getElementById("codex-edit-tags-picker")
+    ?.addEventListener("click", handlePoiTagPickerClick);
+  document.getElementById("codex-editor-picker-content")
+    ?.addEventListener("click", handlePoiIconPickerClick);
+  document.getElementById("codex-editor-picker-content")
+    ?.addEventListener("click", handlePoiTagPickerClick);
+  document.querySelectorAll("[data-picker-kind][data-picker-input]")
+    .forEach(button => button.addEventListener("click", handleCodexEditorPickerTriggerClick));
+  document.getElementById("codex-editor-picker-apply")
+    ?.addEventListener("click", () => closeCodexEditorPicker({ commit: true }));
+  document.getElementById("codex-editor-picker-cancel")
+    ?.addEventListener("click", () => closeCodexEditorPicker({ commit: false }));
+  document.getElementById("codex-editor-picker-close")
+    ?.addEventListener("click", () => closeCodexEditorPicker({ commit: false }));
   document.getElementById("codex-add-poi-region")
     ?.addEventListener("change", event => populatePoiHexOptions(event.target.value || ""));
   document.getElementById("codex-add-poi-is-group")
@@ -2421,12 +3118,16 @@ document.addEventListener("DOMContentLoaded", () => {
       updatePoiPopulationRequirement();
     });
   document.getElementById("codex-add-poi-type")
-    ?.addEventListener("input", updatePoiPopulationRequirement);
+    ?.addEventListener("change", updatePoiPopulationRequirement);
+  document.getElementById("codex-add-poi-parent-group")
+    ?.addEventListener("change", updatePoiPopulationRequirement);
   document.getElementById("codex-editor-close")
     ?.addEventListener("click", closeCodexEditor);
   document.getElementById("codex-poi-editor-close")
     ?.addEventListener("click", closeCodexEditor);
   document.getElementById("codex-poi-group-editor-close")
+    ?.addEventListener("click", closeCodexEditor);
+  document.getElementById("codex-tags-editor-close")
     ?.addEventListener("click", closeCodexEditor);
   document.getElementById("codex-region-editor-close")
     ?.addEventListener("click", closeCodexEditor);
@@ -2457,4 +3158,5 @@ window.openJournalEntryModal = openJournalEntryModal;
 window.openAddPoiEditor = openAddPoiEditor;
 window.openEditPoiEditor = openEditPoiEditor;
 window.openEditPoiGroupEditor = openEditPoiGroupEditor;
+window.openPoiTagsEditor = openPoiTagsEditor;
 window.updateCodexContextAction = updateCodexContextAction;

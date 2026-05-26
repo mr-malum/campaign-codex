@@ -5,6 +5,83 @@ function joinCodexLabel(title, meta = []) {
   ].filter(Boolean).join(" — ");
 }
 
+function getCodexPoiTagEditorTarget(row, resolvedType = "") {
+  const recordType = row?.__codexRecordType || resolvedType || (row?.POI_Group_ID && !row?.POI_ID ? "poi-group" : "poi");
+  const recordId = row?.__codexRecordId || row?.POI_ID || row?.POI_Group_ID || "";
+  if (!recordType || !recordId) return null;
+  return { recordType, recordId };
+}
+
+function renderCodexPoiRowTagsAction(row, resolvedType = "") {
+  const target = getCodexPoiTagEditorTarget(row, resolvedType);
+  if (!target || !["poi", "poi-group"].includes(target.recordType)) return "";
+  return renderCodexRowActionButton(
+    "Tags",
+    `openPoiTagsEditor('${escapeJsString(target.recordType)}', '${escapeJsString(target.recordId)}')`,
+    {
+      title: "Edit tags",
+      ariaLabel: "Edit tags"
+    }
+  );
+}
+
+function renderCodexPoiIndexTagFooter(row, resolvedType = "") {
+  const parentTagSummary = renderCodexRecordTagSummary(row, { limit: 2 });
+
+  if (resolvedType !== "poi-group") {
+    return parentTagSummary;
+  }
+
+  const childTagValues = getCodexPoiGroupChildTagValues(row);
+  const childTagSummary = childTagValues.length
+    ? `
+      <span class="codex-row-tag-subsummary">
+        <span class="codex-row-tag-subsummary-label">Child Tags:</span>
+        ${renderCodexTagList(childTagValues, { limit: 2 })}
+      </span>
+    `
+    : "";
+
+  if (!parentTagSummary) {
+    return childTagSummary;
+  }
+
+  if (!childTagSummary) {
+    return parentTagSummary;
+  }
+
+  return `
+    <span class="codex-row-tag-footer">
+      ${parentTagSummary}
+      ${childTagSummary}
+    </span>
+  `;
+}
+
+function renderCodexPoiLinkedList(
+  rows,
+  emptyText,
+  type,
+  idField,
+  getLabel,
+  options = {}
+) {
+  return renderCodexLinkedList(
+    rows,
+    emptyText,
+    type,
+    idField,
+    getLabel,
+    options.getType || null,
+    options.getIcon || null,
+    {
+      ...options,
+      getFooterHtml: options.getFooterHtml || (row => renderCodexRecordTagSummary(row, { limit: 2 })),
+      getActionsHtml: options.getActionsHtml || ((row, resolvedType) => renderCodexPoiRowTagsAction(row, resolvedType))
+    }
+  );
+}
+
 function buildPoiListLabel(row) {
   if (row.__codexRecordType === "poi-group") {
     return buildPoiGroupListLabel(row);

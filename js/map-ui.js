@@ -196,6 +196,75 @@ function closeMobileHexPopup() {
   clearSelectedHex();
 }
 
+function getPopupPoiSortRank(poi) {
+  const rawValue = String(poi?.["Notoriety Tier_Value"] || poi?.["Notoriety Tier"] || "");
+  const matched = rawValue.match(/\d+/)?.[0] || "";
+  const parsed = Number.parseInt(matched, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 99;
+}
+
+function getPopupPoisForHex(hexId) {
+  return [...(getPoisForHex(hexId) || [])].sort((left, right) => {
+    const notorietyDelta = getPopupPoiSortRank(left) - getPopupPoiSortRank(right);
+    if (notorietyDelta !== 0) return notorietyDelta;
+    return String(left?.Name || left?.POI_ID || "")
+      .localeCompare(String(right?.Name || right?.POI_ID || ""), undefined, {
+        numeric: true,
+        sensitivity: "base"
+      });
+  });
+}
+
+function renderPopupPoiList(hexId, options = {}) {
+  const pois = getPopupPoisForHex(hexId);
+  if (!pois.length) {
+    return `<div class="mobile-hex-popup-pois-empty">No POIs recorded in this hex yet.</div>`;
+  }
+
+  const disableLinks = options.disablePoiLinks === true;
+  const visiblePois = pois.slice(0, 2);
+  const remainingCount = Math.max(0, pois.length - visiblePois.length);
+
+  return `
+    <div class="mobile-hex-popup-pois">
+      <div class="mobile-hex-popup-pois-label">POIs</div>
+      <div class="mobile-hex-popup-poi-list">
+        ${visiblePois.map(poi => {
+          const label = escapeHtml(poi?.Name || poi?.POI_ID || "Unnamed POI");
+          if (disableLinks) {
+            return `<span class="mobile-hex-popup-poi-name">${label}</span>`;
+          }
+
+          return `
+            <button
+              class="mobile-hex-popup-poi-link"
+              type="button"
+              onclick="closeMobileHexPopup(); openCodexPage('poi', '${escapeJsString(poi?.POI_ID || "")}')"
+            >
+              ${label}
+            </button>
+          `;
+        }).join("")}
+      </div>
+      ${remainingCount ? `<div class="mobile-hex-popup-poi-more">+${remainingCount} more in this hex.</div>` : ""}
+    </div>
+  `;
+}
+
+function buildAddPoiButtonAction(hexId, regionId = "") {
+  const argumentsList = [];
+  if (regionId) {
+    argumentsList.push(`regionId: '${escapeJsString(regionId)}'`);
+    argumentsList.push("lockRegion: true");
+  }
+  if (hexId && regionId) {
+    argumentsList.push(`hexId: '${escapeJsString(hexId)}'`);
+    argumentsList.push("lockHex: true");
+  }
+
+  return `closeMobileHexPopup(); openAddPoiEditor({ ${argumentsList.join(", ")} });`;
+}
+
 function buildMobilePopupHtml(hexId, options = {}) {
   const data = db?.hexesById?.[hexId];
   const counts = getHexCounts(hexId);
@@ -207,10 +276,7 @@ function buildMobilePopupHtml(hexId, options = {}) {
   const terrainName = getPopupTerrainName(data);
 
   const info = [];
-
-  if (counts.poiCount > 0) {
-    info.push(`${counts.poiCount} POI${counts.poiCount !== 1 ? "s" : ""}`);
-  }
+  const disablePoiLinks = options.detailsDisabled === true || options.disablePoiLinks === true;
 
   if (counts.npcCount > 0) {
     info.push(`${counts.npcCount} NPC${counts.npcCount !== 1 ? "s" : ""}`);
@@ -232,6 +298,7 @@ function buildMobilePopupHtml(hexId, options = {}) {
           ? `<div class="mobile-hex-popup-meta">${escapeHtml(info.join(" • "))}</div>`
           : ""
       }
+      ${renderPopupPoiList(hexId, { disablePoiLinks })}
 
       <div class="popup-action-row${options.detailsDisabled ? " popup-action-row-editor-preview" : ""}">
         ${
@@ -245,6 +312,13 @@ function buildMobilePopupHtml(hexId, options = {}) {
                 Details
               </button>`
         }
+        <button
+          class="popup-add-poi"
+          type="button"
+          onclick="${buildAddPoiButtonAction(hexId, data?.Region_ID_Ref || "")}"
+        >
+          Add POI
+        </button>
 
         <button
           class="popup-close-details"

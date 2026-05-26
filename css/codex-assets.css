@@ -189,6 +189,15 @@
   outline: none !important;
 }
 
+#codex-content .codex-detail-portrait-slot[data-codex-image-kind="icon"] > .codex-rendered-image-layer {
+  opacity: 1 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  -webkit-mask-composite: source-over !important;
+  mask-composite: add !important;
+  filter: brightness(0) saturate(100%) invert(20%) sepia(30%) saturate(900%) hue-rotate(352deg) brightness(92%) contrast(90%);
+}
+
 #codex-content .codex-detail-portrait-slot.codex-image-loaded > .codex-rendered-image-layer[data-codex-image-fit="cover"] {
   left: -1px !important;
   width: calc(100% + 2px) !important;

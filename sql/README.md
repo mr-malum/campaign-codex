@@ -43,6 +43,8 @@ These are useful, intentional utilities, but they are not general production set
 Keep these in repo because they document real operational fixes, but treat them as targeted scripts rather than normal setup.
 
 - `backfill_profile_emails.sql`
+- `backfill_poi_notoriety_values.sql`
+- `backfill_poi_type_values.sql`
 - `case_insensitive_member_lookup.sql`
 - `diagnose_auth_signup_triggers.sql`
 - `diagnose_profiles_signup_blockers.sql`

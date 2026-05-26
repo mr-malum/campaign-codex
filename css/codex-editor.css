@@ -150,6 +150,331 @@
   font-family: "Marcellus SC", serif;
 }
 
+.codex-editor-selector-section,
+.codex-editor-icon-section,
+.codex-editor-tag-section,
+.codex-editor-tag-sheet-summary {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(70, 47, 24, 0.28);
+  background: rgba(255, 249, 235, 0.28);
+}
+
+.codex-editor-selector-header,
+.codex-editor-icon-section-header,
+.codex-editor-tag-section-header {
+  display: grid;
+  gap: 2px;
+}
+
+.codex-editor-selector-header h3,
+.codex-editor-icon-section-header h3,
+.codex-editor-tag-section-header h3,
+.codex-editor-tag-sheet-summary h3 {
+  margin: 0;
+  font-family: "Marcellus SC", serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.codex-editor-selector-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.codex-editor-selector-summary {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(70, 47, 24, 0.18);
+  background: rgba(255, 252, 243, 0.72);
+}
+
+.codex-editor-selection-card {
+  display: grid;
+  gap: 8px;
+}
+
+.codex-editor-selection-card-icon {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.codex-editor-selection-preview {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(70, 47, 24, 0.22);
+  background: linear-gradient(180deg, rgba(255, 249, 235, 0.96), rgba(232, 214, 184, 0.72));
+}
+
+.codex-editor-selection-preview img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.codex-editor-selection-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.codex-editor-selection-copy strong,
+.codex-editor-selection-empty strong {
+  font-family: "Marcellus SC", serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.codex-editor-selection-copy small,
+.codex-editor-selection-empty small,
+.codex-editor-selection-card-tags small {
+  color: rgba(47, 29, 16, 0.74);
+  line-height: 1.25;
+}
+
+.codex-editor-selection-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.codex-editor-selection-empty {
+  display: grid;
+  gap: 3px;
+}
+
+.codex-editor-picker-trigger {
+  min-width: 124px;
+  min-height: 42px;
+  align-self: center;
+  border: 1px solid rgba(70, 47, 24, 0.62);
+  background: rgba(255, 249, 235, 0.58);
+  color: #26190f;
+  font-family: "Marcellus SC", serif;
+  letter-spacing: 0.04em;
+}
+
+.codex-editor-picker-trigger:hover,
+.codex-editor-picker-trigger:focus-visible {
+  border-color: rgba(72, 43, 18, 0.88);
+  background: rgba(255, 251, 241, 0.82);
+  outline: none;
+}
+
+.codex-editor-tag-sheet-summary p {
+  margin: 0;
+  color: rgba(47, 29, 16, 0.8);
+  font-size: 0.9rem;
+}
+
+.codex-editor-icon-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.codex-editor-icon-picker-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(47, 29, 16, 0.8);
+  font-size: 0.84rem;
+}
+
+.codex-editor-icon-picker-summary strong {
+  font-family: "Marcellus SC", serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+}
+
+.codex-editor-icon-category {
+  display: grid;
+  gap: 6px;
+}
+
+.codex-editor-icon-category small {
+  color: rgba(47, 29, 16, 0.64);
+}
+
+.codex-editor-icon-category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.codex-editor-icon-category-header h4 {
+  margin: 0;
+  font-family: "Marcellus SC", serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.codex-editor-icon-category-summary {
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.codex-editor-icon-category-summary::-webkit-details-marker {
+  display: none;
+}
+
+.codex-editor-icon-category-summary span {
+  font-family: "Marcellus SC", serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.codex-editor-icon-category-collapsible {
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(70, 47, 24, 0.14);
+}
+
+.codex-editor-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.codex-editor-icon-option {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  gap: 6px;
+  min-height: 102px;
+  padding: 8px 6px;
+  border: 1px solid rgba(70, 47, 24, 0.34);
+  border-radius: 12px;
+  background: rgba(255, 249, 235, 0.56);
+  color: #26190f;
+  box-shadow: inset 0 1px 0 rgba(255, 250, 228, 0.28);
+  text-align: center;
+}
+
+.codex-editor-icon-option:hover,
+.codex-editor-icon-option:focus-visible {
+  border-color: rgba(70, 47, 24, 0.58);
+  background: rgba(255, 251, 241, 0.78);
+}
+
+.codex-editor-icon-option.is-selected {
+  border-width: 2px;
+  border-color: rgba(100, 67, 22, 0.88);
+  background:
+    radial-gradient(circle at top, rgba(255, 240, 194, 0.52), transparent 58%),
+    rgba(255, 249, 235, 0.84);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 251, 233, 0.72),
+    0 1px 3px rgba(45, 25, 8, 0.12);
+}
+
+.codex-editor-icon-preview {
+  display: grid;
+  place-items: center;
+  min-height: 52px;
+  padding: 4px;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 247, 226, 0.9), rgba(233, 215, 184, 0.72));
+}
+
+.codex-editor-icon-preview img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+
+.codex-editor-icon-label {
+  font-family: "Spectral", Georgia, serif;
+  font-size: 0.76rem;
+  line-height: 1.15;
+}
+
+.codex-editor-tag-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.codex-editor-tag-picker-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(47, 29, 16, 0.8);
+  font-size: 0.84rem;
+}
+
+.codex-editor-tag-picker-summary strong {
+  font-family: "Marcellus SC", serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+}
+
+.codex-editor-tag-category {
+  display: grid;
+  gap: 6px;
+}
+
+.codex-editor-tag-category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.codex-editor-tag-category-header h4 {
+  margin: 0;
+  font-family: "Marcellus SC", serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.codex-editor-tag-category-header small {
+  color: rgba(47, 29, 16, 0.64);
+}
+
+.codex-editor-tag-category-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.codex-editor-tag-toggle {
+  min-height: 30px;
+  padding: 4px 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 250, 228, 0.28);
+}
+
+.codex-editor-tag-toggle.is-selected {
+  border-width: 2px;
+  font-weight: 700;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 251, 233, 0.55),
+    0 1px 3px rgba(45, 25, 8, 0.12);
+}
+
+.codex-editor-tag-toggle:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
 .codex-map-manager-list {
   align-content: start;
 }
@@ -291,6 +616,76 @@
     linear-gradient(to bottom, rgba(244, 224, 184, 0.98), rgba(216, 175, 105, 0.78));
 }
 
+.codex-editor-picker-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  padding: 8px 4px 4px;
+  background: rgba(31, 20, 12, 0.48);
+}
+
+.codex-editor-picker-overlay.hidden {
+  display: none;
+}
+
+.codex-editor-picker-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(70, 47, 24, 0.32);
+  background: rgba(255, 248, 233, 0.96);
+  box-shadow: 0 14px 30px rgba(18, 11, 7, 0.22);
+}
+
+.codex-editor-picker-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.codex-editor-picker-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.codex-editor-picker-copy h3 {
+  margin: 0;
+  font-family: "Marcellus SC", serif;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
+
+.codex-editor-picker-copy small {
+  color: rgba(47, 29, 16, 0.74);
+  line-height: 1.25;
+}
+
+.codex-editor-picker-close {
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid rgba(70, 47, 24, 0.34);
+  background: rgba(255, 249, 235, 0.58);
+  color: #26190f;
+  font-family: "Marcellus SC", serif;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.codex-editor-picker-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.codex-editor-picker-actions {
+  margin-top: 0;
+  padding: 0;
+}
+
 .codex-delete-sheet {
   grid-template-rows: auto auto auto auto;
 }
@@ -335,5 +730,26 @@
   .codex-editor-form textarea {
     min-height: 76px;
     max-height: 18dvh;
+  }
+
+  .codex-editor-selector-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .codex-editor-picker-trigger {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .codex-editor-tag-picker-summary,
+  .codex-editor-tag-category-header,
+  .codex-editor-icon-category-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .codex-editor-tag-toggle {
+    min-height: 28px;
+    font-size: 0.72rem;
   }
 }

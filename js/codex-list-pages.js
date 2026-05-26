@@ -121,10 +121,10 @@ function renderPoiListIntoContainer() {
     direction: sortDirection
   } = readCodexSortState(poiCodexListConfig);
 
-  let pois = [...(db?.raw?.pois || [])];
+  let listRows = createPoiGroupListRows(db?.raw?.pois || []);
 
-  pois = applyConfiguredFilters(
-    pois,
+  listRows = applyConfiguredFilters(
+    listRows,
     [filterOne, filterTwo],
     getPoiFilterValue
   );
@@ -132,23 +132,21 @@ function renderPoiListIntoContainer() {
   const compareFn =
     poiCodexListConfig.sortComparators?.[sortMode] || null;
 
-  pois = applyConfiguredSort(
-    pois,
+  listRows = applyConfiguredSort(
+    listRows,
     compareFn,
     sortDirection
   );
 
-  let listRows = createPoiGroupListRows(pois);
-  if (sortMode === "name") {
-    listRows = sortRows(listRows, (a, b) => compareText(getPoiListSortName(a), getPoiListSortName(b)), sortDirection);
-  }
-
-  listEl.innerHTML = renderCodexLinkedList(
+  listEl.innerHTML = renderCodexPoiLinkedList(
     listRows,
     "No points of interest match these filters.",
     "poi",
     "POI_ID",
-    buildPoiListLabel
+    buildPoiListLabel,
+    {
+      getFooterHtml: (row, resolvedType) => renderCodexPoiIndexTagFooter(row, resolvedType)
+    }
   );
 }
 

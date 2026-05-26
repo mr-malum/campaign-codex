@@ -147,11 +147,17 @@
   const MAJOR_RIVER_CULVERT_FEATURES = new Set(["mountains", "snowcapped_mountains", "lone_mountain", "volcano", "cliffs"]);
   const FEATURE_ASSET_PATH = "hex-mapper/assets/features/";
   const ROUTE_ICON_ASSET_PATH = "hex-mapper/assets/other/";
+  const POI_ICON_ASSET_PATH = window.CampaignPoiIcons?.ASSET_BASE_PATH || "hex-mapper/assets/POIs/";
+  const POI_ICON_FALLBACK = window.CampaignPoiIcons?.FALLBACK_ICON || "unknown_marker";
   const ROUTE_ICON_FILES = {
     road: "cart.svg",
     river: "barge.svg",
     sea_route: "ship.svg"
   };
+  const POI_ICON_FILES = (window.CampaignPoiIcons?.getIconOptions?.() || []).map(option => ({
+    value: option.value,
+    file: `${option.value}.svg`
+  }));
   const EDGE_NAMES = ["E", "SE", "SW", "W", "NW", "NE"];
   const UNCLAIMED_REGION_REF = "REG-0000";
   const DRAWABLE_OVERLAY_TYPES = new Set(["road", "river", "sea_route", "path", "wall", "mist", "region", "unregion", "political-region", "clear-political-region", "erase", "terrain", "terrain-eyedropper", "feature", "feature-erase", "feature-eyedropper"]);
@@ -385,11 +391,20 @@
     city: "◎",
     town: "●",
     village: "●",
+    stronghold: "♜",
     farm: "▦",
     castle: "♜",
     ruins: "✦",
     ruin: "✦",
     dungeon: "◆",
+    dungeon_complex: "⬢",
+    holy_site: "✜",
+    arcane_site: "✶",
+    waypoint: "◈",
+    resource_site: "▦",
+    wilderness_site: "▲",
+    hazard: "⚠",
+    landmark: "✦",
     lair: "▲",
     camp: "♢"
   };
@@ -425,6 +440,9 @@
     routeIconAssets: new Map(),
     routeIconAssetsLoading: null,
     routeIconAssetsLoaded: false,
+    poiIconAssets: new Map(),
+    poiIconAssetsLoading: null,
+    poiIconAssetsLoaded: false,
     initialMapLoadingActive: false,
     initialMapLoadingStartedAt: 0,
     poiHexIds: new Set(),
@@ -433,6 +451,7 @@
     routeLabelCache: { key: "", labels: [] },
     svg: null,
     popup: null,
+    popupOptions: {},
     loadingVeil: null,
     hexes: [],
     hexesById: new Map(),
@@ -757,6 +776,7 @@
     updateDrawControlsVisibility();
     loadFeatureArtAssets();
     loadRouteIconAssets();
+    loadPoiIconAssets();
     fitViewToMap();
     render();
   }
@@ -794,6 +814,7 @@
       || Boolean(renderer.drawing.queuedRenderFrame)
       || !renderer.featureAssetsLoaded
       || !renderer.routeIconAssetsLoaded
+      || !renderer.poiIconAssetsLoaded
       || renderer.featureImageQueue.length > 0
       || renderer.featureImageActiveLoads > 0;
   }
@@ -4252,6 +4273,24 @@
     return renderer.routeIconAssetsLoading;
   }
 
+  async function loadPoiIconAssets() {
+    if (renderer.poiIconAssetsLoading) return renderer.poiIconAssetsLoading;
+    renderer.poiIconAssetsLoaded = false;
+
+    renderer.poiIconAssetsLoading = Promise.all(POI_ICON_FILES.map(async ({ value, file }) => {
+      try {
+        const response = await fetch(`${POI_ICON_ASSET_PATH}${file}`);
+        if (!response.ok) return;
+        renderer.poiIconAssets.set(value, parseFeatureSvg(await response.text()));
+      } catch {}
+    })).then(() => {
+      renderer.poiIconAssetsLoaded = true;
+      renderSvgOnly();
+    });
+
+    return renderer.poiIconAssetsLoading;
+  }
+
   function parseFeatureSvg(text) {
     const viewBoxMatch = text.match(/\bviewBox=["']([^"']+)["']/i);
     const viewBox = viewBoxMatch ? viewBoxMatch[1] : "0 0 384 333";
@@ -4912,29 +4951,110 @@
   }
 
   function renderPoiMarkers(fragment, visibleHexes) {
+    const dimensions = getGeneratedMapDimensions();
+    const markerDiameter = Math.min(70, Math.max(56, (dimensions.radius * 2) - 6));
+    const markerRadius = markerDiameter / 2;
+    const iconSize = Math.min(markerDiameter - 12, 54);
+    const badgeRadius = Math.max(10, Math.round(markerRadius * 0.34));
+
     visibleHexes.forEach(hex => {
       const pois = renderer.poisByHexId.get(hex.id) || renderer.poisByHexId.get(hex.label);
       if (!pois?.length) return;
 
+      const markerPoi = getPrimaryPoiMarkerRecord(pois);
+      const markerX = hex.center.x;
+      const markerY = hex.center.y;
       const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
       const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
 
       group.setAttribute("class", "generated-map-poi-marker");
       circle.setAttribute("class", "generated-map-poi-bg");
-      circle.setAttribute("cx", hex.center.x);
-      circle.setAttribute("cy", hex.center.y - 22);
-      circle.setAttribute("r", "14");
-
-      text.setAttribute("class", "generated-map-poi-symbol");
-      text.setAttribute("x", hex.center.x);
-      text.setAttribute("y", hex.center.y - 21);
-      text.textContent = pois.length > 1 ? String(Math.min(pois.length, 9)) : getPoiGlyph(pois[0]);
+      circle.setAttribute("cx", markerX);
+      circle.setAttribute("cy", markerY);
+      circle.setAttribute("r", String(markerRadius));
 
       group.appendChild(circle);
-      group.appendChild(text);
+      group.appendChild(createPoiMarkerSymbolNode(markerPoi, markerX, markerY, iconSize));
+      if (pois.length > 1) {
+        group.appendChild(createPoiMarkerCountNode(pois.length, markerX, markerY, markerRadius, badgeRadius));
+      }
       fragment.appendChild(group);
     });
+  }
+
+  function getPrimaryPoiMarkerRecord(pois) {
+    return [...(pois || [])].sort((left, right) => {
+      const notorietyDelta = getPoiMarkerNotorietyRank(left) - getPoiMarkerNotorietyRank(right);
+      if (notorietyDelta !== 0) return notorietyDelta;
+      return String(left?.Name || left?.POI_ID || "")
+        .localeCompare(String(right?.Name || right?.POI_ID || ""), undefined, { sensitivity: "base" });
+    })[0] || null;
+  }
+
+  function getPoiMarkerNotorietyRank(poi) {
+    const rawValue = String(poi?.["Notoriety Tier_Value"] || poi?.["Notoriety Tier"] || "");
+    const matchedValue = rawValue.match(/\d+/)?.[0] || "";
+    const rank = Number.parseInt(matchedValue, 10);
+    return Number.isFinite(rank) && rank > 0 ? rank : 99;
+  }
+
+  function getPoiMarkerIconValue(poi) {
+    return window.CampaignPoiIcons?.getDisplayIconValue?.(poi?.POI_Icon || poi?.poi_icon || "") || POI_ICON_FALLBACK;
+  }
+
+  function getPoiMarkerAsset(poi) {
+    const iconValue = getPoiMarkerIconValue(poi);
+    return renderer.poiIconAssets.get(iconValue)
+      || renderer.poiIconAssets.get(POI_ICON_FALLBACK)
+      || null;
+  }
+
+  function createPoiMarkerSymbolNode(poi, centerX, centerY, iconSize = 24) {
+    const asset = getPoiMarkerAsset(poi);
+    if (asset) {
+      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      icon.setAttribute("class", "generated-map-poi-icon");
+      icon.setAttribute("viewBox", asset.viewBox);
+      icon.setAttribute("x", String(centerX - (iconSize / 2)));
+      icon.setAttribute("y", String(centerY - (iconSize / 2)));
+      icon.setAttribute("width", String(iconSize));
+      icon.setAttribute("height", String(iconSize));
+      icon.setAttribute("aria-hidden", "true");
+      icon.innerHTML = asset.body;
+      return icon;
+    }
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("class", "generated-map-poi-symbol");
+    text.setAttribute("x", centerX);
+    text.setAttribute("y", centerY + 1);
+    text.setAttribute("font-size", String(Math.max(18, iconSize - 4)));
+    text.textContent = getPoiGlyph(poi);
+    return text;
+  }
+
+  function createPoiMarkerCountNode(count, centerX, centerY, markerRadius = 17, badgeRadius = 8) {
+    const badge = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const badgeCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const badgeText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const badgeX = centerX + markerRadius - badgeRadius + 1;
+    const badgeY = centerY - markerRadius + badgeRadius - 1;
+
+    badge.setAttribute("class", "generated-map-poi-count-badge");
+    badgeCircle.setAttribute("class", "generated-map-poi-count-bg");
+    badgeCircle.setAttribute("cx", String(badgeX));
+    badgeCircle.setAttribute("cy", String(badgeY));
+    badgeCircle.setAttribute("r", String(badgeRadius));
+
+    badgeText.setAttribute("class", "generated-map-poi-count");
+    badgeText.setAttribute("x", String(badgeX));
+    badgeText.setAttribute("y", String(badgeY + 0.5));
+    badgeText.setAttribute("font-size", String(Math.max(10, badgeRadius + 3)));
+    badgeText.textContent = String(Math.min(count, 9));
+
+    badge.appendChild(badgeCircle);
+    badge.appendChild(badgeText);
+    return badge;
   }
 
   function renderGeographicRegionOverlay(fragment, visibleHexes) {
@@ -6934,7 +7054,7 @@
   }
 
   function getPoiGlyph(poi) {
-    const type = String(poi?.POI_Type || "")
+    const type = String(poi?.POI_Type_Value || poi?.POI_Type || "")
       .trim()
       .toLowerCase()
       .replaceAll(/\s+/g, "_");
@@ -7384,7 +7504,7 @@
 
     cancelZoomAnimation();
 
-    if (renderer.drawing.enabled && (event.pointerType === "touch" || !renderer.drawing.tool || event.button === 1 || event.button === 2)) {
+    if (renderer.drawing.enabled && (event.pointerType === "touch" || event.button === 1 || event.button === 2)) {
       beginTouchDrawIntent(event);
       renderer.view.dragging = true;
       renderer.view.dragMoved = false;
@@ -7394,7 +7514,7 @@
       return;
     }
 
-    if (renderer.drawing.enabled && event.pointerType !== "touch") {
+    if (renderer.drawing.enabled && renderer.drawing.tool && event.pointerType !== "touch") {
       event.preventDefault();
       renderer.root.setPointerCapture?.(event.pointerId);
       renderer.drawing.paintedThisDrag = new Set();
@@ -7537,7 +7657,7 @@
       return;
     }
 
-    if (renderer.drawing.enabled) {
+    if (renderer.drawing.enabled && renderer.drawing.tool) {
       if (renderer.drawing.tool === "wall" && getValidWallMode(renderer.drawing.wallMode) === "plane" && renderer.drawing.wallPlaneDrag?.previewEdges?.length) {
         const wallEdges = renderer.drawing.wallPlaneDrag.previewEdges;
         renderer.drawing.wallPlaneDrag = null;
@@ -7552,6 +7672,13 @@
       renderSvgOnly();
       return;
     }
+
+    if (renderer.drawing.enabled) {
+      renderer.view.dragging = false;
+      renderer.root.releasePointerCapture?.(event.pointerId);
+      return;
+    }
+
     renderer.view.dragging = false;
     renderer.root.releasePointerCapture?.(event.pointerId);
   }
@@ -7597,7 +7724,11 @@
       return;
     }
 
-    selectGeneratedHex(hex.id, { detailsDisabled: renderer.drawing.enabled && !renderer.drawing.tool });
+    const isEditorPreview = renderer.drawing.enabled && !renderer.drawing.tool;
+    selectGeneratedHex(hex.id, {
+      detailsDisabled: isEditorPreview,
+      disablePoiLinks: isEditorPreview
+    });
   }
 
   function applyDrawingAtEvent(event, fromDrag = false) {
@@ -8467,30 +8598,78 @@
     if (anchors.length < 2) return [];
 
     const seedBase = getGenerationSeedBase(campaignId);
-    const connected = [anchors[0]];
-    const remaining = anchors.slice(1);
     const routes = [];
     const amountScale = Math.max(0.25, Math.min(2, Number(renderer.drawing.generationRoadAmount || 100) / 100));
-    const maxRoutes = Math.min(Math.max(1, Math.round(28 * amountScale)), anchors.length - 1);
+    const maxRoutes = Math.min(Math.max(2, Math.round(18 * amountScale)), anchors.length - 1);
+    const backboneTarget = Math.min(
+      maxRoutes,
+      Math.max(1, Math.round(Math.min(6, anchors.length - 1) * Math.min(1.25, amountScale)))
+    );
+    const connectedAnchors = [anchors[0]];
+    const remainingAnchors = anchors.slice(1);
+    const usedNames = new Set();
     let step = 0;
 
-    while (remaining.length && routes.length < maxRoutes) {
+    while (remainingAnchors.length && routes.length < backboneTarget) {
       const candidates = [];
-      connected.forEach(fromHex => {
-        remaining.forEach(toHex => {
-          const score = roadPathHeuristic(fromHex, toHex)
-            + seededUnit(`${seedBase}:road-route:${step}:${fromHex.id}:${toHex.id}`) * 5.5;
-          candidates.push({ fromHex, toHex, score });
+      connectedAnchors.forEach(fromAnchor => {
+        remainingAnchors.forEach(toAnchor => {
+          candidates.push({
+            fromAnchor,
+            toAnchor,
+            score: getGeneratedRoadBackboneScore(fromAnchor, toAnchor, seedBase, step)
+          });
         });
       });
-      const candidatePool = candidates.sort((a, b) => a.score - b.score).slice(0, Math.min(6, candidates.length));
-      const best = candidatePool[Math.floor(seededUnit(`${seedBase}:road-pick:${step}`) * candidatePool.length)];
+
+      const candidatePool = candidates
+        .sort((a, b) => a.score - b.score)
+        .slice(0, Math.min(10, candidates.length));
+      const best = candidatePool.find(candidate => {
+        const sequence = getPathOverlaySequence("road", candidate.fromAnchor.hex.id, candidate.toAnchor.hex.id, "", { majorRoute: true });
+        if (!sequence?.length || sequence.length < 2) return false;
+        const routeName = buildGeneratedRoadRouteName(candidate.fromAnchor, candidate.toAnchor, seedBase, routes.length, usedNames);
+        routes.push({
+          sequence,
+          routeMetadata: {
+            isMajorRoute: true,
+            routeName
+          }
+        });
+        connectedAnchors.push(candidate.toAnchor);
+        remainingAnchors.splice(remainingAnchors.findIndex(anchor => anchor.hex.id === candidate.toAnchor.hex.id), 1);
+        return true;
+      });
       if (!best) break;
-      const sequence = getPathOverlaySequence("road", best.fromHex.id, best.toHex.id);
-      if (sequence && sequence.length >= 2) routes.push(sequence);
-      connected.push(best.toHex);
-      remaining.splice(remaining.findIndex(hex => hex.id === best.toHex.id), 1);
       step += 1;
+    }
+
+    while (remainingAnchors.length && routes.length < maxRoutes) {
+      const best = remainingAnchors
+        .map(anchor => ({
+          anchor,
+          target: connectedAnchors
+            .map(connectedAnchor => ({
+              anchor: connectedAnchor,
+              score: getGeneratedRoadFeederScore(anchor, connectedAnchor, seedBase)
+            }))
+            .sort((a, b) => a.score - b.score)[0]
+        }))
+        .filter(candidate => candidate.target?.anchor)
+        .sort((a, b) => a.target.score - b.target.score)[0];
+      if (!best?.target?.anchor) break;
+
+      const sequence = getPathOverlaySequence("road", best.anchor.hex.id, best.target.anchor.hex.id, "", { majorRoute: false });
+      remainingAnchors.splice(remainingAnchors.findIndex(anchor => anchor.hex.id === best.anchor.hex.id), 1);
+      if (!sequence?.length || sequence.length < 2) continue;
+      routes.push({
+        sequence,
+        routeMetadata: {
+          isMajorRoute: false,
+          routeName: ""
+        }
+      });
+      connectedAnchors.push(best.anchor);
     }
 
     return routes;
@@ -8509,21 +8688,51 @@
     pois.forEach(poi => {
       const hex = hexById.get(poi.Hex_ID_Ref);
       if (!hex || isWaterHex(hex)) return;
-      const score = getPoiRoadAnchorScore(poi) + seededUnit(`${seedBase}:road-anchor:${poi.POI_ID || poi.Name || hex.id}`) * 8;
+      const profile = getGeneratedRoadAnchorProfile(poi, hex, seedBase);
       const existing = bestPoiByHex.get(hex.id);
-      if (!existing || score < existing.score) bestPoiByHex.set(hex.id, { hex, score });
+      if (!existing || profile.priority > existing.priority) bestPoiByHex.set(hex.id, profile);
     });
 
     const poiAnchors = [...bestPoiByHex.values()]
-      .sort((a, b) => a.score - b.score || a.hex.id.localeCompare(b.hex.id))
+      .sort((a, b) => b.priority - a.priority || a.hex.id.localeCompare(b.hex.id))
       .slice(0, 24)
-      .map(entry => entry.hex);
-    return [...poiAnchors, ...getFallbackRoadAnchors(campaignId, bestPoiByHex)]
-      .filter((hex, index, list) => hex && list.findIndex(candidate => candidate.id === hex.id) === index);
+      .map(entry => ({
+        hex: entry.hex,
+        name: entry.name,
+        priority: entry.priority,
+        tier: entry.tier
+      }));
+    return [...poiAnchors, ...getFallbackRoadAnchors(campaignId, new Set(poiAnchors.map(anchor => anchor.hex.id)))]
+      .filter((anchor, index, list) => anchor?.hex && list.findIndex(candidate => candidate.hex.id === anchor.hex.id) === index);
   }
 
-  function getFallbackRoadAnchors(campaignId, existingAnchors = new Map()) {
-    if (existingAnchors.size >= 2) return [];
+  function getGeneratedRoadAnchorProfile(poi, hex, seedBase) {
+    const text = `${poi?.POI_Type || ""} ${poi?.Name || ""}`.toLowerCase();
+    const name = String(poi?.Name || "").trim();
+    let priority = 10;
+    let tier = "minor";
+    if (/(capital|metropolis|city|harbor|harbour|port|market|crossroads)/.test(text)) {
+      priority = 100;
+      tier = "major";
+    } else if (/(town|village|settlement|district|docks|fort|castle|keep|hold|abbey|farm|inn)/.test(text)) {
+      priority = 76;
+      tier = "major";
+    } else if (/(tower|temple|oasis|bridge|ford|lodge|camp|outpost|mine|quarry|mill)/.test(text)) {
+      priority = 48;
+      tier = "minor";
+    } else if (/(ruin|dungeon|cave|tomb|pit|obelisk|barrow|crypt)/.test(text)) {
+      priority = 18;
+      tier = "minor";
+    } else {
+      priority = 36;
+    }
+    priority -= getRoadLandAnchorScore(hex) * 1.5;
+    priority += seededUnit(`${seedBase}:road-anchor:${poi.POI_ID || name || hex.id}`) * 6;
+    return { hex, name, priority, tier };
+  }
+
+  function getFallbackRoadAnchors(campaignId, existingAnchorIds = new Set()) {
+    if (existingAnchorIds.size >= 2) return [];
     const seedBase = getGenerationSeedBase(campaignId);
     const byRegion = new Map();
     renderer.hexes.forEach(hex => {
@@ -8539,25 +8748,99 @@
       }), { x: 0, y: 0 });
       center.x /= Math.max(1, hexes.length);
       center.y /= Math.max(1, hexes.length);
-      return hexes
+      const regionHex = hexes
         .slice()
         .sort((a, b) => (
           Math.hypot(a.center.x - center.x, a.center.y - center.y) - Math.hypot(b.center.x - center.x, b.center.y - center.y) ||
           seededUnit(`${seedBase}:road-region:${regionId}:${a.id}`) - seededUnit(`${seedBase}:road-region:${regionId}:${b.id}`)
         ))[0];
+      return regionHex ? {
+        hex: regionHex,
+        name: "",
+        priority: 28 + seededUnit(`${seedBase}:road-fallback-region:${regionId}`) * 4,
+        tier: "minor"
+      } : null;
     }).filter(Boolean);
 
     const broadLand = renderer.hexes
-      .filter(hex => !isWaterHex(hex) && !existingAnchors.has(hex.id))
+      .filter(hex => !isWaterHex(hex) && !existingAnchorIds.has(hex.id))
       .sort((a, b) => (
         getRoadLandAnchorScore(a) - getRoadLandAnchorScore(b) ||
         seededUnit(`${seedBase}:road-land:${a.id}`) - seededUnit(`${seedBase}:road-land:${b.id}`)
       ))
-      .slice(0, 8);
+      .slice(0, 8)
+      .map(hex => ({
+        hex,
+        name: "",
+        priority: 20 - getRoadLandAnchorScore(hex),
+        tier: "minor"
+      }));
 
     return [...regionCenters, ...broadLand]
-      .filter((hex, index, list) => hex && !existingAnchors.has(hex.id) && list.findIndex(candidate => candidate.id === hex.id) === index)
+      .filter((anchor, index, list) => (
+        anchor?.hex &&
+        !existingAnchorIds.has(anchor.hex.id) &&
+        list.findIndex(candidate => candidate.hex.id === anchor.hex.id) === index
+      ))
       .slice(0, 12);
+  }
+
+  function getGeneratedRoadBackboneScore(fromAnchor, toAnchor, seedBase, step = 0) {
+    const distance = roadPathHeuristic(fromAnchor.hex, toAnchor.hex);
+    const importanceBonus = (fromAnchor.priority + toAnchor.priority) / 55;
+    const majorBias = fromAnchor.tier === "major" && toAnchor.tier === "major" ? -1.2 : 0;
+    const roll = seededUnit(`${seedBase}:road-backbone:${step}:${fromAnchor.hex.id}:${toAnchor.hex.id}`) * 1.8;
+    return distance * 1.45 - importanceBonus + majorBias + roll;
+  }
+
+  function getGeneratedRoadFeederScore(anchor, connectedAnchor, seedBase) {
+    return roadPathHeuristic(anchor.hex, connectedAnchor.hex)
+      + Math.max(0, connectedAnchor.priority - anchor.priority) * 0.015
+      + seededUnit(`${seedBase}:road-feeder:${anchor.hex.id}:${connectedAnchor.hex.id}`) * 0.9;
+  }
+
+  function buildGeneratedRoadRouteName(fromAnchor, toAnchor, seedBase, routeIndex, usedNames = new Set()) {
+    const first = sanitizeGeneratedRoadNamePart(fromAnchor?.name);
+    const second = sanitizeGeneratedRoadNamePart(toAnchor?.name);
+    const ordered = [first, second].filter(Boolean).sort((a, b) => a.localeCompare(b));
+    const baseName = ordered.length >= 2
+      ? `${ordered[0]}-${ordered[1]} Road`
+      : ordered[0]
+      ? `${ordered[0]} Road`
+      : `${getGeneratedRoadDirectionName(fromAnchor?.hex, toAnchor?.hex)} Road`;
+    return ensureUniqueGeneratedRoadName(baseName, usedNames, `${seedBase}:road-name:${routeIndex}`);
+  }
+
+  function sanitizeGeneratedRoadNamePart(name) {
+    return String(name || "")
+      .replace(/\s+/g, " ")
+      .replace(/[^\w\s'-]/g, "")
+      .trim()
+      .slice(0, 40);
+  }
+
+  function getGeneratedRoadDirectionName(fromHex, toHex) {
+    if (!fromHex || !toHex) return "High";
+    const dx = Number(toHex.center?.x || 0) - Number(fromHex.center?.x || 0);
+    const dy = Number(toHex.center?.y || 0) - Number(fromHex.center?.y || 0);
+    if (Math.abs(dx) > Math.abs(dy) * 1.35) return dx >= 0 ? "Eastmarch" : "Westreach";
+    if (Math.abs(dy) > Math.abs(dx) * 1.35) return dy >= 0 ? "Southroad" : "Northroad";
+    if (dx >= 0 && dy >= 0) return "Sunward";
+    if (dx >= 0 && dy < 0) return "Dawnward";
+    if (dx < 0 && dy >= 0) return "Duskwatch";
+    return "Highroad";
+  }
+
+  function ensureUniqueGeneratedRoadName(baseName, usedNames, seed) {
+    const normalizedBase = String(baseName || "").trim() || "High Road";
+    let candidate = normalizedBase;
+    let counter = 2 + Math.floor(seededUnit(seed) * 2);
+    while (usedNames.has(candidate.toLowerCase())) {
+      candidate = `${normalizedBase} ${counter}`;
+      counter += 1;
+    }
+    usedNames.add(candidate.toLowerCase());
+    return candidate;
   }
 
   function getRoadLandAnchorScore(hex) {
@@ -8567,14 +8850,6 @@
     if ((hex.features || []).some(feature => ["mountains", "snowcapped_mountains", "volcano", "cliffs", "jungle", "marsh"].includes(feature))) score += 3;
     score += Math.abs(Number(hex.elevation || 0) - 1) * 0.8;
     return score;
-  }
-
-  function getPoiRoadAnchorScore(poi) {
-    const text = `${poi?.POI_Type || ""} ${poi?.Name || ""}`.toLowerCase();
-    if (/(city|town|village|settlement|district|docks|farm|inn|abbey|castle|hold)/.test(text)) return 0;
-    if (/(tower|temple|lodge|oasis|center|entrance|summit)/.test(text)) return 2;
-    if (/(ruin|dungeon|cave|tomb|pit|shelter|obelisk)/.test(text)) return 4;
-    return 3;
   }
 
   function buildGeneratedRiverRoutes(campaignId) {
@@ -10738,9 +11013,9 @@
     return sequence;
   }
 
-  function getPathOverlaySequence(tool, fromHexId, toHexId, exitEdge = "") {
+  function getPathOverlaySequence(tool, fromHexId, toHexId, exitEdge = "", options = {}) {
     if (tool === "road" && !exitEdge && fromHexId !== toHexId && !renderer.drawing.roadWaterOverride) {
-      return getRoadPathSequence(fromHexId, toHexId) || [];
+      return getRoadPathSequence(fromHexId, toHexId, options) || [];
     }
     if (tool === "river" && !exitEdge && fromHexId !== toHexId) {
       const riverSequence = getManualRiverPathSequence(fromHexId, toHexId);
@@ -10756,11 +11031,11 @@
     return getHexLineSequence(fromHexId, toHexId);
   }
 
-  function getRoadPathSequence(fromHexId, toHexId) {
+  function getRoadPathSequence(fromHexId, toHexId, options = {}) {
     const fromHex = hexForPathPoint(fromHexId);
     const toHex = hexForPathPoint(toHexId);
     if (ROAD_IMPASSABLE_WATER_TERRAINS.has(fromHex?.baseTerrain) || ROAD_IMPASSABLE_WATER_TERRAINS.has(toHex?.baseTerrain)) return null;
-    return getWeightedHexPathSequence(fromHexId, toHexId, getRoadPathStepCost, roadPathHeuristic);
+    return getWeightedHexPathSequence(fromHexId, toHexId, getRoadPathStepCost, roadPathHeuristic, options);
   }
 
   function getSeaRoutePathSequence(fromHexId, toHexId) {
@@ -11068,7 +11343,7 @@
     return progressBias + noProgressPenalty + lineCost;
   }
 
-  function getWeightedHexPathSequence(fromHexId, toHexId, getStepCost, getHeuristic) {
+  function getWeightedHexPathSequence(fromHexId, toHexId, getStepCost, getHeuristic, options = {}) {
     const start = hexForPathPoint(fromHexId);
     const goal = hexForPathPoint(toHexId);
     if (!start || !goal) return null;
@@ -11095,7 +11370,7 @@
       EDGE_NAMES.forEach(edgeName => {
         const neighbor = getNeighborHex(current, edgeName);
         if (!neighbor) return;
-        const stepCost = getStepCost(current, neighbor, goal, start);
+        const stepCost = getStepCost(current, neighbor, goal, start, options);
         if (!Number.isFinite(stepCost)) return;
 
         const nextCost = (bestCost.get(current.id) ?? Infinity) + stepCost;
@@ -11128,14 +11403,15 @@
     return roadPathHeuristic(hex, goal) * 0.72;
   }
 
-  function getRoadPathStepCost(fromHex, toHex, goalHex) {
+  function getRoadPathStepCost(fromHex, toHex, goalHex, startHex, options = {}) {
     if (ROAD_IMPASSABLE_WATER_TERRAINS.has(toHex.baseTerrain) && toHex.id !== goalHex.id) return Infinity;
     if (canRoadCrossWaterHex(fromHex) && canRoadCrossWaterHex(toHex) && toHex.id !== goalHex.id) return Infinity;
 
     let cost = ROAD_BASE_TERRAIN_COSTS[toHex.baseTerrain] ?? 3;
+    const isMajorRoute = options.majorRoute ?? renderer.drawing.roadRouteMajor;
     if (canRoadCrossWaterHex(toHex)) {
       if (!canRoadUseOneHexWaterCrossing(fromHex, toHex, goalHex)) return Infinity;
-      cost += renderer.drawing.roadRouteMajor ? MAJOR_ROAD_WATER_PATH_COST : ROAD_WATER_PATH_COST;
+      cost += isMajorRoute ? MAJOR_ROAD_WATER_PATH_COST : ROAD_WATER_PATH_COST;
     }
 
     cost += getRoadFeaturePathCost(toHex);
@@ -11367,6 +11643,7 @@
 
   function selectGeneratedHex(hexId, options = {}) {
     renderer.selectedHexId = hexId;
+    renderer.popupOptions = { ...options };
     selectedHexId = hexId;
     selectedHex = { setStyle() {} };
     showPopup(hexId, options);
@@ -11374,7 +11651,9 @@
   }
 
   function showPopup(hexId, options = {}) {
-    renderer.popup.innerHTML = `<div class="generated-map-popup-content">${buildMobilePopupHtml?.(hexId, options) || ""}</div>`;
+    const resolvedOptions = Object.keys(options || {}).length ? { ...options } : { ...(renderer.popupOptions || {}) };
+    renderer.popupOptions = { ...resolvedOptions };
+    renderer.popup.innerHTML = `<div class="generated-map-popup-content">${buildMobilePopupHtml?.(hexId, resolvedOptions) || ""}</div>`;
     renderer.popup.hidden = false;
     positionPopup();
   }
@@ -11392,6 +11671,7 @@
 
   function clearSelection() {
     renderer.selectedHexId = null;
+    renderer.popupOptions = {};
     if (renderer.popup) {
       renderer.popup.hidden = true;
       renderer.popup.innerHTML = "";
