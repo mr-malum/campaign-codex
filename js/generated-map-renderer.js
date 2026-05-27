@@ -8541,20 +8541,26 @@
     const campaign = getActiveCampaign?.();
     if (!campaign || renderer.drawing.saving) return false;
     if (!options.skipConfirm && !await confirmOverlayGeneration("river", "rivers")) return false;
-    const routes = buildGeneratedRiverRoutes(campaign.id);
-    if (!routes.length) {
-      window.alert?.("No river routes could be generated from the current terrain.");
+    try {
+      const routes = buildGeneratedRiverRoutes(campaign.id);
+      if (!routes.length) {
+        window.alert?.("No river routes could be generated from the current terrain.");
+        return false;
+      }
+
+      return persistGeneratedOverlayRoutes({
+        campaignId: campaign.id,
+        routes,
+        tool: "river",
+        style: composeOverlayStyle("river", []),
+        routeMetadata: { isMajorRoute: false, routeName: "" },
+        emptyMessage: "Generated rivers already matched existing river overlays."
+      });
+    } catch (error) {
+      console.error("Unable to generate rivers:", error);
+      window.alert?.(error?.message || "Unable to generate rivers.");
       return false;
     }
-
-    return persistGeneratedOverlayRoutes({
-      campaignId: campaign.id,
-      routes,
-      tool: "river",
-      style: composeOverlayStyle("river", []),
-      routeMetadata: { isMajorRoute: false, routeName: "" },
-      emptyMessage: "Generated rivers already matched existing river overlays."
-    });
   }
 
   async function runGenerationPoiPass() {
@@ -9444,12 +9450,17 @@
     const entryEdge = getOuterMapEdge(source);
     const startsOffMap = Boolean(entryEdge && seededUnit(`${seedBase}:river-entry:${source.id}`) < 0.45);
     const goals = getGeneratedRiverGoalCandidates(source, seedBase, lengthScale);
-    if (!goals.length) return null;
 
     const previousSalt = renderer.drawing.manualRiverPathSalt;
-    const salt = createManualRiverPathSalt(source.id, goals.slice(0, 4).map(goal => goal.id).join(":"));
+    const salt = createManualRiverPathSalt(source.id, (goals.length ? goals.slice(0, 4).map(goal => goal.id).join(":") : "legacy-fallback"));
     renderer.drawing.manualRiverPathSalt = salt;
-    const sequence = getGeneratedRiverAdaptivePathSequence(source.id, goals, { source, seedBase, lengthScale });
+    let sequence = goals.length ? getGeneratedRiverAdaptivePathSequence(source.id, goals, { source, seedBase, lengthScale }) : null;
+    if ((!sequence?.length || sequence.length < 4) && goals.length) {
+      sequence = getGeneratedRiverFallbackPathSequence(source.id, goals);
+    }
+    if (!sequence?.length || sequence.length < 4) {
+      sequence = getLegacyGeneratedRiverRouteSequence(source, seedBase, lengthScale);
+    }
     renderer.drawing.manualRiverPathSalt = previousSalt;
     if (!sequence?.length || sequence.length < 4) return null;
 
@@ -9462,25 +9473,79 @@
     return { routes: visibleRoutes, sequence };
   }
 
+  function getGeneratedRiverFallbackPathSequence(fromHexId, goals) {
+    const fallbackGoals = Array.isArray(goals) ? goals.slice(0, 6) : [];
+    let bestSequence = null;
+    fallbackGoals.forEach(goal => {
+      if (!goal?.id) return;
+      const sequence = getManualRiverPathSequence(fromHexId, goal.id);
+      if (!sequence?.length || sequence.length < 4) return;
+      if (!bestSequence || sequence.length > bestSequence.length) {
+        bestSequence = sequence;
+      }
+    });
+    return bestSequence;
+  }
+
+  function getLegacyGeneratedRiverRouteSequence(source, seedBase, lengthScale) {
+    const start = source?.id ? source : hexForPathPoint(source);
+    if (!start?.id) return null;
+
+    const maxSteps = Math.max(8, Math.round(54 * Math.max(0.5, Math.min(1.75, Number(lengthScale) || 1))));
+    const sequence = [start.id];
+    const visited = new Set(sequence);
+    let current = start;
+
+    for (let step = 0; step < maxSteps; step += 1) {
+      const waterNeighbors = EDGE_NAMES
+        .map(edgeName => getNeighborHex(current, edgeName))
+        .filter(hex => Boolean(hex) && isWaterHex(hex))
+        .sort((a, b) => {
+          const terrainOrder = (a.baseTerrain === "deep_sea" ? 1 : 0) - (b.baseTerrain === "deep_sea" ? 1 : 0);
+          if (terrainOrder !== 0) return terrainOrder;
+          return a.id.localeCompare(b.id);
+        });
+      if (waterNeighbors.length) {
+        sequence.push(waterNeighbors[0].id);
+        return sequence;
+      }
+
+      const candidates = EDGE_NAMES
+        .map(edgeName => getNeighborHex(current, edgeName))
+        .filter(hex => Boolean(hex) && !visited.has(hex.id) && !isWaterHex(hex))
+        .map(hex => ({
+          hex,
+          score: getRiverStepScore(current, hex, seedBase, step)
+        }))
+        .filter(candidate => Number.isFinite(candidate.score))
+        .sort((a, b) => a.score - b.score || a.hex.id.localeCompare(b.hex.id));
+      if (!candidates.length) break;
+
+      const next = candidates[0].hex;
+      sequence.push(next.id);
+      visited.add(next.id);
+      current = next;
+    }
+
+    return sequence.length >= 4 ? sequence : null;
+  }
+
   function getGeneratedRiverGoalCandidates(source, seedBase, lengthScale) {
     if (!source) return [];
     const ranges = [
       {
         minDistance: Math.max(4, Math.round(5 * lengthScale)),
-        maxDistance: Math.max(8, Math.round(18 + lengthScale * 18)),
-        allowDeepSea: false
+        maxDistance: Math.max(8, Math.round(18 + lengthScale * 18))
       },
       {
         minDistance: 2,
-        maxDistance: Math.max(10, Math.round(24 + lengthScale * 18)),
-        allowDeepSea: true
+        maxDistance: Math.max(10, Math.round(24 + lengthScale * 18))
       }
     ];
     for (const range of ranges) {
       const matches = renderer.hexes
         .filter(hex => {
-          if (!hex?.id || hex.id === source.id || !isWaterHex(hex)) return false;
-          if (!range.allowDeepSea && hex.baseTerrain === "deep_sea") return false;
+          if (!hex?.id || hex.id === source.id || !isRiverTradeContinuationWaterHex(hex)) return false;
           const distance = roadPathHeuristic(source, hex);
           return distance >= range.minDistance && distance <= range.maxDistance;
         })
@@ -9495,7 +9560,7 @@
       const spaced = [];
       matches.forEach(candidate => {
         if (spaced.length >= 14) return;
-        if (spaced.some(existing => hexDistance(existing.hex, candidate.hex) < 5)) return;
+        if (spaced.some(existing => roadPathHeuristic(existing.hex, candidate.hex) < 5)) return;
         spaced.push(candidate);
       });
       if (spaced.length) return spaced.map(candidate => candidate.hex);
