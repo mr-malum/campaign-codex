@@ -15,7 +15,10 @@
         "farmstead",
         "walled_encampment",
         "mountain_hold",
-        "mountain_pass"
+        "inn",
+        "lodge",
+        "tavern",
+        "abandoned_shack"
       ]
     },
     {
@@ -30,15 +33,20 @@
         "gate",
         "mountain_gate",
         "mountain_hold",
-        "mountain_pass"
+        "walled_city",
+        "walled_encampment",
+        "border_post",
+        "bridge_gate"
       ]
     },
     {
       value: "dungeons_ruins",
       label: "Dungeons & Ruins",
       options: [
-        "cave",
         "dungeon",
+        "cave",
+        "catacombs",
+        "crypt",
         "lair",
         "dragon_lair",
         "ruins",
@@ -46,6 +54,7 @@
         "pyramid",
         "ziggurat",
         "shipwreck",
+        "chest",
         "mountain_gate",
         "mountain_hold"
       ]
@@ -57,6 +66,7 @@
         "abbey",
         "temple",
         "shrine",
+        "roadside_shrine",
         "sacred_grove",
         "mausoleum",
         "standing_stones",
@@ -64,7 +74,10 @@
         "obelisk",
         "wizard_tower",
         "arcane_portal",
-        "ley_nexus"
+        "ley_nexus",
+        "observatory",
+        "laboratory",
+        "ziggurat"
       ]
     },
     {
@@ -72,21 +85,25 @@
       label: "Travel & Trade",
       options: [
         "bridge",
+        "bridge_gate",
         "ford",
         "ferry",
         "docks",
         "harbor",
         "lighthouse",
+        "anchor",
         "rowboat",
         "sloop",
         "galleon",
         "tavern",
+        "inn",
         "trader",
+        "trade_goods",
         "market",
         "mountain_pass",
         "gate",
-        "campsite",
-        "lodge"
+        "border_post",
+        "campsite"
       ]
     },
     {
@@ -100,9 +117,12 @@
         "lumber_mill",
         "windmill",
         "hunting_blind",
+        "fishing_camp",
+        "warehouse",
         "docks",
         "harbor",
-        "market"
+        "market",
+        "trade_goods"
       ]
     },
     {
@@ -117,11 +137,16 @@
         "waterfall",
         "swamp",
         "reef",
+        "whirlpool",
+        "volcano",
         "standing_stones",
         "monolith",
         "obelisk",
         "compass_rose",
-        "mountain_pass"
+        "mountain_pass",
+        "canyon_pass",
+        "island",
+        "island_2"
       ]
     },
     {
@@ -137,29 +162,53 @@
         "graveyard",
         "dead_tree",
         "shipwreck",
+        "ship_stern",
         "crater",
+        "plague_marker",
+        "skull_marker",
+        "volcano",
+        "whirlpool",
         "chest",
-        "unknown_marker",
-        "swamp"
+        "unknown_marker"
       ]
     },
     {
       value: "water_coastal",
       label: "Water / Coastal",
       options: [
+        "anchor",
         "docks",
         "harbor",
         "lighthouse",
         "reef",
+        "whirlpool",
         "shipwreck",
+        "ship_stern",
         "rowboat",
         "sloop",
         "galleon",
-        "ship_stern",
         "pirate_flag",
         "kraken",
         "ferry",
-        "ford"
+        "ford",
+        "port_town",
+        "sea_fort",
+        "island",
+        "island_2",
+        "fishing_camp"
+      ]
+    },
+    {
+      value: "fallback_mystery",
+      label: "Fallback / Mystery",
+      options: [
+        "unknown_marker",
+        "compass_rose",
+        "monolith",
+        "obelisk",
+        "standing_stones",
+        "chest",
+        "crater"
       ]
     }
   ]);

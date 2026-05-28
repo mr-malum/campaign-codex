@@ -57,14 +57,16 @@ as $$
   )
   select case
     when icon_value in (
-      'abbey', 'arcane_portal', 'bandit_camp', 'battlefield', 'bridge', 'campsite', 'castle', 'cave', 'chest', 'city', 'compass_rose',
-      'crater', 'dead_tree', 'docks', 'dragon_lair', 'dungeon', 'farmstead', 'ferry', 'ford', 'fort', 'galleon', 'gate', 'geyser',
-      'graveyard', 'harbor', 'hilltop_town', 'hunting_blind', 'kraken', 'lair', 'ley_nexus', 'lighthouse', 'lodge', 'lumber_camp',
-      'lumber_mill', 'market', 'mausoleum', 'mine', 'monolith', 'mountain_city', 'mountain_gate', 'mountain_hold', 'mountain_pass',
-      'oasis', 'obelisk', 'pirate_flag', 'port_town', 'pyramid', 'quarry', 'reef', 'rowboat', 'ruins', 'sacred_grove', 'sea_fort',
-      'ship_stern', 'shipwreck', 'shrine', 'sloop', 'spring', 'standing_stones', 'stone_tower', 'swamp', 'tavern', 'temple', 'trader',
-      'tree', 'unknown_marker', 'village', 'walled_city', 'walled_encampment', 'watchtower', 'waterfall', 'windmill', 'wizard_tower',
-      'ziggurat'
+      'abbey', 'abandoned_shack', 'anchor', 'arcane_portal', 'bandit_camp', 'battlefield', 'border_post', 'bridge', 'bridge_gate',
+      'campsite', 'canyon_pass', 'castle', 'catacombs', 'cave', 'chest', 'city', 'compass_rose', 'crater', 'crypt', 'dead_tree',
+      'docks', 'dragon_lair', 'dungeon', 'farmstead', 'ferry', 'fishing_camp', 'ford', 'fort', 'galleon', 'gate', 'geyser',
+      'graveyard', 'harbor', 'hilltop_town', 'hunting_blind', 'inn', 'island', 'island_2', 'kraken', 'laboratory', 'lair',
+      'ley_nexus', 'lighthouse', 'lodge', 'lumber_camp', 'lumber_mill', 'market', 'mausoleum', 'mine', 'monolith', 'mountain_city',
+      'mountain_gate', 'mountain_hold', 'mountain_pass', 'oasis', 'obelisk', 'observatory', 'pirate_flag', 'plague_marker',
+      'port_town', 'pyramid', 'quarry', 'reef', 'roadside_shrine', 'rowboat', 'ruins', 'sacred_grove', 'sea_fort', 'ship_stern',
+      'shipwreck', 'shrine', 'skull_marker', 'sloop', 'spring', 'standing_stones', 'stone_tower', 'swamp', 'tavern', 'temple',
+      'trade_goods', 'trader', 'tree', 'unknown_marker', 'village', 'volcano', 'warehouse', 'walled_city', 'walled_encampment',
+      'watchtower', 'waterfall', 'whirlpool', 'windmill', 'wizard_tower', 'ziggurat'
     ) then icon_value
     else null
   end

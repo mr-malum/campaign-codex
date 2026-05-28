@@ -1356,10 +1356,13 @@
   function chooseSettlementIcon(candidate, sizeTier, tags) {
     if (candidate.coastal && (sizeTier === "grand_hub" || sizeTier === "city")) return "port_town";
     if (candidate.highland && (sizeTier === "grand_hub" || sizeTier === "city")) return "mountain_city";
+    if (candidate.highland && candidate.strategic >= 0.22) return "mountain_hold";
     if (candidate.highland && sizeTier === "town") return "hilltop_town";
     if (tags.includes("frontier") && sizeTier === "village") return "walled_encampment";
     if (sizeTier === "grand_hub" || sizeTier === "city") return candidate.strategic >= 0.22 ? "walled_city" : "city";
+    if ((candidate.coastal || candidate.inlandWater) && sizeTier === "town") return "port_town";
     if (sizeTier === "town") return "hilltop_town";
+    if (candidate.fertility >= 0.82 && candidate.routeability < 0.64 && !candidate.coastal && !candidate.highland) return "farmstead";
     return "village";
   }
 
@@ -1577,6 +1580,8 @@
     const forestCount = (hex.features || []).filter(feature => ["forest", "dead_trees", "jungle", "jungle_trees"].includes(feature)).length
       + nearby.reduce((sum, neighbor) => sum + (neighbor.features || []).filter(feature => ["forest", "dead_trees", "jungle", "jungle_trees"].includes(feature)).length, 0);
     const fertility = scoreSettlementFertility(hex, nearby);
+    const routeability = scoreSettlementRouteability(hex, nearby, riverData);
+    const coastalWater = nearby.some(neighbor => ["coastal_water", "sea"].includes(neighbor.baseTerrain));
     const waterish = hasRiverAccess(hex, nearby, riverData) || nearby.some(neighbor => ["coastal_water", "sea", "inland_water"].includes(neighbor.baseTerrain));
 
     if (rockCount >= 3 || (hex.features || []).some(feature => ["mountains", "snowcapped_mountains", "lone_mountain", "volcano"].includes(feature))) {
@@ -1586,13 +1591,25 @@
       candidates.push({ kind: "quarry", label: "Quarry", icon: "quarry", score: 0.74 });
     }
     if (forestCount >= 2 || ["jungle_floor", "lush_grassland", "wetland"].includes(hex.baseTerrain)) {
-      candidates.push({ kind: "lumber", label: "Lumber Camp", icon: "lumber_camp", score: 0.76 });
+      const lumberIcon = forestCount >= 4 || routeability >= 0.6 ? "lumber_mill" : "lumber_camp";
+      candidates.push({
+        kind: "lumber",
+        label: lumberIcon === "lumber_mill" ? "Lumber Mill" : "Lumber Camp",
+        icon: lumberIcon,
+        score: 0.76
+      });
     }
     if (fertility >= 0.78) {
       candidates.push({ kind: "farm", label: "Farms", icon: "farmstead", score: 0.88 });
     }
     if (waterish) {
-      candidates.push({ kind: "fishery", label: "Fishery", icon: nearby.some(neighbor => ["coastal_water", "sea"].includes(neighbor.baseTerrain)) ? "docks" : "windmill", score: 0.72 });
+      const fisheryIcon = coastalWater && routeability >= 0.58 ? "docks" : "fishing_camp";
+      candidates.push({
+        kind: "fishery",
+        label: fisheryIcon === "docks" ? "Docks" : "Fishing Camp",
+        icon: fisheryIcon,
+        score: 0.72
+      });
     }
 
     return candidates.sort((a, b) => b.score - a.score)[0] || null;
@@ -1707,11 +1724,13 @@
         const nearby = nearbyWithin(hex, byCoord, 1);
         const crossing = hasRiverAccess(hex, nearby, riverData) ? 1 : 0;
         const pass = getNearbyTerrainCount([hex, ...nearby], ["rock", "snow"]) >= 2 ? 1 : 0;
+        const frontier = distanceToMapEdge(hex, dimensions) <= 2 ? 1 : 0;
         const midpointBias = 1 - Math.abs((index / Math.max(1, route.path.length - 1)) - 0.5);
-        const record = byHex.get(hexId) || { hex, corridorCount: 0, crossing: 0, pass: 0, midpoint: 0, nearby };
+        const record = byHex.get(hexId) || { hex, corridorCount: 0, crossing: 0, pass: 0, frontier: 0, midpoint: 0, nearby };
         record.corridorCount += 1;
         record.crossing = Math.max(record.crossing, crossing);
         record.pass = Math.max(record.pass, pass);
+        record.frontier = Math.max(record.frontier, frontier);
         record.midpoint = Math.max(record.midpoint, midpointBias);
         if (!record.routeNames) record.routeNames = new Set();
         if (route.from?.name) record.routeNames.add(route.from.name);
@@ -1725,9 +1744,9 @@
         const nearestSettlement = findNearestSettlementAnchor(record.hex, settlementAnchors);
         if (!nearestSettlement || nearestSettlement.distance < 2) return null;
         const baseScore = Math.min(1, record.corridorCount / 3) * 0.4 + record.crossing * 0.22 + record.pass * 0.16 + record.midpoint * 0.12;
-        const frontier = distanceToMapEdge(record.hex, dimensions) <= 2 ? 0.08 : 0;
+        const frontierBias = record.frontier ? 0.08 : 0;
         const routeability = scoreSettlementRouteability(record.hex, record.nearby, riverData) * 0.1;
-        const score = baseScore + frontier + routeability;
+        const score = baseScore + frontierBias + routeability;
         if (score < 0.32) return null;
         const icon = chooseWaypointIcon(record);
         const tags = getWaypointTags(record);
@@ -1741,6 +1760,7 @@
             corridorCount: record.corridorCount,
             crossing: record.crossing,
             pass: record.pass,
+            frontier: record.frontier,
             nearestSettlement: nearestSettlement.anchor?.name || "",
             routeNames: record.routeNames ? [...record.routeNames].filter(Boolean).slice(0, 4) : []
           }
@@ -1805,10 +1825,14 @@
   }
 
   function chooseWaypointIcon(record) {
+    if (record.crossing && record.corridorCount >= 3) return "bridge_gate";
     if (record.crossing) return "ford";
+    if (record.pass && (record.frontier || record.corridorCount >= 2)) return "border_post";
     if (record.pass) return "mountain_pass";
     if (record.corridorCount >= 3) return "market";
-    return record.midpoint >= 0.65 ? "tavern" : "lodge";
+    if (record.frontier) return record.midpoint >= 0.55 ? "lodge" : "campsite";
+    if (record.midpoint >= 0.72) return "inn";
+    return record.midpoint >= 0.5 ? "tavern" : "lodge";
   }
 
   function getWaypointTags(record) {
@@ -1856,6 +1880,21 @@
       ]);
     }
 
+    if (candidate.icon === "bridge_gate") {
+      if (relatedBaseName && seededUnit(`${seed}:related-roll`) < 0.54) {
+        return buildRelatedGeneratedSiteName(seed, relatedBaseName, ["Bridge", "Gate", "Post"], ["Old", "Stone", "Upper", "Lower", "North", "South"], {
+          qualifierChance: 0.26
+        });
+      }
+      return buildGeneratedPatternName(seed, [
+        {
+          prefixes: ["Stone", "Grey", "King's", "Lantern", "River", "Reed", "Old", "South", "North", "Moss", "Willow", "Bell", "Warden's"],
+          suffixes: ["Bridge", "Gate", "Post", "Crossing"],
+          forceSpace: true
+        }
+      ]);
+    }
+
     if (candidate.icon === "mountain_pass") {
       if (relatedBaseName && seededUnit(`${seed}:related-roll`) < 0.46) {
         return buildRelatedGeneratedSiteName(seed, relatedBaseName, ["Pass", "Gate", "Rest"], ["High", "Cold", "North", "South", "Old"], {
@@ -1876,6 +1915,21 @@
       ]);
     }
 
+    if (candidate.icon === "border_post") {
+      if (relatedBaseName && seededUnit(`${seed}:related-roll`) < 0.46) {
+        return buildRelatedGeneratedSiteName(seed, relatedBaseName, ["Post", "Gate", "Watch"], ["North", "South", "East", "West", "Old", "High"], {
+          qualifierChance: 0.24
+        });
+      }
+      return buildGeneratedPatternName(seed, [
+        {
+          prefixes: ["North", "South", "East", "West", "High", "Grey", "Stone", "Wolf", "Banner", "Sentinel", "Watcher's", "Warden's"],
+          suffixes: ["Post", "Gate", "Watch", "Station"],
+          forceSpace: true
+        }
+      ]);
+    }
+
     if (candidate.icon === "market") {
       if (relatedBaseName && seededUnit(`${seed}:related-roll`) < 0.44) {
         return `${relatedBaseName} ${seededPick(["Market", "Exchange", "Post", "Hall"], `${seed}:related-suffix`) || "Market"}`;
@@ -1884,6 +1938,19 @@
         {
           prefixes: ["Three Roads", "Crossways", "Wayfarers", "Old Road", "Greyroad", "Merchants", "King's Road", "South Road", "River Road", "Long Way", "Lantern", "Coin", "Guild", "Charter", "Mercers"],
           suffixes: ["Market", "Exchange", "Post", "Hall", "Court"],
+          forceSpace: true
+        }
+      ]);
+    }
+
+    if (candidate.icon === "campsite") {
+      if (relatedBaseName && seededUnit(`${seed}:related-roll`) < 0.38) {
+        return `${relatedBaseName} ${seededPick(["Camp", "Rest", "Fire"], `${seed}:related-suffix`) || "Camp"}`;
+      }
+      return buildGeneratedPatternName(seed, [
+        {
+          prefixes: ["Old Road", "Wayfarers", "Lantern", "Cold", "Pine", "Grey", "North", "South", "Warden's", "Pilgrim's"],
+          suffixes: ["Camp", "Rest", "Fire", "Watch"],
           forceSpace: true
         }
       ]);
@@ -1915,8 +1982,11 @@
 
   function buildWaypointFallbackName(candidate) {
     if (candidate?.icon === "ford") return "Stone Ford";
+    if (candidate?.icon === "bridge_gate") return "Old Bridge Gate";
     if (candidate?.icon === "mountain_pass") return "High Pass";
+    if (candidate?.icon === "border_post") return "North Border Post";
     if (candidate?.icon === "market") return "Crossroads Market";
+    if (candidate?.icon === "campsite") return "Wayfarers Camp";
     return "Wayfarers Inn";
   }
 

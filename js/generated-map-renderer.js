@@ -561,6 +561,7 @@
       generationRoadAmount: 100,
       generationRiverAmount: 100,
       generationRiverLength: 100,
+      generationRiverWildcards: 100,
       generationSettlementDensity: 100,
       generationPopulationConcentration: 100,
       generationResourceAmount: 100,
@@ -1455,6 +1456,7 @@
       ["map-generation-road", "generationRoadAmount"],
       ["map-generation-river", "generationRiverAmount"],
       ["map-generation-river-length", "generationRiverLength"],
+      ["map-generation-river-wildcards", "generationRiverWildcards"],
       ["map-generation-settlement-density", "generationSettlementDensity"],
       ["map-generation-population-concentration", "generationPopulationConcentration"],
       ["map-generation-resource-amount", "generationResourceAmount"],
@@ -1462,7 +1464,9 @@
     ].forEach(([inputId, drawingKey]) => {
       const input = document.getElementById(inputId);
       input?.addEventListener("input", () => {
-        renderer.drawing[drawingKey] = clampNumber(Number(input.value), 0, 200, 100);
+        const inputMin = Number(input.min || 0);
+        const inputMax = Number(input.max || 200);
+        renderer.drawing[drawingKey] = clampNumber(Number(input.value), inputMin, inputMax, 100);
         updateGenerationControls();
       });
     });
@@ -3088,6 +3092,7 @@
       ["road", "generationRoadAmount"],
       ["river", "generationRiverAmount"],
       ["river-length", "generationRiverLength"],
+      ["river-wildcards", "generationRiverWildcards"],
       ["settlement-density", "generationSettlementDensity"],
       ["population-concentration", "generationPopulationConcentration"],
       ["resource-amount", "generationResourceAmount"],
@@ -3120,6 +3125,7 @@
       generationRoadAmount: 100,
       generationRiverAmount: 100,
       generationRiverLength: 100,
+      generationRiverWildcards: 100,
       generationSettlementDensity: 100,
       generationPopulationConcentration: 100,
       generationResourceAmount: 100,
@@ -6280,7 +6286,9 @@
   function connectedPathStrings(segments, type, breakHexIds = new Set()) {
     const groups = new Map();
     segments.forEach(segment => {
-      const style = type === "river" ? "river" : segment.Style || "dark_brown";
+      const style = type === "river"
+        ? segment.Style || "river"
+        : segment.Style || "dark_brown";
       const key = `${style}::${segment.Is_Major_Route ? "major" : "minor"}::${segment.Route_Name || ""}`;
       if (!groups.has(key)) groups.set(key, { style, isMajor: Boolean(segment.Is_Major_Route), routeName: segment.Route_Name || "", segments: [] });
       groups.get(key).segments.push(segment);
@@ -6825,14 +6833,16 @@
   function getCanvasRiverPathStrings(segments, options = {}) {
     const groups = new Map();
     segments.forEach(segment => {
-      const key = `${segment.Is_Major_Route ? "major" : "minor"}::${segment.Route_Name || ""}`;
-      if (!groups.has(key)) groups.set(key, { isMajor: Boolean(segment.Is_Major_Route), routeName: segment.Route_Name || "", segments: [] });
+      const style = segment.Style || "river";
+      const key = `${style}::${segment.Is_Major_Route ? "major" : "minor"}::${segment.Route_Name || ""}`;
+      if (!groups.has(key)) groups.set(key, { style, isMajor: Boolean(segment.Is_Major_Route), routeName: segment.Route_Name || "", segments: [] });
       groups.get(key).segments.push(segment);
     });
 
     return [...groups.values()].flatMap(group => (
       getWaterCutoffPathStrings(group.segments, "river", new Set(), options).map(pathData => ({
         ...pathData,
+        style: group.style,
         isMajor: group.isMajor,
         routeName: group.routeName
       }))
@@ -8966,6 +8976,9 @@
     routes.forEach(route => {
       const sequence = Array.isArray(route) ? route : route?.sequence || [];
       const segmentRouteMetadata = getRouteMetadataForOverlayRoute(route, tool, routeMetadata);
+      const routeStyle = route && !Array.isArray(route) && route.style
+        ? route.style
+        : style;
       if (route?.startEdge && sequence.length) {
         const fromHexId = sequence[0];
         const key = `${tool}:${fromHexId}:edge:${route.startEdge}`;
@@ -8976,7 +8989,7 @@
             fromHexId,
             toHexId: null,
             edge: route.startEdge,
-            style,
+            style: routeStyle,
             routeMetadata: segmentRouteMetadata
           });
         }
@@ -8991,7 +9004,7 @@
           tool: segmentTool,
           fromHexId,
           toHexId,
-          style: segmentTool === "sea_route" ? "sea_route" : style,
+          style: segmentTool === "sea_route" ? "sea_route" : routeStyle,
           routeMetadata: getSegmentRouteMetadata(segmentTool, segmentRouteMetadata)
         });
       });
@@ -9005,7 +9018,7 @@
             fromHexId,
             toHexId: null,
             edge: route.exitEdge,
-            style,
+            style: routeStyle,
             routeMetadata: segmentRouteMetadata
           });
         }
@@ -9407,7 +9420,8 @@
   function buildGeneratedRiverRoutes(campaignId) {
     const seedBase = getGenerationSeedBase(campaignId);
     const amountScale = Math.max(0.25, Math.min(2, Number(renderer.drawing.generationRiverAmount || 100) / 100));
-    const lengthScale = Math.max(0.5, Math.min(1.75, Number(renderer.drawing.generationRiverLength || 100) / 100));
+    const lengthScale = Math.max(0.6, Math.min(3, Number(renderer.drawing.generationRiverLength || 100) / 100));
+    const wildcardScale = Math.max(0, Math.min(2, Number(renderer.drawing.generationRiverWildcards || 100) / 100));
     const maxRivers = Math.max(1, Math.round(7 * amountScale));
     const sources = renderer.hexes
       .filter(hex => !isWaterHex(hex) && getRiverSourceScore(hex) > 0)
@@ -9415,47 +9429,340 @@
         getSeededRiverSourceScore(b, seedBase) - getSeededRiverSourceScore(a, seedBase) ||
         a.id.localeCompare(b.id)
       ));
+    const wildcardSources = getGeneratedRiverWildcardSourceEntries(sources, seedBase, amountScale, wildcardScale);
+    const sourceEntries = injectGeneratedRiverWildcardSourceEntries(sources, wildcardSources, seedBase, maxRivers, wildcardScale);
+    const wildcardRouteTarget = getGeneratedRiverWildcardRouteTarget(wildcardSources, wildcardScale, maxRivers);
     const routes = [];
+    const existingRiverHexIds = getExistingRiverOverlayHexIds();
     const usedHexes = new Set();
+    const selectedSources = [];
+    const sourceDensityById = new Map(sources.map(source => [source.id, getGeneratedRiverSourceLocalDensity(source, sources)]));
     let trunkCount = 0;
+    let wildcardTrunkCount = 0;
 
-    for (const source of sources) {
+    for (const sourceEntry of sourceEntries) {
       if (trunkCount >= maxRivers) break;
-      if (nearbyHexesWithin(source, 4).some(hex => usedHexes.has(hex.id))) continue;
-      const route = getGeneratedRiverRoute(source, campaignId, { seedBase, lengthScale });
+      const source = sourceEntry?.source || sourceEntry;
+      const isWildcardSource = Boolean(sourceEntry?.wildcard);
+      const wildcardRoutesRemaining = Math.max(0, wildcardRouteTarget - wildcardTrunkCount);
+      const remainingSlots = Math.max(0, maxRivers - trunkCount);
+      if (!isWildcardSource && wildcardRoutesRemaining > 0 && remainingSlots <= wildcardRoutesRemaining) continue;
+      const localDensity = isWildcardSource
+        ? Math.max(0.7, 0.65 + Number(sourceEntry?.nearbyCoreCount || 0) * 0.3)
+        : (sourceDensityById.get(source.id) || 1);
+      const preferredSpacing = getGeneratedRiverPreferredSourceSpacing(amountScale, trunkCount, maxRivers);
+      const effectiveSpacing = isWildcardSource
+        ? Math.max(3, preferredSpacing - Math.round(2 + wildcardScale * 2.5))
+        : preferredSpacing;
+      const nearestSelectedDistance = selectedSources.reduce((best, candidate) => (
+        Math.min(best, getGeneratedRiverSourceDistance(candidate, source))
+      ), Infinity);
+      if (
+        nearestSelectedDistance < effectiveSpacing
+        && trunkCount < Math.max(1, Math.round(maxRivers * 0.7))
+        && !(isWildcardSource && wildcardRoutesRemaining > 0)
+      ) continue;
+      const nearbySelectedCount = selectedSources.filter(candidate => (
+        getGeneratedRiverSourceDistance(candidate, source) <= 3
+      )).length;
+      const clusterAllowance = isWildcardSource
+        ? 1
+        : getGeneratedRiverSourceClusterAllowance(source, localDensity, amountScale, seedBase);
+      if (nearbySelectedCount >= clusterAllowance && !(isWildcardSource && wildcardRoutesRemaining > 0)) continue;
+      const joinPressure = getGeneratedRiverJoinPressure({
+        localDensity,
+        siblingIndex: nearbySelectedCount,
+        nearestSelectedDistance,
+        wildcardSource: isWildcardSource
+      });
+      const blockedHexIds = new Set([...existingRiverHexIds, ...usedHexes]);
+      const route = getGeneratedRiverRoute(source, campaignId, {
+        seedBase,
+        amountScale,
+        lengthScale,
+        blockedHexIds,
+        localDensity,
+        siblingIndex: nearbySelectedCount,
+        nearestSelectedDistance,
+        joinPressure,
+        wildcardSource: isWildcardSource,
+        routeVariantKey: `${isWildcardSource ? "wild:" : ""}${source.id}:${nearbySelectedCount}:${localDensity}`
+      });
       const sequence = route?.sequence || [];
       if (!sequence || sequence.length < 4) continue;
+      if (isGeneratedRiverSequenceTooOverlapped(sequence, blockedHexIds)) continue;
       routes.push(...(route.routes || []));
       trunkCount += 1;
-      sequence.forEach(hexId => usedHexes.add(hexId));
+      if (isWildcardSource) wildcardTrunkCount += 1;
+      selectedSources.push(source);
+      getGeneratedRiverOccupiedHexIds(route).forEach(hexId => usedHexes.add(hexId));
     }
 
     return routes;
   }
 
+  function getGeneratedRiverWildcardRouteTarget(wildcardSources, wildcardScale, maxRivers) {
+    const available = Array.isArray(wildcardSources) ? wildcardSources.length : 0;
+    if (!available || wildcardScale < 1.35) return 0;
+    const preferred = wildcardScale >= 1.85 ? 2 : 1;
+    return Math.max(1, Math.min(available, preferred, Math.max(1, Math.round(maxRivers * 0.34))));
+  }
+
+  function getGeneratedRiverOccupiedHexIds(route) {
+    const hexIds = new Set(Array.isArray(route?.sequence) ? route.sequence.filter(Boolean) : []);
+    (route?.routes || []).forEach(visibleRoute => {
+      const sequence = Array.isArray(visibleRoute?.sequence) ? visibleRoute.sequence : [];
+      sequence.forEach(hexId => {
+        if (hexId) hexIds.add(hexId);
+      });
+    });
+    return hexIds;
+  }
+
+  function isGeneratedRiverHighlandHex(hex) {
+    if (!hex || isWaterHex(hex)) return false;
+    return (hex.features || []).some(feature => ["mountains", "snowcapped_mountains", "lone_mountain", "volcano", "ridges", "cliffs"].includes(feature));
+  }
+
   function getRiverSourceScore(hex) {
     if (!hex || isWaterHex(hex)) return 0;
     const elevation = Number(hex.elevation || 0);
-    const highlandFeature = (hex.features || []).some(feature => ["mountains", "snowcapped_mountains", "lone_mountain", "volcano", "ridges", "cliffs"].includes(feature));
-    return (elevation >= 3 ? elevation : 0) + (highlandFeature ? 2 : 0);
+    const highlandFeature = isGeneratedRiverHighlandHex(hex);
+    const immediateNeighbors = EDGE_NAMES
+      .map(edgeName => getNeighborHex(hex, edgeName))
+      .filter(Boolean);
+    const adjacentHighlandCount = immediateNeighbors.filter(isGeneratedRiverHighlandHex).length;
+    const adjacentUplandCount = immediateNeighbors.filter(neighbor => Number(neighbor.elevation || 0) >= 3).length;
+    if (elevation < 2 && !highlandFeature && !adjacentHighlandCount) return 0;
+    const elevationScore = elevation >= 4
+      ? 3.2 + (elevation - 4) * 1.1
+      : elevation >= 3
+        ? 2.2 + (elevation - 3) * 0.7
+        : elevation >= 2
+          ? 1
+          : 0.4;
+    return elevationScore
+      + (highlandFeature ? 2.4 : 0)
+      + Math.min(1.4, adjacentHighlandCount * 0.42)
+      + Math.min(0.6, adjacentUplandCount * 0.14);
   }
 
   function getSeededRiverSourceScore(hex, seedBase) {
     return getRiverSourceScore(hex) + seededUnit(`${seedBase}:river-source:${hex.id}`) * 5;
   }
 
+  function getExistingRiverOverlayHexIds() {
+    const hexIds = new Set();
+    (renderer.mapOverlays || []).forEach(overlay => {
+      if (overlay?.Overlay_Type !== "river") return;
+      if (overlay.From_Hex_ID_Ref) hexIds.add(overlay.From_Hex_ID_Ref);
+      if (overlay.To_Hex_ID_Ref) hexIds.add(overlay.To_Hex_ID_Ref);
+    });
+    return hexIds;
+  }
+
+  function getOddQCubeCoord(hex) {
+    if (!hex) return null;
+    const cubeX = Number(hex.x || 0);
+    const cubeZ = Number(hex.y || 0) - ((cubeX - (cubeX & 1)) / 2);
+    const cubeY = -cubeX - cubeZ;
+    return { x: cubeX, y: cubeY, z: cubeZ };
+  }
+
+  function getGeneratedRiverSourceDistance(fromHex, toHex) {
+    if (!fromHex?.id || !toHex?.id) return Infinity;
+    const fromCube = getOddQCubeCoord(fromHex);
+    const toCube = getOddQCubeCoord(toHex);
+    if (!fromCube || !toCube) return Infinity;
+    return Math.max(
+      Math.abs(fromCube.x - toCube.x),
+      Math.abs(fromCube.y - toCube.y),
+      Math.abs(fromCube.z - toCube.z)
+    );
+  }
+
+  function getGeneratedRiverSourceLocalDensity(source, sources, radius = 3) {
+    if (!source?.id) return 0;
+    const sourceIds = new Set((sources || []).map(candidate => candidate?.id).filter(Boolean));
+    return 1 + nearbyHexesWithin(source, radius).reduce((count, candidate) => (
+      candidate?.id && sourceIds.has(candidate.id)
+        ? count + 1
+        : count
+    ), 0);
+  }
+
+  function getGeneratedRiverNearbyCandidateCount(hex, candidateIds, radius = 4) {
+    if (!hex?.id || !(candidateIds instanceof Set) || !candidateIds.size) return 0;
+    return nearbyHexesWithin(hex, radius).reduce((count, candidate) => (
+      candidate?.id && candidateIds.has(candidate.id)
+        ? count + 1
+        : count
+    ), 0);
+  }
+
+  function getGeneratedRiverWildcardSourceEntries(sources, seedBase, amountScale, wildcardScale = 1) {
+    const wildcardMultiplier = wildcardScale <= 0
+      ? 0
+      : wildcardScale * (0.7 + wildcardScale * 0.45);
+    const wildcardChance = Math.min(0.58, (0.07 + Math.max(0, amountScale - 0.5) * 0.08) * wildcardMultiplier);
+    if (wildcardScale < 1.35 && seededUnit(`${seedBase}:river-wildcard-enable`) >= wildcardChance) return [];
+
+    const sourceIds = new Set((sources || []).map(source => source?.id).filter(Boolean));
+    const candidates = renderer.hexes
+      .map(hex => getGeneratedRiverWildcardSourceRecord(hex, sourceIds, seedBase))
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || a.source.id.localeCompare(b.source.id));
+
+    const selected = [];
+    const maxWildcardSources = wildcardScale >= 1.7 ? 2 : 1;
+    candidates.forEach(candidate => {
+      if (selected.length >= maxWildcardSources) return;
+      if (selected.some(existing => getGeneratedRiverSourceDistance(existing.source, candidate.source) < 10)) return;
+      selected.push(candidate);
+    });
+    return selected;
+  }
+
+  function getGeneratedRiverWildcardSourceRecord(hex, sourceIds, seedBase) {
+    if (!hex?.id || isWaterHex(hex) || getRiverSourceScore(hex) > 0) return null;
+    const elevation = Number(hex.elevation || 0);
+    if (getOuterMapEdge(hex)) return null;
+    if (["beach", "deep_desert"].includes(hex.baseTerrain)) return null;
+
+    const nearbyCoreCount = getGeneratedRiverNearbyCandidateCount(hex, sourceIds, 4);
+    const nearby = nearbyHexesWithin(hex, 2);
+    if (nearby.some(neighbor => isWaterHex(neighbor))) return null;
+    if (nearbyCoreCount > 2) return null;
+
+    const vegetationCount = nearby.filter(neighbor => (
+      (neighbor.features || []).some(feature => ["woods", "forest", "jungle", "marsh", "shrub"].includes(feature))
+    )).length;
+    const marshyCount = nearby.filter(neighbor => (
+      neighbor.baseTerrain === "wetland" || (neighbor.features || []).includes("marsh")
+    )).length;
+    const springTerrainBonus = hex.baseTerrain === "wetland"
+      ? 1.65
+      : hex.baseTerrain === "lush_grassland"
+        ? 1.05
+        : hex.baseTerrain === "grassland"
+          ? 0.35
+          : 0;
+    const springLikeTerrain = springTerrainBonus > 0 || marshyCount > 0;
+    if (elevation < (springLikeTerrain ? 0 : 1)) return null;
+    const roughness = getGeneratedRiverSinkRoughness(hex);
+    const interiorNeighbors = nearby.filter(neighbor => !getOuterMapEdge(neighbor)).length;
+    const score = (nearbyCoreCount === 0 ? 4.1 : nearbyCoreCount === 1 ? 2.65 : 1.25)
+      + elevation * 0.75
+      + springTerrainBonus
+      + Math.min(1.25, vegetationCount * 0.18)
+      + Math.min(1.05, marshyCount * 0.22)
+      + roughness * 0.35
+      + Math.min(0.9, interiorNeighbors * 0.08)
+      + seededUnit(`${seedBase}:river-wildcard-source:${hex.id}`) * 1.1;
+    return {
+      source: hex,
+      wildcard: true,
+      nearbyCoreCount,
+      score
+    };
+  }
+
+  function injectGeneratedRiverWildcardSourceEntries(sources, wildcardSources, seedBase, maxRivers, wildcardScale = 1) {
+    const entries = (sources || []).map(source => ({ source, wildcard: false }));
+    if (!Array.isArray(wildcardSources) || !wildcardSources.length) return entries;
+    const insertProgress = Math.max(0.16, Math.min(0.64,
+      0.42
+      - Math.max(0, wildcardScale - 1) * 0.14
+      + seededUnit(`${seedBase}:river-wildcard-insert`) * 0.18
+    ));
+    const insertIndex = Math.min(
+      entries.length,
+      Math.max(2, Math.round(Math.min(maxRivers, entries.length) * insertProgress))
+    );
+    wildcardSources.forEach((entry, index) => {
+      entries.splice(Math.min(entries.length, insertIndex + index), 0, entry);
+    });
+    return entries;
+  }
+
+  function getGeneratedRiverSourceClusterAllowance(source, localDensity, amountScale, seedBase) {
+    let allowance = 1;
+    const extraCapacity = Math.min(2, Math.max(0, Math.round(localDensity || 1) - 3));
+    for (let index = 0; index < extraCapacity; index += 1) {
+      const chance = Math.max(0, Math.min(0.82,
+        0.03
+        + Math.max(0, amountScale - 1.05) * 0.3
+        + Math.max(0, (localDensity || 1) - 3) * 0.08
+        + Math.max(0, getRiverSourceScore(source) - 5.2) * 0.03
+        - index * 0.22
+      ));
+      if (seededUnit(`${seedBase}:river-cluster-allowance:${source.id}:${index}`) < chance) {
+        allowance += 1;
+      }
+    }
+    return allowance;
+  }
+
+  function getGeneratedRiverPreferredSourceSpacing(amountScale, trunkCount, maxRivers) {
+    const progress = trunkCount / Math.max(1, maxRivers - 1 || 1);
+    const wideSpacingBase = 10.5 - Math.min(3.5, Math.max(0, amountScale - 0.25) * 1.8);
+    return Math.max(5, Math.round(wideSpacingBase - progress * 3));
+  }
+
+  function getGeneratedRiverJoinPressure(options = {}) {
+    const localDensity = Math.max(1, Number(options.localDensity || 1));
+    const siblingIndex = Math.max(0, Number(options.siblingIndex || 0));
+    const nearestSelectedDistance = Number.isFinite(Number(options.nearestSelectedDistance))
+      ? Number(options.nearestSelectedDistance)
+      : Infinity;
+    const distancePressure = Number.isFinite(nearestSelectedDistance)
+      ? Math.max(0, 1 - Math.max(0, nearestSelectedDistance - 2) / 6)
+      : 0;
+    return Math.max(0, Math.min(1,
+      siblingIndex * 0.38
+      + Math.max(0, localDensity - 2) * 0.12
+      + distancePressure * 0.46
+      + (options.wildcardSource ? 0.08 : 0)
+    ));
+  }
+
+  function isGeneratedRiverSequenceTooOverlapped(sequence, blockedHexIds) {
+    if (!(blockedHexIds instanceof Set) || !blockedHexIds.size || !Array.isArray(sequence) || !sequence.length) return false;
+    const headWindow = sequence.slice(0, Math.min(6, sequence.length));
+    const headOverlap = headWindow.filter(hexId => blockedHexIds.has(hexId)).length;
+    if (headOverlap >= Math.max(3, headWindow.length - 1)) return true;
+    const totalOverlap = sequence.filter(hexId => blockedHexIds.has(hexId)).length;
+    return totalOverlap >= Math.max(sequence.length - 2, Math.round(sequence.length * 0.72));
+  }
+
   function getGeneratedRiverRoute(source, campaignId, options = {}) {
     const seedBase = options.seedBase || getGenerationSeedBase(campaignId);
-    const lengthScale = options.lengthScale || Math.max(0.5, Math.min(1.75, Number(renderer.drawing.generationRiverLength || 100) / 100));
+    const lengthScale = options.lengthScale || Math.max(0.6, Math.min(3, Number(renderer.drawing.generationRiverLength || 100) / 100));
     const entryEdge = getOuterMapEdge(source);
     const startsOffMap = Boolean(entryEdge && seededUnit(`${seedBase}:river-entry:${source.id}`) < 0.45);
-    const goals = getGeneratedRiverGoalCandidates(source, seedBase, lengthScale);
+    const lengthBand = getGeneratedRiverLengthBand(source, seedBase, lengthScale, options);
+    const landGuides = getGeneratedRiverLandGuideCandidates(source, seedBase, lengthBand);
+    const goals = getGeneratedRiverGoalCandidates(source, seedBase, lengthScale, lengthBand);
+    const borderGoals = getGeneratedRiverBorderGuideCandidates(source, seedBase, lengthBand);
+    const naturalGuides = landGuides.length ? landGuides : goals;
 
     const previousSalt = renderer.drawing.manualRiverPathSalt;
-    const salt = createManualRiverPathSalt(source.id, (goals.length ? goals.slice(0, 4).map(goal => goal.id).join(":") : "legacy-fallback"));
+    const salt = createManualRiverPathSalt(source.id, options.routeVariantKey || (naturalGuides.length ? naturalGuides.slice(0, 4).map(goal => goal.id).join(":") : "legacy-fallback"));
     renderer.drawing.manualRiverPathSalt = salt;
-    let sequence = goals.length ? getGeneratedRiverAdaptivePathSequence(source.id, goals, { source, seedBase, lengthScale }) : null;
-    if ((!sequence?.length || sequence.length < 4) && goals.length) {
+    let sequence = getGeneratedRiverNaturalPathSequence(source.id, naturalGuides, {
+      ...options,
+      source,
+      seedBase,
+      lengthScale,
+      lengthBand,
+      landGuides,
+      waterGoals: goals,
+      borderGoals
+    });
+    if ((!sequence?.length || sequence.length < 4) && !landGuides.length && goals.length) {
+      sequence = getGeneratedRiverAdaptivePathSequence(source.id, goals, { source, seedBase, lengthScale });
+    }
+    if ((!sequence?.length || sequence.length < 4) && !landGuides.length && goals.length) {
       sequence = getGeneratedRiverFallbackPathSequence(source.id, goals);
     }
     if (!sequence?.length || sequence.length < 4) {
@@ -9464,13 +9771,538 @@
     renderer.drawing.manualRiverPathSalt = previousSalt;
     if (!sequence?.length || sequence.length < 4) return null;
 
-    const visibleRoutes = getManualRiverVisibleRoutes(sequence, salt, { isMajorRoute: false, routeName: "" })
+    const finalHex = hexForPathPoint(sequence[sequence.length - 1]);
+    const finalExitEdge = finalHex && !isRiverTradeContinuationWaterHex(finalHex)
+      ? getOuterMapEdge(finalHex)
+      : "";
+    const baseVisibleRoutes = getManualRiverVisibleRoutes(sequence, salt, { isMajorRoute: false, routeName: "" });
+    const visibleRoutes = baseVisibleRoutes
       .map((route, index) => ({
         ...route,
-        startEdge: startsOffMap && index === 0 ? entryEdge : route.startEdge || ""
+        startEdge: startsOffMap && index === 0 ? entryEdge : route.startEdge || "",
+        exitEdge: finalExitEdge && index === baseVisibleRoutes.length - 1 ? finalExitEdge : route.exitEdge || ""
       }));
-    visibleRoutes.push(...getManualRiverTributaryRoutes(sequence, salt));
+    visibleRoutes.push(...getManualRiverTributaryRoutes(
+      sequence,
+      salt,
+      getGeneratedRiverTributaryOptions(options)
+    ));
     return { routes: visibleRoutes, sequence };
+  }
+
+  function getGeneratedRiverTributaryOptions(options = {}) {
+    const amountScale = Math.max(0.25, Math.min(2, Number(options.amountScale || 1)));
+    const localDensity = Math.max(1, Number(options.localDensity || 1));
+    const siblingIndex = Math.max(0, Number(options.siblingIndex || 0));
+    const joinPressure = Math.max(0, Math.min(1, Number(options.joinPressure || 0)));
+    const suppression = Math.max(0, Math.min(0.94,
+      Math.max(0, amountScale - 1) * 0.42
+      + Math.max(0, localDensity - 2) * 0.12
+      + siblingIndex * 0.18
+      + joinPressure * 0.34
+      + (options.wildcardSource ? 0.08 : 0)
+    ));
+    return {
+      disable: suppression >= 0.92,
+      branchChanceMultiplier: Math.max(0.18, 1 - suppression * 0.82),
+      maxBranchChanceMultiplier: Math.max(0.22, 1 - suppression * 0.68),
+      chanceGrowthMultiplier: Math.max(0.28, 1 - suppression * 0.58),
+      branchGapBonus: Math.round(suppression * 7)
+    };
+  }
+
+  function getGeneratedRiverLengthBand(source, seedBase, lengthScale, options = {}) {
+    const elevation = Math.max(0, Number(source?.elevation || 0));
+    const sourceScore = Math.max(0, getRiverSourceScore(source));
+    const localDensity = Math.max(1, Number(options.localDensity || 1));
+    const siblingIndex = Math.max(0, Number(options.siblingIndex || 0));
+    const joinPressure = Math.max(0, Math.min(1, Number(options.joinPressure || 0)));
+    const wildcardLengthPenalty = options.wildcardSource ? 1 : 0;
+    const scale = Math.max(0.6, Math.min(3, Number(lengthScale) || 1));
+    const roll = seededUnit(`${seedBase}:river-length-band:${source?.id || ""}:${options.routeVariantKey || siblingIndex}`);
+    const mapLengthCap = Math.max(48, Math.min(260, Math.round(Math.sqrt(Math.max(1, renderer.hexes.length)) * 6.8)));
+    const baseMin = 12 + Math.max(0, elevation - 2) * 2.4 + Math.max(0, sourceScore - 4) * 1.1 - joinPressure * 1.8 - wildcardLengthPenalty * 1.5;
+    const baseTarget = 24 + elevation * 3 + sourceScore * 1.8 + Math.max(0, localDensity - 1) * 1 - siblingIndex * 3.2 - joinPressure * 7 - wildcardLengthPenalty * 6;
+    const baseMax = baseTarget + 22 + elevation * 2.2 + sourceScore * 1.1 - siblingIndex * 2.4 - joinPressure * 9 - wildcardLengthPenalty * 8;
+    const jitter = (roll - 0.5) * 8;
+    const minSteps = Math.max(8, Math.min(mapLengthCap - 24, Math.round((baseMin + jitter * 0.35) * (0.88 + scale * 0.32))));
+    const targetSteps = Math.max(minSteps + 10, Math.min(mapLengthCap - 10, Math.round((baseTarget + jitter) * (0.78 + scale * 0.42))));
+    const maxSteps = Math.max(targetSteps + 18, Math.min(mapLengthCap, Math.round((baseMax + jitter * 1.1) * (0.8 + scale * 0.46))));
+    return { minSteps, targetSteps, maxSteps };
+  }
+
+  function getGeneratedRiverLandGuideCandidates(source, seedBase, lengthBand) {
+    if (!source?.id) return [];
+    const minDistance = Math.max(4, Math.round((lengthBand?.minSteps || 6) * 0.45));
+    const maxDistance = Math.max(minDistance + 4, Math.round((lengthBand?.maxSteps || 16) * 1.1));
+    return renderer.hexes
+      .filter(hex => {
+        if (!hex?.id || hex.id === source.id || isWaterHex(hex)) return false;
+        const distance = getGeneratedRiverSourceDistance(source, hex);
+        return distance >= minDistance && distance <= maxDistance;
+      })
+      .map(hex => ({
+        hex,
+        score: getGeneratedRiverLandGuideScore(source, hex, seedBase)
+      }))
+      .filter(candidate => Number.isFinite(candidate.score))
+      .sort((a, b) => a.score - b.score || a.hex.id.localeCompare(b.hex.id))
+      .slice(0, 8)
+      .map(candidate => candidate.hex);
+  }
+
+  function getGeneratedRiverLandGuideScore(source, hex, seedBase) {
+    const distance = roadPathHeuristic(source, hex);
+    const elevation = Number(hex?.elevation || 0);
+    const sinkRoughness = getGeneratedRiverSinkRoughness(hex);
+    const edgeBias = getOuterMapEdge(hex) ? -0.35 : 0;
+    const roll = seededUnit(`${seedBase}:river-land-guide:${source.id}:${hex.id}`) * 1.1;
+    return distance + elevation * 0.85 - sinkRoughness * 0.9 + edgeBias + roll;
+  }
+
+  function getGeneratedRiverBorderGuideCandidates(source, seedBase, lengthBand) {
+    if (!source?.id) return [];
+    const minDistance = Math.max(6, Math.round((lengthBand?.minSteps || 8) * 0.6));
+    const maxDistance = Math.max(minDistance + 4, Math.round((lengthBand?.maxSteps || 18) * 1.18));
+    return renderer.hexes
+      .filter(hex => {
+        if (!hex?.id || hex.id === source.id || !getOuterMapEdge(hex)) return false;
+        const distance = getGeneratedRiverSourceDistance(source, hex);
+        return distance >= minDistance && distance <= maxDistance;
+      })
+      .map(hex => ({
+        hex,
+        score: getGeneratedRiverBorderGuideScore(source, hex, seedBase)
+      }))
+      .filter(candidate => Number.isFinite(candidate.score))
+      .sort((a, b) => a.score - b.score || a.hex.id.localeCompare(b.hex.id))
+      .slice(0, 10)
+      .map(candidate => candidate.hex);
+  }
+
+  function getGeneratedRiverBorderGuideScore(source, hex, seedBase) {
+    const distance = roadPathHeuristic(source, hex);
+    const elevation = Number(hex?.elevation || 0);
+    const waterDistance = getNearestWaterDistance(hex, 5);
+    const roll = seededUnit(`${seedBase}:river-border-guide:${source.id}:${hex.id}`) * 0.8;
+    return distance + elevation * 0.7 + waterDistance * 0.15 + roll;
+  }
+
+  function getGeneratedRiverNaturalPathSequence(fromHexId, guideCandidates, options = {}) {
+    const start = hexForPathPoint(fromHexId);
+    const guides = Array.isArray(guideCandidates) ? guideCandidates.filter(goal => goal?.id) : [];
+    const lengthBand = options.lengthBand || getGeneratedRiverLengthBand(start, options.seedBase || "", options.lengthScale || 1, options);
+    if (!start) return null;
+
+    const beamWidth = Math.max(14, Math.min(36, Math.round(18 + Math.max(0.5, Number(options.lengthScale) || 1) * 10)));
+    let frontier = [{
+      state: createManualRiverPathState(start, 0, 0, 0, ""),
+      sequence: [start.id],
+      cost: 0
+    }];
+    let bestFinished = null;
+
+    for (let stepCount = 1; stepCount <= lengthBand.maxSteps && frontier.length; stepCount += 1) {
+      const nextByKey = new Map();
+      frontier.forEach(node => {
+        const currentHex = node.state?.hex;
+        if (!currentHex) return;
+        const guideGoal = getGeneratedRiverNaturalGuideHex(start, currentHex, guides, stepCount, { ...options, lengthBand });
+        const naturalStepOptions = getGeneratedRiverNaturalStepOptions(node.state, stepCount, { ...options, lengthBand, guideGoal });
+        const constrainedNeighborIds = getGeneratedRiverNaturalConstrainedNeighborIds(currentHex, node.state, naturalStepOptions);
+        EDGE_NAMES.forEach(edgeName => {
+          const neighbor = getNeighborHex(currentHex, edgeName);
+          if (!neighbor) return;
+          if (node.sequence.length >= 2 && neighbor.id === node.sequence[node.sequence.length - 2]) return;
+          if (constrainedNeighborIds && !constrainedNeighborIds.has(neighbor.id)) return;
+          const transition = getManualRiverPathTransition(node.state, neighbor, guideGoal || currentHex, naturalStepOptions);
+          if (!transition || !Number.isFinite(transition.cost)) return;
+          const nextSequence = node.sequence.concat(neighbor.id);
+          const nextCost = node.cost + transition.cost + getGeneratedRiverNaturalTransitionBias(node, neighbor, stepCount, {
+            ...options,
+            lengthBand,
+            guideGoal
+          });
+          const nextKey = manualRiverStateKey(transition.state);
+          const existing = nextByKey.get(nextKey);
+          if (existing && existing.cost <= nextCost) return;
+
+          const candidate = {
+            state: transition.state,
+            sequence: nextSequence,
+            cost: nextCost
+          };
+          const terminationScore = getGeneratedRiverTerminationScore(candidate, stepCount, {
+            ...options,
+            lengthBand
+          });
+          if (Number.isFinite(terminationScore)) {
+            const finishedScore = nextCost + terminationScore;
+            if (!bestFinished || finishedScore < bestFinished.finishedScore) {
+              bestFinished = { ...candidate, finishedScore };
+            }
+          }
+          nextByKey.set(nextKey, candidate);
+        });
+      });
+
+      frontier = [...nextByKey.values()]
+        .sort((a, b) => (
+          (a.cost + getGeneratedRiverContinuationBias(a, stepCount, { ...options, lengthBand }))
+            - (b.cost + getGeneratedRiverContinuationBias(b, stepCount, { ...options, lengthBand })) ||
+          a.sequence[a.sequence.length - 1].localeCompare(b.sequence[b.sequence.length - 1])
+        ))
+        .slice(0, beamWidth);
+
+      if (bestFinished && stepCount >= lengthBand.targetSteps && frontier.length) {
+        const frontierFloor = frontier[0].cost + getGeneratedRiverContinuationBias(frontier[0], stepCount, { ...options, lengthBand });
+        if (frontierFloor > bestFinished.finishedScore + 6) break;
+      }
+    }
+
+    if (bestFinished?.sequence?.length >= 4) return bestFinished.sequence;
+    const bestRemaining = frontier.slice().sort((a, b) => a.cost - b.cost)[0];
+    const remainingHex = bestRemaining?.state?.hex || null;
+    const remainingSteps = Math.max(0, (bestRemaining?.sequence?.length || 1) - 1);
+    return bestRemaining?.sequence?.length >= Math.max(4, Math.round(lengthBand.targetSteps * 0.85))
+      && (
+        isRiverTradeContinuationWaterHex(remainingHex) ||
+        Boolean(getOuterMapEdge(remainingHex)) ||
+        canGeneratedRiverTerminateUnderground(remainingHex, remainingSteps, { ...options, lengthBand })
+      )
+      ? bestRemaining.sequence
+      : null;
+  }
+
+  function getGeneratedRiverNaturalGuideHex(startHex, fromHex, guideCandidates, stepCount, options = {}) {
+    if (!fromHex || !Array.isArray(guideCandidates) || !guideCandidates.length) return null;
+    const source = options.source || startHex || fromHex;
+    const lengthBand = options.lengthBand || {};
+    const seedBase = options.seedBase || "";
+    const lengthScale = options.lengthScale || 1;
+    const minimumRemaining = Math.max(0, (lengthBand.minSteps || 0) - stepCount);
+    const endingGuide = getGeneratedRiverEndingGuideHex(fromHex, stepCount, {
+      ...options,
+      source,
+      lengthBand
+    });
+    if (endingGuide) return endingGuide;
+    const activeGuides = Array.isArray(options.landGuides) && options.landGuides.length
+      ? options.landGuides.filter(goal => goal?.id)
+      : guideCandidates;
+    return activeGuides
+      .map(goal => {
+        const distance = Math.max(1, getGeneratedRiverSourceDistance(fromHex, goal));
+        const prematurePenalty = minimumRemaining > 0 && distance < Math.max(3, Math.round(minimumRemaining * 0.6))
+          ? (Math.max(0, Math.round(minimumRemaining * 0.6) - distance)) * 0.45
+          : 0;
+        return {
+          goal,
+          score: getGeneratedRiverGuideGoalScore(source, fromHex, goal, seedBase, lengthScale) + prematurePenalty
+        };
+      })
+      .filter(candidate => Number.isFinite(candidate.score))
+      .sort((a, b) => a.score - b.score || a.goal.id.localeCompare(b.goal.id))[0]?.goal || null;
+  }
+
+  function getGeneratedRiverEndingGuideHex(fromHex, stepCount, options = {}) {
+    const waterGoals = Array.isArray(options.waterGoals)
+      ? options.waterGoals.filter(goal => goal?.id && isWaterHex(goal))
+      : [];
+    const borderGoals = Array.isArray(options.borderGoals)
+      ? options.borderGoals.filter(goal => goal?.id && getOuterMapEdge(goal))
+      : [];
+    if (!fromHex || (!waterGoals.length && !borderGoals.length)) return null;
+    const lengthBand = options.lengthBand || {};
+    const targetSteps = Math.max(4, lengthBand.targetSteps || stepCount || 4);
+    if (stepCount < Math.round(targetSteps * 0.72)) return null;
+    const remainingBudget = Math.max(2, Math.round((lengthBand.maxSteps || targetSteps + 2) - stepCount));
+    const nearestWater = waterGoals
+      .map(goal => ({
+        goal,
+        score: roadPathHeuristic(fromHex, goal)
+          + (goal.baseTerrain === "coastal_water" ? -0.45 : goal.baseTerrain === "inland_water" ? -0.25 : -0.08)
+      }))
+      .sort((a, b) => a.score - b.score || a.goal.id.localeCompare(b.goal.id))[0] || null;
+    if (nearestWater && nearestWater.score <= Math.max(4.5, remainingBudget * 1.3)) {
+      return nearestWater.goal;
+    }
+    const nearestBorder = borderGoals
+      .map(goal => ({
+        goal,
+        score: roadPathHeuristic(fromHex, goal) + Number(goal.elevation || 0) * 0.22
+      }))
+      .sort((a, b) => a.score - b.score || a.goal.id.localeCompare(b.goal.id))[0] || null;
+    return nearestBorder?.goal || nearestWater?.goal || null;
+  }
+
+  function getGeneratedRiverNaturalStepOptions(state, stepCount, options = {}) {
+    const lengthBand = options.lengthBand || {};
+    const targetSteps = Math.max(5, lengthBand.targetSteps || 5);
+    const earlyWaterLimit = Math.max(4, Math.round(targetSteps * 0.55));
+    const fromWater = isRiverTradeContinuationWaterHex(state?.hex);
+    const bounceRecovery = fromWater || Number(state?.avoidWater || 0) > 0 || Number(state?.climbAway || 0) > 0;
+    const progressRatio = Math.max(0, Math.min(1.35, stepCount / Math.max(1, targetSteps)));
+    const routeVariationMultiplier = bounceRecovery
+      ? 0.85
+      : progressRatio < 0.28
+        ? 0.32
+        : progressRatio < 0.55
+          ? 0.58
+          : 0.9;
+    const guideCommitment = bounceRecovery
+      ? 0.15
+      : progressRatio < 0.42
+        ? 1
+        : progressRatio < 0.75
+          ? 0.56
+          : 0.22;
+    return {
+      generatedNaturalMode: true,
+      flattenDescent: !bounceRecovery,
+      suppressWaterPull: true,
+      constrainToEqualOrLowerLand: stepCount < earlyWaterLimit && !bounceRecovery,
+      routeVariationMultiplier,
+      generatedGuideCommitment: guideCommitment,
+      generatedWaterPullStrength: bounceRecovery ? 0 : getGeneratedRiverWaterPullStrength(stepCount, options)
+    };
+  }
+
+  function getGeneratedRiverWaterPullStrength(stepCount, options = {}) {
+    const sourceId = options.source?.id || "";
+    if (!sourceId) return 0;
+    const targetSteps = Math.max(5, options.lengthBand?.targetSteps || stepCount || 5);
+    const progressRatio = Math.max(0, Math.min(1.3, stepCount / Math.max(1, targetSteps)));
+    const onsetRoll = seededUnit(`${options.seedBase || ""}:river-water-pull-onset:${sourceId}:${options.routeVariantKey || ""}`);
+    const onsetProgress = 0.36 + onsetRoll * 0.24;
+    const traitChance = Math.min(0.94,
+      0.58
+      + Math.max(0, Number(options.joinPressure || 0)) * 0.18
+      + Math.max(0, progressRatio - 0.52) * 0.2
+    );
+    const hasTrait = seededUnit(`${options.seedBase || ""}:river-water-pull-trait:${sourceId}:${options.routeVariantKey || ""}`) < traitChance;
+    if (!hasTrait || progressRatio < onsetProgress) return 0;
+    const development = Math.min(1, (progressRatio - onsetProgress) / Math.max(0.12, 1 - onsetProgress));
+    const strengthBase = 0.42 + seededUnit(`${options.seedBase || ""}:river-water-pull-strength:${sourceId}:${options.routeVariantKey || ""}`) * 0.42;
+    return Math.max(0, Math.min(1, strengthBase * development));
+  }
+
+  function getGeneratedRiverNaturalConstrainedNeighborIds(currentHex, state, options = {}) {
+    if (!currentHex?.id || !options.constrainToEqualOrLowerLand) return null;
+    const currentElevation = Number(currentHex.elevation || 0);
+    const validLandNeighbors = EDGE_NAMES
+      .map(edgeName => getNeighborHex(currentHex, edgeName))
+      .filter(Boolean)
+      .filter(neighbor => !isWaterHex(neighbor) && Number(neighbor.elevation || 0) <= currentElevation)
+      .map(neighbor => neighbor.id);
+    return validLandNeighbors.length ? new Set(validLandNeighbors) : null;
+  }
+
+  function getGeneratedRiverBlockedAdjacencyCount(hex, blockedHexIds, radius = 1) {
+    if (!hex?.id || !(blockedHexIds instanceof Set) || !blockedHexIds.size) return 0;
+    const nearby = radius <= 1
+      ? EDGE_NAMES.map(edgeName => getNeighborHex(hex, edgeName)).filter(Boolean)
+      : nearbyHexesWithin(hex, radius);
+    return nearby.reduce((count, neighbor) => (
+      neighbor?.id && blockedHexIds.has(neighbor.id)
+        ? count + 1
+        : count
+    ), 0);
+  }
+
+  function getGeneratedRiverNaturalTransitionBias(node, toHex, stepCount, options = {}) {
+    const sequence = Array.isArray(node?.sequence) ? node.sequence : [];
+    const lengthBand = options.lengthBand || {};
+    const minSteps = Math.max(4, lengthBand.minSteps || 0);
+    const targetSteps = Math.max(minSteps + 1, lengthBand.targetSteps || minSteps + 1);
+    const joinPressure = Math.max(0, Math.min(1, Number(options.joinPressure || 0)));
+    const amountScale = Math.max(0.25, Math.min(2, Number(options.amountScale || 1)));
+    let cost = 0;
+
+    if (sequence.includes(toHex.id)) {
+      cost += isRiverTradeContinuationWaterHex(toHex) ? 4.5 : 18;
+    }
+    if (sequence.length >= 4 && toHex.id === sequence[sequence.length - 4]) {
+      cost += 9;
+    }
+
+    if (options.blockedHexIds instanceof Set && options.blockedHexIds.has(toHex.id)) {
+      const earlyJoinThreshold = Math.max(4, Math.round(minSteps * (0.8 - joinPressure * 0.24)));
+      cost += stepCount < earlyJoinThreshold
+        ? (9 + Math.max(0, minSteps - stepCount) * 0.45) * Math.max(0.34, 1 - joinPressure * 0.68)
+        : Math.max(-0.7, 1.8 - joinPressure * 2.6);
+    }
+    if (
+      options.blockedHexIds instanceof Set
+      && !options.blockedHexIds.has(toHex.id)
+      && stepCount < Math.round(targetSteps * 0.94)
+    ) {
+      const adjacentBlocked = getGeneratedRiverBlockedAdjacencyCount(toHex, options.blockedHexIds, 1);
+      if (adjacentBlocked > 0) {
+        const crowdingPressure = Math.max(0, amountScale - 1) * 0.9 + joinPressure * 0.45;
+        const earlyPhaseMultiplier = stepCount < Math.round(targetSteps * 0.72) ? 1.12 : 0.74;
+        cost += adjacentBlocked * (0.5 + crowdingPressure) * earlyPhaseMultiplier;
+      }
+    }
+
+    if (getOuterMapEdge(toHex) && stepCount < minSteps) {
+      cost += 7 + Math.max(0, minSteps - stepCount) * 0.4;
+    }
+    if (isWaterHex(toHex) && stepCount < minSteps) {
+      cost += 4.5 + Math.max(0, minSteps - stepCount) * 0.32;
+    }
+    if (toHex.baseTerrain === "wetland" && stepCount < Math.round(minSteps * 0.75)) {
+      cost += 1.5;
+    }
+    if (stepCount > targetSteps) {
+      cost += (stepCount - targetSteps) * 0.14;
+    }
+
+    if (options.source?.center && options.guideGoal?.center && toHex?.center && stepCount < Math.round(targetSteps * 0.78)) {
+      const guideCommitment = Math.max(0, Math.min(1, Number(options.generatedGuideCommitment || 0)));
+      if (guideCommitment > 0) {
+        const drift = pointDistanceToSegment(toHex.center, options.source.center, options.guideGoal.center) / Math.max(1, getGeneratedMapDimensions().radius);
+        cost += drift * 5.2 * guideCommitment;
+      }
+    }
+
+    cost += seededUnit(`${options.seedBase || ""}:river-natural-step:${sequence[sequence.length - 1] || ""}:${toHex.id}:${stepCount}`) * 0.35 * getRiverWildnessScale();
+    return cost;
+  }
+
+  function getGeneratedRiverContinuationBias(node, stepCount, options = {}) {
+    const hex = node?.state?.hex;
+    const lengthBand = options.lengthBand || {};
+    const minSteps = Math.max(4, lengthBand.minSteps || 0);
+    const targetSteps = Math.max(minSteps + 1, lengthBand.targetSteps || minSteps + 1);
+    if (!hex) return 0;
+
+    let bias = 0;
+    if (stepCount < minSteps) {
+      bias += Math.max(0, minSteps - stepCount) * 0.18;
+    }
+    if (stepCount > targetSteps) {
+      bias += (stepCount - targetSteps) * 0.2;
+    }
+    return bias;
+  }
+
+  function getGeneratedRiverTerminationScore(node, stepCount, options = {}) {
+    const hex = node?.state?.hex;
+    const state = node?.state || {};
+    const lengthBand = options.lengthBand || {};
+    const minSteps = Math.max(4, lengthBand.minSteps || 0);
+    const targetSteps = Math.max(minSteps + 1, lengthBand.targetSteps || minSteps + 1);
+    const maxSteps = Math.max(targetSteps + 2, lengthBand.maxSteps || targetSteps + 2);
+    if (!hex || stepCount < minSteps) return null;
+
+    const closenessPenalty = Math.abs(stepCount - targetSteps) * 0.18;
+    const lateRelief = stepCount > targetSteps ? Math.min(0.9, (stepCount - targetSteps) * 0.05) : 0;
+
+    if (options.blockedHexIds instanceof Set && options.blockedHexIds.has(hex.id) && stepCount >= Math.max(4, Math.round(minSteps * 0.78))) {
+      return -2.2 - Math.max(0, Math.min(1, Number(options.joinPressure || 0))) * 1.35 + closenessPenalty * 0.85 - lateRelief;
+    }
+    if (isRiverTradeContinuationWaterHex(hex)) {
+      const waterRun = Math.max(0, Number(state.waterRun || 0));
+      const entryStopNow = waterRun <= 1 && shouldGeneratedRiverStopAtWaterContact(hex, stepCount, options);
+      if (entryStopNow) {
+        return getGeneratedRiverWaterTerminationScore(hex, closenessPenalty, lateRelief, true);
+      }
+      if (stepCount >= Math.round(targetSteps * 0.92) || stepCount >= maxSteps - 1) {
+        return getGeneratedRiverWaterTerminationScore(hex, closenessPenalty, lateRelief, false);
+      }
+      return null;
+    }
+    if (hex.baseTerrain === "coastal_water") {
+      return -2.6 + closenessPenalty * 0.75 - lateRelief;
+    }
+    if (hex.baseTerrain === "sea") {
+      return -2.1 + closenessPenalty * 0.82 - lateRelief;
+    }
+    if (hex.baseTerrain === "inland_water") {
+      return -2.0 + closenessPenalty * 0.78 - lateRelief;
+    }
+    if (hex.baseTerrain === "wetland" && stepCount >= Math.round(targetSteps * 0.72)) {
+      return -1.05 + closenessPenalty * 0.92 - lateRelief;
+    }
+    if (getOuterMapEdge(hex) && stepCount >= Math.round(targetSteps * 0.75)) {
+      return -1.2 + closenessPenalty * 0.88 - lateRelief;
+    }
+    if (canGeneratedRiverTerminateUnderground(hex, stepCount, options)) {
+      return -0.68 + closenessPenalty - lateRelief + getNearestWaterDistance(hex, 4) * 0.06;
+    }
+    if (stepCount >= maxSteps) {
+      return Math.max(0.2,
+        getNearestWaterDistance(hex, 5) * 0.55
+        - getGeneratedRiverSinkRoughness(hex) * 0.18
+        + (isRiverTradeContinuationWaterHex(hex) ? -0.4 : 0)
+      );
+    }
+    return null;
+  }
+
+  function shouldGeneratedRiverStopAtWaterContact(hex, stepCount, options = {}) {
+    if (!hex || !isRiverTradeContinuationWaterHex(hex)) return false;
+    const targetSteps = Math.max(4, options.lengthBand?.targetSteps || stepCount);
+    const progressRatio = Math.max(0, Math.min(1.25, stepCount / Math.max(1, targetSteps)));
+    const baseChance = hex.baseTerrain === "coastal_water"
+      ? 0.6
+      : hex.baseTerrain === "inland_water"
+        ? 0.52
+        : 0.38;
+    const chance = Math.min(0.9, baseChance + Math.max(0, progressRatio - 0.45) * 0.42);
+    const source = options.source || hex;
+    return seededUnit(`${options.seedBase || ""}:river-water-stop:${source.id}:${hex.id}:${stepCount}`) < chance;
+  }
+
+  function getGeneratedRiverWaterTerminationScore(hex, closenessPenalty, lateRelief, onEntry) {
+    if (!hex) return null;
+    if (hex.baseTerrain === "coastal_water") {
+      return (onEntry ? -3.8 : -2.15) + closenessPenalty * 0.72 - lateRelief;
+    }
+    if (hex.baseTerrain === "inland_water") {
+      return (onEntry ? -3.35 : -1.8) + closenessPenalty * 0.76 - lateRelief;
+    }
+    if (hex.baseTerrain === "wetland") {
+      return (onEntry ? -1.85 : -1.1) + closenessPenalty * 0.9 - lateRelief;
+    }
+    return -1.2 + closenessPenalty * 0.88 - lateRelief;
+  }
+
+  function canGeneratedRiverTerminateUnderground(hex, stepCount, options = {}) {
+    if (!hex || isRiverTradeContinuationWaterHex(hex) || isWaterHex(hex)) return false;
+    const roughness = getGeneratedRiverSinkRoughness(hex);
+    if (roughness <= 0.9) return false;
+    if (getNearestWaterDistance(hex, 4) <= 1) return false;
+
+    const currentElevation = Number(hex.elevation || 0);
+    const lowerLandNeighbors = EDGE_NAMES
+      .map(edgeName => getNeighborHex(hex, edgeName))
+      .filter(Boolean)
+      .filter(neighbor => !isWaterHex(neighbor) && Number(neighbor.elevation || 0) < currentElevation)
+      .length;
+    const enclosed = lowerLandNeighbors <= 1;
+    const targetSteps = Math.max(4, options.lengthBand?.targetSteps || stepCount);
+    const lateBonus = stepCount >= Math.round(targetSteps * 0.85) ? 0.16 : 0;
+    const chance = Math.min(0.82,
+      (enclosed ? 0.28 : 0.16)
+      + roughness * 0.14
+      + lateBonus
+    );
+    const source = options.source || hex;
+    return seededUnit(`${options.seedBase || ""}:river-underground:${source.id}:${hex.id}`) < chance;
+  }
+
+  function getGeneratedRiverSinkRoughness(hex) {
+    if (!hex) return 0;
+    let roughness = 0;
+    if (["rock", "snow", "barrens", "bleak_barrens", "wastes", "desert", "deep_desert"].includes(hex.baseTerrain)) {
+      roughness += 1;
+    }
+    if ((hex.features || []).some(feature => ["ridges", "cliffs", "mountains", "snowcapped_mountains", "lone_mountain", "volcano"].includes(feature))) {
+      roughness += 1.35;
+    }
+    return roughness;
   }
 
   function getGeneratedRiverFallbackPathSequence(fromHexId, goals) {
@@ -9530,16 +10362,28 @@
     return sequence.length >= 4 ? sequence : null;
   }
 
-  function getGeneratedRiverGoalCandidates(source, seedBase, lengthScale) {
+  function getGeneratedRiverGoalCandidates(source, seedBase, lengthScale, lengthBand = null) {
     if (!source) return [];
+    const preferredMinDistance = lengthBand
+      ? Math.max(4, Math.round(lengthBand.minSteps * 0.55))
+      : Math.max(4, Math.round(5 * lengthScale));
+    const preferredMaxDistance = lengthBand
+      ? Math.max(preferredMinDistance + 4, lengthBand.maxSteps + 6)
+      : Math.max(8, Math.round(18 + lengthScale * 18));
+    const broadMinDistance = lengthBand
+      ? Math.max(2, Math.round(lengthBand.minSteps * 0.35))
+      : 2;
+    const broadMaxDistance = lengthBand
+      ? Math.max(preferredMaxDistance + 3, Math.round(lengthBand.maxSteps * 1.18))
+      : Math.max(10, Math.round(24 + lengthScale * 18));
     const ranges = [
       {
-        minDistance: Math.max(4, Math.round(5 * lengthScale)),
-        maxDistance: Math.max(8, Math.round(18 + lengthScale * 18))
+        minDistance: preferredMinDistance,
+        maxDistance: preferredMaxDistance
       },
       {
-        minDistance: 2,
-        maxDistance: Math.max(10, Math.round(24 + lengthScale * 18))
+        minDistance: broadMinDistance,
+        maxDistance: broadMaxDistance
       }
     ];
     for (const range of ranges) {
@@ -11989,7 +12833,7 @@
     return sequence;
   }
 
-  function getManualRiverPathTransition(state, toHex, goalHex) {
+  function getManualRiverPathTransition(state, toHex, goalHex, options = {}) {
     const fromHex = state.hex;
     const fromWater = isRiverTradeContinuationWaterHex(fromHex);
     const toWater = isRiverTradeContinuationWaterHex(toHex);
@@ -12000,10 +12844,14 @@
       const enteringWater = !fromWater;
       const waterRun = enteringWater ? 1 : state.waterRun + 1;
       const targetRun = getManualRiverWaterRunTarget(fromHex, toHex, goalHex);
-      const avoidCost = enteringWater ? state.avoidWater * 1.25 / getRiverWaterPullScale() : 0;
+      const avoidCost = enteringWater
+        ? options.generatedNaturalMode
+          ? state.avoidWater * 0.55
+          : state.avoidWater * 1.25 / getRiverWaterPullScale()
+        : 0;
       const continuingCost = !enteringWater && state.waterRun >= targetRun ? 2.6 + (state.waterRun - targetRun) * 1.4 : 0;
-      const bounceCost = enteringWater ? getManualRiverShoreBounceCost(fromHex, toHex, goalHex) : 0;
-      const goalBonus = goalIsWater ? -1.2 : 0;
+      const bounceCost = enteringWater ? getManualRiverShoreBounceCost(fromHex, toHex, goalHex, options) : 0;
+      const goalBonus = options.generatedNaturalMode ? 0 : goalIsWater ? -1.2 : 0;
       const straightnessCost = getManualRiverStraightnessCost(fromHex, toHex, goalHex);
       return {
         state: createManualRiverPathState(toHex, waterRun, 0, 0, enteringWater ? fromHex.id : state.waterEntryHexId),
@@ -12016,7 +12864,7 @@
     if (exitingWater && state.waterRun < getManualRiverWaterRunTarget(fromHex, toHex, goalHex)) {
       return {
         state: createManualRiverPathState(toHex, 0, getManualRiverBounceAvoidance(fromHex, toHex, goalHex), getManualRiverClimbAwaySteps(fromHex, toHex, goalHex)),
-        cost: getManualRiverLandStepCost(fromHex, toHex, goalHex, { preferUphill: true }) + 4.5
+        cost: getManualRiverLandStepCost(fromHex, toHex, goalHex, { ...options, preferUphill: true }) + 4.5
       };
     }
 
@@ -12028,16 +12876,19 @@
         exitingWater ? getManualRiverClimbAwaySteps(fromHex, toHex, goalHex) : Math.max(0, state.climbAway - 1)
       ),
       cost: getManualRiverLandStepCost(fromHex, toHex, goalHex, {
+        ...options,
         preferUphill: state.climbAway > 0 || exitingWater,
         shoreBounce: !fromWater && isNearRiverTradeContinuationWater(fromHex) && !isWaterHex(toHex)
       })
     };
   }
 
-  function getManualRiverShoreBounceCost(fromHex, waterHex, goalHex) {
+  function getManualRiverShoreBounceCost(fromHex, waterHex, goalHex, options = {}) {
     if (isWaterHex(goalHex)) return 0;
     const roll = seededUnit(`manual-river-shore-bounce:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex?.id || ""}:${waterHex?.id || ""}:${goalHex?.id || ""}`);
-    const bounceChance = Math.min(0.82, 0.58 * getRiverWildnessScale() / Math.max(0.6, getRiverWaterPullScale()));
+    const bounceChance = options.generatedNaturalMode
+      ? Math.min(0.86, 0.5 + getRiverWildnessScale() * 0.14)
+      : Math.min(0.82, 0.58 * getRiverWildnessScale() / Math.max(0.6, getRiverWaterPullScale()));
     return roll < bounceChance ? 16 * getRiverWildnessScale() : 0;
   }
 
@@ -12046,7 +12897,7 @@
     if (!state.waterEntryHexId) return true;
     const entryHex = hexForPathPoint(state.waterEntryHexId);
     const exitDistance = entryHex && exitHex ? getHexLineSequence(entryHex.id, exitHex.id).length - 1 : 0;
-    return exitDistance >= 5 || state.waterRun >= 7;
+    return exitDistance >= 5 || state.waterRun >= 5;
   }
 
   function isNearRiverTradeContinuationWater(hex) {
@@ -12191,15 +13042,28 @@
     const climb = Math.max(0, toElevation - fromElevation);
     const descent = Math.max(0, fromElevation - toElevation);
     const steepness = Math.abs(toElevation - fromElevation);
+    const flattenDescent = Boolean(options.generatedNaturalMode && options.flattenDescent && !options.preferUphill);
     const slopeCost = options.preferUphill
       ? climb * -1.15 + descent * 5.4 + steepness * 0.45
+      : flattenDescent
+        ? climb * 7.5 + Math.max(0, climb - 1) * 13 + (climb > 0 ? steepness * 0.65 : 0)
       : climb * 7.5 + Math.max(0, climb - 1) * 13 + steepness * 0.65 - Math.min(1.8, descent * 0.9);
     const terrainCost = getManualRiverTerrainCost(toHex);
     const waterDistance = getNearestWaterDistance(toHex, 5);
-    const waterPull = goalIsWater
+    const generatedWaterPullStrength = Math.max(0, Math.min(1, Number(options.generatedWaterPullStrength || 0)));
+    const waterPull = options.generatedNaturalMode
+      ? options.suppressWaterPull && generatedWaterPullStrength <= 0
+        ? 0
+        : Math.max(0, waterDistance - 2) * 0.12 * generatedWaterPullStrength
+      : options.suppressWaterPull
+      ? 0
+      : goalIsWater
       ? waterDistance * -0.28
       : Math.max(0, waterDistance - 2) * 0.18 * getRiverWaterPullScale();
-    const routeVariation = seededUnit(`manual-river-path:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex.id}:${toHex.id}`) * 1.15 * getRiverWildnessScale();
+    const routeVariationMultiplier = options.generatedNaturalMode
+      ? Math.max(0.15, Math.min(1, Number(options.routeVariationMultiplier || 1)))
+      : 1;
+    const routeVariation = seededUnit(`manual-river-path:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex.id}:${toHex.id}`) * 1.15 * getRiverWildnessScale() * routeVariationMultiplier;
     const shoreBounceBonus = options.shoreBounce
       ? seededUnit(`manual-river-shore-land:${renderer.drawing.manualRiverPathSalt || ""}:${fromHex.id}:${toHex.id}:${goalHex?.id || ""}`) * -2.6 * getRiverWildnessScale()
       : 0;
@@ -12215,19 +13079,25 @@
     );
   }
 
-  function getManualRiverTributaryRoutes(sequence, salt = "") {
+  function getManualRiverTributaryRoutes(sequence, salt = "", options = {}) {
     if (renderer.drawing.riverTributaries === false) return [];
+    if (options.disable) return [];
     const sequenceSet = new Set(sequence || []);
     const usedWaterHexIds = new Set();
     const tributaries = [];
-    let branchChance = 0.025;
+    const branchChanceMultiplier = Math.max(0.1, Number(options.branchChanceMultiplier || 1));
+    const maxBranchChanceMultiplier = Math.max(0.1, Number(options.maxBranchChanceMultiplier || 1));
+    const chanceGrowthMultiplier = Math.max(0.1, Number(options.chanceGrowthMultiplier || 1));
+    const minBranchGap = 7 + Math.max(0, Number(options.branchGapBonus || 0));
+    const maxBranchChance = 0.11 * maxBranchChanceMultiplier;
+    let branchChance = Math.min(maxBranchChance, 0.025 * branchChanceMultiplier);
     let lastBranchIndex = -99;
 
     (sequence || []).slice(1, -1).forEach((hexId, index) => {
       const hex = hexForPathPoint(hexId);
       if (!hex || isWaterHex(hex)) return;
-      if (index - lastBranchIndex < 7) {
-        branchChance = Math.min(0.1, branchChance + 0.006);
+      if (index - lastBranchIndex < minBranchGap) {
+        branchChance = Math.min(maxBranchChance, branchChance + 0.006 * chanceGrowthMultiplier);
         return;
       }
 
@@ -12263,12 +13133,12 @@
           routeMetadata: { isMajorRoute: false, routeName: "" }
         });
         usedWaterHexIds.add(tributary.waterHex.id);
-        branchChance = 0.008;
+        branchChance = Math.min(maxBranchChance, 0.008 * branchChanceMultiplier);
         lastBranchIndex = index;
         return;
       }
 
-      branchChance = Math.min(0.11, branchChance + 0.009);
+      branchChance = Math.min(maxBranchChance, branchChance + 0.009 * chanceGrowthMultiplier);
     });
 
     return tributaries;
